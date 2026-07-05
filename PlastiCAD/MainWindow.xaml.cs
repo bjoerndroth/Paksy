@@ -28,9 +28,10 @@ namespace PlastiCAD
         private Part selectedPart;
         private PlacedPart selectedPlacedPart;
         private const double Scale = 2.0;
+        private const double SnapDistance = 12.0;
 
         private bool isDragging = false;
-        private Vector3 dragOffset;
+        private Vector3 dragOffset = new Vector3();
         public MainWindow()
         
         {
@@ -67,9 +68,10 @@ namespace PlastiCAD
 
             Point p = e.GetPosition(BuildArea);
 
-            selectedPlacedPart.Position.X = p.X - dragOffset.X;
-            selectedPlacedPart.Position.Y = p.Y - dragOffset.Y;
+            selectedPlacedPart.Transform.Position.X = p.X - dragOffset.X;
+            selectedPlacedPart.Transform.Position.Y = p.Y - dragOffset.Y;
 
+            TrySnap(selectedPlacedPart);
             RedrawScene();
         }
 
@@ -87,15 +89,17 @@ namespace PlastiCAD
             // Prüfen, ob ein vorhandenes Teil angeklickt wurde
             selectedPlacedPart = GetPartAt(p);
 
-           
+
 
             if (selectedPlacedPart != null)
             {
                 isDragging = true;
 
+                BuildArea.CaptureMouse();
+
                 dragOffset = new Vector3(
-                    p.X - selectedPlacedPart.Position.X,
-                    p.Y - selectedPlacedPart.Position.Y,
+                    p.X - selectedPlacedPart.Transform.Position.X,
+                    p.Y - selectedPlacedPart.Transform.Position.Y,
                     0);
 
                 StatusText.Text = "Bauteil ausgewählt";
@@ -113,7 +117,7 @@ namespace PlastiCAD
 
             placed.Part = selectedPart;
 
-            placed.Position = new Vector3(
+            placed.Transform.Position = new Vector3(
                 p.X,
                 p.Y,
                 0
@@ -145,10 +149,10 @@ namespace PlastiCAD
                     double width = pipe.Length * Scale;
                     double height = pipe.OuterDiameter;
 
-                    if (p.X >= placed.Position.X &&
-                        p.X <= placed.Position.X + width &&
-                        p.Y >= placed.Position.Y &&
-                        p.Y <= placed.Position.Y + height)
+                    if (p.X >= placed.Transform.Position.X &&
+                        p.X <= placed.Transform.Position.X + width &&
+                        p.Y >= placed.Transform.Position.Y &&
+                        p.Y <= placed.Transform.Position.Y + height)
                     {
                         return placed;
                     }
@@ -156,6 +160,69 @@ namespace PlastiCAD
             }
 
             return null;
+        }
+
+        private Vector3 GetWorldSocketPosition(PlacedPart placed, Socket socket)
+        {
+            return new Vector3(
+                placed.Transform.Position.X + socket.Position.X * Scale,
+                placed.Transform.Position.Y + socket.Position.Y * Scale,
+                0);
+        }
+        private void TrySnap(PlacedPart movingPart)
+        {
+            Socket bestMovingSocket = null;
+            Socket bestOtherSocket = null;
+
+            PlacedPart bestOtherPart = null;
+
+            double bestDistance = double.MaxValue;
+            foreach (PlacedPart otherPart in assembly.PlacedParts)
+            {
+                // Sich selbst überspringen
+                if (otherPart == movingPart)
+                    continue;
+
+                // Im Moment können wir nur Rohre snappen
+                if (!(movingPart.Part is Pipe movingPipe))
+                    continue;
+
+                if (!(otherPart.Part is Pipe otherPipe))
+                    continue;
+
+                foreach (Socket movingSocket in movingPipe.Sockets)
+                {
+                    foreach (Socket otherSocket in otherPipe.Sockets)
+                    {
+                        if (movingSocket.Index == otherSocket.Index)
+                            continue;
+                        Vector3 movingPos = GetWorldSocketPosition(movingPart, movingSocket);
+                        Vector3 otherPos = GetWorldSocketPosition(otherPart, otherSocket);
+
+                        double distance = movingPos.DistanceTo(otherPos);
+
+                        if (distance < bestDistance)
+                        {
+                            bestDistance = distance;
+
+                            bestMovingSocket = movingSocket;
+                            bestOtherSocket = otherSocket;
+
+                            bestOtherPart = otherPart;
+                        }
+                    }
+                }
+            }
+            if (bestDistance < SnapDistance)
+            {
+                Vector3 movingPos = GetWorldSocketPosition(movingPart, bestMovingSocket);
+                Vector3 otherPos = GetWorldSocketPosition(bestOtherPart, bestOtherSocket);
+
+                movingPart.Transform.Position.X += otherPos.X - movingPos.X;
+                movingPart.Transform.Position.Y += otherPos.Y - movingPos.Y;
+
+                StatusText.Text = "Eingerastet";
+            }
         }
         private void DrawPipe(PlacedPart placed, Pipe pipe)
         {
@@ -169,8 +236,8 @@ namespace PlastiCAD
             else
                 rect.Fill = Brushes.Blue;
 
-            Canvas.SetLeft(rect, placed.Position.X);
-            Canvas.SetTop(rect, placed.Position.Y);
+            Canvas.SetLeft(rect, placed.Transform.Position.X);
+            Canvas.SetTop(rect, placed.Transform.Position.Y);
 
             BuildArea.Children.Add(rect);
             // linker Socket
@@ -181,10 +248,10 @@ namespace PlastiCAD
             leftSocket.Fill = Brushes.Red;
 
             Canvas.SetLeft(leftSocket,
-                placed.Position.X + pipe.Sockets[0].Position.X * Scale - 4);
+                placed.Transform.Position.X + pipe.Sockets[0].Position.X * Scale - 4);
 
             Canvas.SetTop(leftSocket,
-                placed.Position.Y + pipe.Sockets[0].Position.Y);
+                placed.Transform.Position.Y + pipe.Sockets[0].Position.Y);
 
 
             BuildArea.Children.Add(leftSocket);
@@ -196,10 +263,10 @@ namespace PlastiCAD
             rightSocket.Fill = Brushes.Red;
 
             Canvas.SetLeft(rightSocket,
-           placed.Position.X + pipe.Sockets[1].Position.X * Scale - 4);
+           placed.Transform.Position.X + pipe.Sockets[1].Position.X * Scale - 4);
 
             Canvas.SetTop(rightSocket,
-                placed.Position.Y + pipe.Sockets[1].Position.Y);
+                placed.Transform.Position.Y + pipe.Sockets[1].Position.Y);
 
             BuildArea.Children.Add(rightSocket);
         }

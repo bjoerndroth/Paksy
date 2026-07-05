@@ -70,6 +70,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Models\Assembly.cs" />
+    <Compile Include="Models\SnapEngine.cs" />
+    <Compile Include="Models\Transform.cs" />
     <Compile Include="Models\PlacedPart.cs" />
     <Compile Include="Models\Vector3.cs" />
     <Compile Include="Models\Elbow.cs" />

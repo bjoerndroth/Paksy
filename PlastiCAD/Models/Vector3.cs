@@ -24,6 +24,14 @@ namespace PlastiCAD.Models
             Y = y;
             Z = z;
         }
+        public double DistanceTo(Vector3 other)
+        {
+            double dx = X - other.X;
+            double dy = Y - other.Y;
+            double dz = Z - other.Z;
+
+            return Math.Sqrt(dx * dx + dy * dy + dz * dz);
+        }
 
 
     }

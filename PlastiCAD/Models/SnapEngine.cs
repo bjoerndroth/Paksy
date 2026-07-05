@@ -6,10 +6,7 @@ using System.Threading.Tasks;
 
 namespace PlastiCAD.Models
 {
-    public class PlacedPart
+    internal class SnapEngine
     {
-        public Part Part { get; set; }
-
-        public Transform Transform { get; set; } = new Transform();
     }
 }
