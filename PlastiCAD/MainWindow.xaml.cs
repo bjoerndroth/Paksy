@@ -30,6 +30,7 @@ namespace PlastiCAD
         public MainWindow()
         
         {
+            //test
             InitializeComponent();
 
             PartLibrary.Initialize();
