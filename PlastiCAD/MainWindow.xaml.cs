@@ -26,10 +26,11 @@ namespace PlastiCAD
     {
         private Assembly assembly = new Assembly();
         private Part selectedPart;
-
+        private const double Scale = 2.0;
         public MainWindow()
         
         {
+
             //test
             InitializeComponent();
 
@@ -74,17 +75,54 @@ namespace PlastiCAD
 
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
-                Rectangle rect = new Rectangle();
-
-                rect.Width = 40;
-                rect.Height = 8;
-                rect.Fill = Brushes.Blue;
-
-                Canvas.SetLeft(rect, placed.Position.X);
-                Canvas.SetTop(rect, placed.Position.Y);
-
-                BuildArea.Children.Add(rect);
+                if (placed.Part is Pipe pipe)
+                {
+                    DrawPipe(placed, pipe);
+                }
             }
+        }
+        private void DrawPipe(PlacedPart placed, Pipe pipe)
+        {
+            Rectangle rect = new Rectangle();
+
+            rect.Width = pipe.Length * Scale;
+            rect.Height = pipe.OuterDiameter;
+
+            rect.Fill = Brushes.Blue;
+
+            Canvas.SetLeft(rect, placed.Position.X);
+            Canvas.SetTop(rect, placed.Position.Y);
+
+            BuildArea.Children.Add(rect);
+            // linker Socket
+            // linker Socket
+            Ellipse leftSocket = new Ellipse();
+            leftSocket.Width = 8;
+            leftSocket.Height = 8;
+            leftSocket.Fill = Brushes.Red;
+
+            Canvas.SetLeft(leftSocket,
+                placed.Position.X + pipe.Sockets[0].Position.X * Scale - 4);
+
+            Canvas.SetTop(leftSocket,
+                placed.Position.Y + pipe.Sockets[0].Position.Y);
+
+
+            BuildArea.Children.Add(leftSocket);
+
+            // rechter Socket
+            Ellipse rightSocket = new Ellipse();
+            rightSocket.Width = 8;
+            rightSocket.Height = 8;
+            rightSocket.Fill = Brushes.Red;
+
+            Canvas.SetLeft(rightSocket,
+           placed.Position.X + pipe.Sockets[1].Position.X * Scale - 4);
+
+            Canvas.SetTop(rightSocket,
+                placed.Position.Y + pipe.Sockets[1].Position.Y);
+
+            BuildArea.Children.Add(rightSocket);
         }
     }
     }

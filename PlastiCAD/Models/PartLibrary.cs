@@ -24,9 +24,10 @@ namespace PlastiCAD.Models
             AddPlates();
         }
 
-        private static void AddPipes()
+       
+          private static void AddPipes()
         {
-            Parts.Add(new Pipe
+            Pipe pipe = new Pipe
             {
                 Id = "P001",
                 Name = "Rohr 27,5 mm",
@@ -36,10 +37,31 @@ namespace PlastiCAD.Models
                 OuterDiameter = 9.5,
                 InnerDiameter = 7.0,
                 SocketDepth = 10.5
+            };
+
+            pipe.Sockets.Add(new Socket
+            {
+                Index = 0,
+                Name = "Links",
+                Position = new Vector3(0, 0, 0),
+                Direction = new Vector3(-1, 0, 0),
+                Owner = pipe
             });
 
-            // Hier kommen später weitere Rohre
+            pipe.Sockets.Add(new Socket
+            {
+                Index = 1,
+                Name = "Rechts",
+                Position = new Vector3(pipe.Length, 0, 0),
+                Direction = new Vector3(1, 0, 0),
+                Owner = pipe
+            });
+     // Hier kommen später weitere Rohre
+       
+            Parts.Add(pipe);
         }
+
+        
 
         private static void AddElbows()
         {
