@@ -26,7 +26,11 @@ namespace PlastiCAD
     {
         private Assembly assembly = new Assembly();
         private Part selectedPart;
+        private PlacedPart selectedPlacedPart;
         private const double Scale = 2.0;
+
+        private bool isDragging = false;
+        private Vector3 dragOffset;
         public MainWindow()
         
         {
@@ -48,12 +52,62 @@ namespace PlastiCAD
 
             StatusText.Text = "Ausgewählt: " + selectedPart.Name;
         }
+
+        private void BuildArea_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!isDragging || selectedPlacedPart == null)
+                return;
+
+            if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                isDragging = false;
+                BuildArea.ReleaseMouseCapture();
+                return;
+            }
+
+            Point p = e.GetPosition(BuildArea);
+
+            selectedPlacedPart.Position.X = p.X - dragOffset.X;
+            selectedPlacedPart.Position.Y = p.Y - dragOffset.Y;
+
+            RedrawScene();
+        }
+
+        private void BuildArea_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            isDragging = false;
+          BuildArea.ReleaseMouseCapture();
+
+            StatusText.Text = "Bereit";
+        }
         private void BuildArea_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            Point p = e.GetPosition(BuildArea);
+
+            // Prüfen, ob ein vorhandenes Teil angeklickt wurde
+            selectedPlacedPart = GetPartAt(p);
+
+           
+
+            if (selectedPlacedPart != null)
+            {
+                isDragging = true;
+
+                dragOffset = new Vector3(
+                    p.X - selectedPlacedPart.Position.X,
+                    p.Y - selectedPlacedPart.Position.Y,
+                    0);
+
+                StatusText.Text = "Bauteil ausgewählt";
+
+                RedrawScene();
+                return;
+            }
+
+            // Wenn kein Teil getroffen wurde und kein Bibliotheksteil ausgewählt ist
             if (selectedPart == null)
                 return;
 
-            Point p = e.GetPosition(BuildArea);
 
             PlacedPart placed = new PlacedPart();
 
@@ -81,6 +135,28 @@ namespace PlastiCAD
                 }
             }
         }
+
+        private PlacedPart GetPartAt(Point p)
+        {
+            foreach (PlacedPart placed in assembly.PlacedParts)
+            {
+                if (placed.Part is Pipe pipe)
+                {
+                    double width = pipe.Length * Scale;
+                    double height = pipe.OuterDiameter;
+
+                    if (p.X >= placed.Position.X &&
+                        p.X <= placed.Position.X + width &&
+                        p.Y >= placed.Position.Y &&
+                        p.Y <= placed.Position.Y + height)
+                    {
+                        return placed;
+                    }
+                }
+            }
+
+            return null;
+        }
         private void DrawPipe(PlacedPart placed, Pipe pipe)
         {
             Rectangle rect = new Rectangle();
@@ -88,7 +164,10 @@ namespace PlastiCAD
             rect.Width = pipe.Length * Scale;
             rect.Height = pipe.OuterDiameter;
 
-            rect.Fill = Brushes.Blue;
+            if (placed == selectedPlacedPart)
+                rect.Fill = Brushes.Gold;
+            else
+                rect.Fill = Brushes.Blue;
 
             Canvas.SetLeft(rect, placed.Position.X);
             Canvas.SetTop(rect, placed.Position.Y);

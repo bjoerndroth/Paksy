@@ -31,7 +31,9 @@
         Grid.Column="1"
         Background="WhiteSmoke"
         Margin="5"
-        MouseLeftButtonDown="BuildArea_MouseLeftButtonDown"/>
+        MouseLeftButtonDown="BuildArea_MouseLeftButtonDown"
+        MouseMove="BuildArea_MouseMove"
+        MouseLeftButtonUp="BuildArea_MouseLeftButtonUp"/>
 
         <!-- Statusleiste -->
                 <StatusBar Grid.Row="1"
