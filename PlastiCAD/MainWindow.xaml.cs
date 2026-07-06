@@ -123,6 +123,26 @@ namespace PlastiCAD
                 0
             );
 
+            if (selectedPart is Pipe pipe)
+            {
+                foreach (Socket socket in pipe.Sockets)
+                {
+                    placed.Sockets.Add(new Socket
+                    {
+                        Index = socket.Index,
+                        Name = socket.Name,
+                        Position = new Vector3(
+                            socket.Position.X,
+                            socket.Position.Y,
+                            socket.Position.Z),
+
+                        Direction = new Vector3(
+                            socket.Direction.X,
+                            socket.Direction.Y,
+                            socket.Direction.Z)
+                    });
+                }
+            }
             assembly.PlacedParts.Add(placed);
 
             RedrawScene();
@@ -190,9 +210,9 @@ namespace PlastiCAD
                 if (!(otherPart.Part is Pipe otherPipe))
                     continue;
 
-                foreach (Socket movingSocket in movingPipe.Sockets)
+                foreach (Socket movingSocket in movingPart.Sockets)
                 {
-                    foreach (Socket otherSocket in otherPipe.Sockets)
+                    foreach (Socket otherSocket in otherPart.Sockets)
                     {
                         if (movingSocket.Index == otherSocket.Index)
                             continue;
@@ -221,7 +241,23 @@ namespace PlastiCAD
                 movingPart.Transform.Position.X += otherPos.X - movingPos.X;
                 movingPart.Transform.Position.Y += otherPos.Y - movingPos.Y;
 
-                StatusText.Text = "Eingerastet";
+                // Nur verbinden, wenn beide Sockets noch frei sind
+                if (!bestMovingSocket.IsConnected && !bestOtherSocket.IsConnected)
+                {
+                   // assembly.Connections.Add(new Connection
+                   // {
+                   //     SocketA = bestMovingSocket,
+                   //     SocketB = bestOtherSocket
+                   // });
+
+                   // bestMovingSocket.IsConnected = true;
+                   // bestOtherSocket.IsConnected = true;
+
+                   // bestMovingSocket.ConnectedTo = bestOtherSocket;
+                   // bestOtherSocket.ConnectedTo = bestMovingSocket;
+
+                    StatusText.Text = "Verbunden";
+                }
             }
         }
         private void DrawPipe(PlacedPart placed, Pipe pipe)
@@ -245,13 +281,17 @@ namespace PlastiCAD
             Ellipse leftSocket = new Ellipse();
             leftSocket.Width = 8;
             leftSocket.Height = 8;
-            leftSocket.Fill = Brushes.Red;
+
+            if (placed.Sockets[0].IsConnected)
+                leftSocket.Fill = Brushes.Green;
+            else
+                leftSocket.Fill = Brushes.Red;
 
             Canvas.SetLeft(leftSocket,
-                placed.Transform.Position.X + pipe.Sockets[0].Position.X * Scale - 4);
+                placed.Transform.Position.X + placed.Sockets[0].Position.X * Scale - 4);
 
             Canvas.SetTop(leftSocket,
-                placed.Transform.Position.Y + pipe.Sockets[0].Position.Y);
+                placed.Transform.Position.Y + placed.Sockets[0].Position.Y);
 
 
             BuildArea.Children.Add(leftSocket);
@@ -260,13 +300,15 @@ namespace PlastiCAD
             Ellipse rightSocket = new Ellipse();
             rightSocket.Width = 8;
             rightSocket.Height = 8;
-            rightSocket.Fill = Brushes.Red;
-
+            if (placed.Sockets[1].IsConnected)
+                rightSocket.Fill = Brushes.Green;
+            else
+                rightSocket.Fill = Brushes.Red;
             Canvas.SetLeft(rightSocket,
-           placed.Transform.Position.X + pipe.Sockets[1].Position.X * Scale - 4);
+           placed.Transform.Position.X + placed.Sockets[1].Position.X * Scale - 4);
 
             Canvas.SetTop(rightSocket,
-                placed.Transform.Position.Y + pipe.Sockets[1].Position.Y);
+                placed.Transform.Position.Y + placed.Sockets[1].Position.Y);
 
             BuildArea.Children.Add(rightSocket);
         }
