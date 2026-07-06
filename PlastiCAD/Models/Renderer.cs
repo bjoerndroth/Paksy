@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PlastiCAD.Models
 {
-    internal class SnapEngine
+    internal class Renderer
     {
     }
 }

@@ -70,7 +70,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Models\Assembly.cs" />
-    <Compile Include="Models\SnapEngine.cs" />
+    <Compile Include="Models\Renderer.cs" />
+    <Compile Include="Core\SnapEngine.cs" />
     <Compile Include="Models\Transform.cs" />
     <Compile Include="Models\PlacedPart.cs" />
     <Compile Include="Models\Vector3.cs" />
@@ -111,8 +112,8 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="111\" />
     <Folder Include="Assets\" />
-    <Folder Include="Core\" />
     <Folder Include="Docs\" />
     <Folder Include="Rendering\" />
     <Folder Include="Resources\" />

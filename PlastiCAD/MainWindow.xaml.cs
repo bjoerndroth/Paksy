@@ -13,6 +13,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using PlastiCAD.Core;
 
 
 namespace PlastiCAD
@@ -217,13 +218,7 @@ namespace PlastiCAD
             return null;
         }
 
-        private Vector3 GetWorldSocketPosition(PlacedPart placed, Socket socket)
-        {
-            return new Vector3(
-                placed.Transform.Position.X + socket.Position.X * Scale,
-                placed.Transform.Position.Y + socket.Position.Y * Scale,
-                0);
-        }
+ 
         private void TrySnap(PlacedPart movingPart)
         {
             Socket bestMovingSocket = null;
@@ -251,8 +246,8 @@ namespace PlastiCAD
                     {
                         if (movingSocket.Index == otherSocket.Index)
                             continue;
-                        Vector3 movingPos = GetWorldSocketPosition(movingPart, movingSocket);
-                        Vector3 otherPos = GetWorldSocketPosition(otherPart, otherSocket);
+                        Vector3 movingPos = SnapEngine.GetWorldSocketPosition(movingPart, movingSocket,Scale);
+                        Vector3 otherPos = SnapEngine.GetWorldSocketPosition(otherPart, otherSocket,Scale);
 
                         double distance = movingPos.DistanceTo(otherPos);
 
