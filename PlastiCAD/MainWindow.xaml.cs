@@ -24,6 +24,8 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+      
+
         private Assembly assembly = new Assembly();
         private Part selectedPart;
         private PlacedPart selectedPlacedPart;
@@ -32,6 +34,9 @@ namespace PlastiCAD
 
         private bool isDragging = false;
         private Vector3 dragOffset = new Vector3();
+        private Socket snapMovingSocket;
+        private Socket snapOtherSocket;
+        private PlacedPart snapOtherPart;
         public MainWindow()
         
         {
@@ -78,9 +83,37 @@ namespace PlastiCAD
         private void BuildArea_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             isDragging = false;
-          BuildArea.ReleaseMouseCapture();
+            BuildArea.ReleaseMouseCapture();
 
-            StatusText.Text = "Bereit";
+            if (snapMovingSocket != null &&
+                snapOtherSocket != null &&
+                !snapMovingSocket.IsConnected &&
+                !snapOtherSocket.IsConnected)
+            {
+                assembly.Connections.Add(new Connection
+                {
+                    SocketA = snapMovingSocket,
+                    SocketB = snapOtherSocket
+                });
+
+                snapMovingSocket.IsConnected = true;
+                snapOtherSocket.IsConnected = true;
+
+                snapMovingSocket.ConnectedTo = snapOtherSocket;
+                snapOtherSocket.ConnectedTo = snapMovingSocket;
+
+                StatusText.Text = "Verbunden";
+            }
+            else
+            {
+                StatusText.Text = "Bereit";
+            }
+
+            snapMovingSocket = null;
+            snapOtherSocket = null;
+            snapOtherPart = null;
+
+            RedrawScene();
         }
         private void BuildArea_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -237,6 +270,9 @@ namespace PlastiCAD
             }
             if (bestDistance < SnapDistance)
             {
+                snapMovingSocket = bestMovingSocket;
+                snapOtherSocket = bestOtherSocket;
+                snapOtherPart = bestOtherPart;
                 Vector3 movingPos = GetWorldSocketPosition(movingPart, bestMovingSocket);
                 Vector3 otherPos = GetWorldSocketPosition(bestOtherPart, bestOtherSocket);
 
@@ -246,18 +282,20 @@ namespace PlastiCAD
                 // Nur verbinden, wenn beide Sockets noch frei sind
                 if (!bestMovingSocket.IsConnected && !bestOtherSocket.IsConnected)
                 {
-                   // assembly.Connections.Add(new Connection
-                   // {
-                   //     SocketA = bestMovingSocket,
-                   //     SocketB = bestOtherSocket
-                   // });
+                    // assembly.Connections.Add(new Connection
+                    // {
+                    //     SocketA = bestMovingSocket,
+                    //     SocketB = bestOtherSocket
+                    // });
 
-                   // bestMovingSocket.IsConnected = true;
-                   // bestOtherSocket.IsConnected = true;
+                    // bestMovingSocket.IsConnected = true;
+                    // bestOtherSocket.IsConnected = true;
 
-                   // bestMovingSocket.ConnectedTo = bestOtherSocket;
-                   // bestOtherSocket.ConnectedTo = bestMovingSocket;
-
+                    // bestMovingSocket.ConnectedTo = bestOtherSocket;
+                    // bestOtherSocket.ConnectedTo = bestMovingSocket;
+                    snapMovingSocket = bestMovingSocket;
+                    snapOtherSocket = bestOtherSocket;
+                    snapOtherPart = bestOtherPart;
                     StatusText.Text = "Verbunden";
                 }
             }
