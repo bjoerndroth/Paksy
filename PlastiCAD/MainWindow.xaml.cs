@@ -93,6 +93,7 @@ namespace PlastiCAD
 
             if (selectedPlacedPart != null)
             {
+                DisconnectPart(selectedPlacedPart);
                 isDragging = true;
 
                 BuildArea.CaptureMouse();
@@ -107,6 +108,7 @@ namespace PlastiCAD
                 RedrawScene();
                 return;
             }
+           
 
             // Wenn kein Teil getroffen wurde und kein Bibliotheksteil ausgewählt ist
             if (selectedPart == null)
@@ -257,6 +259,24 @@ namespace PlastiCAD
                    // bestOtherSocket.ConnectedTo = bestMovingSocket;
 
                     StatusText.Text = "Verbunden";
+                }
+            }
+        }
+
+        private void DisconnectPart(PlacedPart part)
+        {
+            foreach (Connection connection in assembly.Connections.ToList())
+            {
+                if (part.Sockets.Contains(connection.SocketA) ||
+                    part.Sockets.Contains(connection.SocketB))
+                {
+                    connection.SocketA.IsConnected = false;
+                    connection.SocketB.IsConnected = false;
+
+                    connection.SocketA.ConnectedTo = null;
+                    connection.SocketB.ConnectedTo = null;
+
+                    assembly.Connections.Remove(connection);
                 }
             }
         }
