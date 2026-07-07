@@ -35,9 +35,7 @@ namespace PlastiCAD
 
         private bool isDragging = false;
         private Vector3 dragOffset = new Vector3();
-        private Socket snapMovingSocket;
-        private Socket snapOtherSocket;
-        private PlacedPart snapOtherPart;
+        private SnapResult currentSnap;
         public MainWindow()
         
         {
@@ -86,22 +84,21 @@ namespace PlastiCAD
             isDragging = false;
             BuildArea.ReleaseMouseCapture();
 
-            if (snapMovingSocket != null &&
-                snapOtherSocket != null &&
-                !snapMovingSocket.IsConnected &&
-                !snapOtherSocket.IsConnected)
+            if (currentSnap != null &&
+                !currentSnap.MovingSocket.IsConnected &&
+                !currentSnap.OtherSocket.IsConnected)
             {
                 assembly.Connections.Add(new Connection
                 {
-                    SocketA = snapMovingSocket,
-                    SocketB = snapOtherSocket
+                    SocketA = currentSnap.MovingSocket,
+                    SocketB = currentSnap.OtherSocket
                 });
 
-                snapMovingSocket.IsConnected = true;
-                snapOtherSocket.IsConnected = true;
+                currentSnap.MovingSocket.IsConnected = true;
+                currentSnap.OtherSocket.IsConnected = true;
 
-                snapMovingSocket.ConnectedTo = snapOtherSocket;
-                snapOtherSocket.ConnectedTo = snapMovingSocket;
+                currentSnap.MovingSocket.ConnectedTo = currentSnap.OtherSocket;
+                currentSnap.OtherSocket.ConnectedTo = currentSnap.MovingSocket;
 
                 StatusText.Text = "Verbunden";
             }
@@ -110,9 +107,7 @@ namespace PlastiCAD
                 StatusText.Text = "Bereit";
             }
 
-            snapMovingSocket = null;
-            snapOtherSocket = null;
-            snapOtherPart = null;
+            currentSnap = null;
 
             RedrawScene();
         }
@@ -265,11 +260,9 @@ namespace PlastiCAD
             }
             if (bestDistance < SnapDistance)
             {
-                snapMovingSocket = bestMovingSocket;
-                snapOtherSocket = bestOtherSocket;
-                snapOtherPart = bestOtherPart;
-                Vector3 movingPos = GetWorldSocketPosition(movingPart, bestMovingSocket);
-                Vector3 otherPos = GetWorldSocketPosition(bestOtherPart, bestOtherSocket);
+             
+                Vector3 movingPos = SnapEngine.GetWorldSocketPosition(movingPart, bestMovingSocket,Scale);
+                Vector3 otherPos = SnapEngine.GetWorldSocketPosition(bestOtherPart, bestOtherSocket,Scale);
 
                 movingPart.Transform.Position.X += otherPos.X - movingPos.X;
                 movingPart.Transform.Position.Y += otherPos.Y - movingPos.Y;
@@ -288,9 +281,13 @@ namespace PlastiCAD
 
                     // bestMovingSocket.ConnectedTo = bestOtherSocket;
                     // bestOtherSocket.ConnectedTo = bestMovingSocket;
-                    snapMovingSocket = bestMovingSocket;
-                    snapOtherSocket = bestOtherSocket;
-                    snapOtherPart = bestOtherPart;
+                    currentSnap = new SnapResult
+                    {
+                        MovingSocket = bestMovingSocket,
+                        OtherSocket = bestOtherSocket,
+                        OtherPart = bestOtherPart,
+                        Distance = bestDistance
+                    };
                     StatusText.Text = "Verbunden";
                 }
             }
