@@ -8,6 +8,8 @@ namespace PlastiCAD.Models
 {
     public abstract class StructuralPart : Part
     {
+        public double Length { get; set; }
+
         public double OuterDiameter { get; protected set; } = 9.5;
 
         public double InnerDiameter { get; protected set; } = 7.0;

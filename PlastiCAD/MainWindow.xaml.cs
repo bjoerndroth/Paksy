@@ -183,6 +183,10 @@ namespace PlastiCAD
                 {
                     DrawPipe(placed, pipe);
                 }
+                else if (placed.Part is Elbow elbow)
+                {
+                    DrawElbow(placed, elbow);
+                }
             }
         }
 
@@ -203,6 +207,24 @@ namespace PlastiCAD
                         return placed;
                     }
                 }
+                
+                else if (placed.Part is Elbow elbow)
+                {
+                    double width = elbow.Length * Scale;
+                    double height = elbow.Length * Scale;
+
+                    if (p.X >= placed.Transform.Position.X &&
+                        p.X <= placed.Transform.Position.X + width &&
+                        p.Y >= placed.Transform.Position.Y &&
+                        p.Y <= placed.Transform.Position.Y + height)
+                    {
+                        return placed;
+                    }
+                }
+
+
+
+
             }
 
             return null;
@@ -278,6 +300,38 @@ namespace PlastiCAD
                 placed.Transform.Position.Y + placed.Sockets[1].Position.Y);
 
             BuildArea.Children.Add(rightSocket);
+        }
+        private void DrawElbow(PlacedPart placed, Elbow elbow)
+        {
+            // Horizontaler Schenkel
+            Rectangle horizontal = new Rectangle();
+
+            horizontal.Width = elbow.Length * Scale;
+            horizontal.Height = elbow.OuterDiameter;
+
+            horizontal.Fill = placed == selectedPlacedPart
+                ? Brushes.Gold
+                : Brushes.Blue;
+
+            Canvas.SetLeft(horizontal, placed.Transform.Position.X);
+            Canvas.SetTop(horizontal, placed.Transform.Position.Y);
+
+            BuildArea.Children.Add(horizontal);
+
+            // Vertikaler Schenkel
+            Rectangle vertical = new Rectangle();
+
+            vertical.Width = elbow.OuterDiameter;
+            vertical.Height = elbow.Length * Scale;
+
+            vertical.Fill = placed == selectedPlacedPart
+                ? Brushes.Gold
+                : Brushes.Blue;
+
+            Canvas.SetLeft(vertical, placed.Transform.Position.X);
+            Canvas.SetTop(vertical, placed.Transform.Position.Y);
+
+            BuildArea.Children.Add(vertical);
         }
     }
     }

@@ -24,45 +24,16 @@ namespace PlastiCAD.Models
             AddPlates();
         }
 
-       
-          private static void AddPipes()
+
+        private static void AddPipes()
         {
-            Pipe pipe = new Pipe
-            {
-                Id = "P001",
-                Name = "Rohr 27,5 mm",
-                Description = "Standardrohr",
-
-                Length = 27.5,
-             
-            };
-
-            pipe.Sockets.Add(new Socket
-            {
-                Index = 0,
-                Name = "Links",
-                Position = new Vector3(0, 0, 0),
-                Direction = new Vector3(-1, 0, 0),
-                Owner = pipe
-            });
-
-            pipe.Sockets.Add(new Socket
-            {
-                Index = 1,
-                Name = "Rechts",
-                Position = new Vector3(pipe.Length, 0, 0),
-                Direction = new Vector3(1, 0, 0),
-                Owner = pipe
-            });
-     // Hier kommen später weitere Rohre
-       
-            Parts.Add(pipe);
+            Parts.Add(new Pipe());
         }
 
-        
 
         private static void AddElbows()
         {
+            Parts.Add(new Elbow());
         }
 
         private static void AddTees()

@@ -105,6 +105,11 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <None Include="Docs\ConnectionModel.md" />
+    <None Include="Docs\Roadmap.md" />
+    <None Include="Docs\Parts.md" />
+    <None Include="Docs\Measurements.md" />
+    <None Include="Docs\Architecture.md" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -116,7 +121,6 @@
   <ItemGroup>
     <Folder Include="111\" />
     <Folder Include="Assets\" />
-    <Folder Include="Docs\" />
     <Folder Include="Rendering\" />
     <Folder Include="Resources\" />
     <Folder Include="Services\" />

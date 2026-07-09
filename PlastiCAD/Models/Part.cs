@@ -17,15 +17,6 @@ namespace PlastiCAD.Models
 
         public List<Socket> Sockets { get; set; } = new List<Socket>();
 
-        public double Length { get; set; }
-
-        public double OuterDiameter { get; set; }
-
-        public double InnerDiameter { get; set; }
-
-        public double SocketDepth { get; set; }
-
-    
         public virtual List<Socket> CreateSockets()
         {
             List<Socket> sockets = new List<Socket>();

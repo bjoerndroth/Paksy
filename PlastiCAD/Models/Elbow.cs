@@ -8,5 +8,48 @@ namespace PlastiCAD.Models
 {
     public class Elbow : StructuralPart
     {
+        public Elbow()
+        {
+            InitializeProperties();
+            InitializeSockets();
+        }
+
+        private void InitializeProperties()
+        {
+            Id = "E001";
+            Name = "90° Winkel";
+            Description = "90° Verbindungswinkel";
+
+            Length = 27.5;
+        }
+
+        private void InitializeSockets()
+        {
+            // linker Anschluss
+            Sockets.Add(new Socket
+            {
+                Index = 0,
+                Name = "Horizontal",
+
+                Position = new Vector3(0, 0, 0),
+
+                Direction = new Vector3(-1, 0, 0),
+
+                Owner = this
+            });
+
+            // senkrechter Anschluss
+            Sockets.Add(new Socket
+            {
+                Index = 1,
+                Name = "Vertikal",
+
+                Position = new Vector3(0, Length, 0),
+
+                Direction = new Vector3(0, 1, 0),
+
+                Owner = this
+            });
+        }
     }
 }
