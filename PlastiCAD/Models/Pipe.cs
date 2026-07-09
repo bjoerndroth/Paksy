@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PlastiCAD.Models
 {
-    public class Pipe : Part
+    public class Pipe : StructuralPart
     {
   
     }

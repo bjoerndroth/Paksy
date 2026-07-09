@@ -34,9 +34,7 @@ namespace PlastiCAD.Models
                 Description = "Standardrohr",
 
                 Length = 27.5,
-                OuterDiameter = 9.5,
-                InnerDiameter = 7.0,
-                SocketDepth = 10.5
+             
             };
 
             pipe.Sockets.Add(new Socket

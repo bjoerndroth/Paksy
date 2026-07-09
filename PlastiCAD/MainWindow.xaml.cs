@@ -75,7 +75,20 @@ namespace PlastiCAD
             selectedPlacedPart.Transform.Position.X = p.X - dragOffset.X;
             selectedPlacedPart.Transform.Position.Y = p.Y - dragOffset.Y;
 
-            TrySnap(selectedPlacedPart);
+            currentSnap = SnapEngine.FindBestSnap(
+    assembly,
+    selectedPlacedPart,
+    Scale,
+    SnapDistance);
+
+            if (currentSnap != null)
+            {
+                SnapEngine.ApplySnap(
+                    selectedPlacedPart,
+                    currentSnap,
+                    Scale);
+            }
+
             RedrawScene();
         }
 
@@ -154,26 +167,8 @@ namespace PlastiCAD
                 0
             );
 
-            if (selectedPart is Pipe pipe)
-            {
-                foreach (Socket socket in pipe.Sockets)
-                {
-                    placed.Sockets.Add(new Socket
-                    {
-                        Index = socket.Index,
-                        Name = socket.Name,
-                        Position = new Vector3(
-                            socket.Position.X,
-                            socket.Position.Y,
-                            socket.Position.Z),
+            placed.Sockets = selectedPart.CreateSockets();
 
-                        Direction = new Vector3(
-                            socket.Direction.X,
-                            socket.Direction.Y,
-                            socket.Direction.Z)
-                    });
-                }
-            }
             assembly.PlacedParts.Add(placed);
 
             RedrawScene();
@@ -214,85 +209,7 @@ namespace PlastiCAD
         }
 
  
-        private void TrySnap(PlacedPart movingPart)
-        {
-            Socket bestMovingSocket = null;
-            Socket bestOtherSocket = null;
-
-            PlacedPart bestOtherPart = null;
-
-            double bestDistance = double.MaxValue;
-            foreach (PlacedPart otherPart in assembly.PlacedParts)
-            {
-                // Sich selbst überspringen
-                if (otherPart == movingPart)
-                    continue;
-
-                // Im Moment können wir nur Rohre snappen
-                if (!(movingPart.Part is Pipe movingPipe))
-                    continue;
-
-                if (!(otherPart.Part is Pipe otherPipe))
-                    continue;
-
-                foreach (Socket movingSocket in movingPart.Sockets)
-                {
-                    foreach (Socket otherSocket in otherPart.Sockets)
-                    {
-                        if (movingSocket.Index == otherSocket.Index)
-                            continue;
-                        Vector3 movingPos = SnapEngine.GetWorldSocketPosition(movingPart, movingSocket,Scale);
-                        Vector3 otherPos = SnapEngine.GetWorldSocketPosition(otherPart, otherSocket,Scale);
-
-                        double distance = movingPos.DistanceTo(otherPos);
-
-                        if (distance < bestDistance)
-                        {
-                            bestDistance = distance;
-
-                            bestMovingSocket = movingSocket;
-                            bestOtherSocket = otherSocket;
-
-                            bestOtherPart = otherPart;
-                        }
-                    }
-                }
-            }
-            if (bestDistance < SnapDistance)
-            {
-             
-                Vector3 movingPos = SnapEngine.GetWorldSocketPosition(movingPart, bestMovingSocket,Scale);
-                Vector3 otherPos = SnapEngine.GetWorldSocketPosition(bestOtherPart, bestOtherSocket,Scale);
-
-                movingPart.Transform.Position.X += otherPos.X - movingPos.X;
-                movingPart.Transform.Position.Y += otherPos.Y - movingPos.Y;
-
-                // Nur verbinden, wenn beide Sockets noch frei sind
-                if (!bestMovingSocket.IsConnected && !bestOtherSocket.IsConnected)
-                {
-                    // assembly.Connections.Add(new Connection
-                    // {
-                    //     SocketA = bestMovingSocket,
-                    //     SocketB = bestOtherSocket
-                    // });
-
-                    // bestMovingSocket.IsConnected = true;
-                    // bestOtherSocket.IsConnected = true;
-
-                    // bestMovingSocket.ConnectedTo = bestOtherSocket;
-                    // bestOtherSocket.ConnectedTo = bestMovingSocket;
-                    currentSnap = new SnapResult
-                    {
-                        MovingSocket = bestMovingSocket,
-                        OtherSocket = bestOtherSocket,
-                        OtherPart = bestOtherPart,
-                        Distance = bestDistance
-                    };
-                    StatusText.Text = "Verbunden";
-                }
-            }
-        }
-
+       
         private void DisconnectPart(PlacedPart part)
         {
             foreach (Connection connection in assembly.Connections.ToList())

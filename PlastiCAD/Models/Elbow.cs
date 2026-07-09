@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PlastiCAD.Models
 {
-    public class Elbow
+    public class Elbow : StructuralPart
     {
     }
 }
