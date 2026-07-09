@@ -106,6 +106,7 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <None Include="Docs\ConnectionModel.md" />
+    <None Include="Docs\DesignNotes.md" />
     <None Include="Docs\Roadmap.md" />
     <None Include="Docs\Parts.md" />
     <None Include="Docs\Measurements.md" />
