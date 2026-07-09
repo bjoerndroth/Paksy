@@ -52,3 +52,13 @@ Die Außenform entsteht durch Bohrungen mit 9,5 mm Durchmesser.
 
 Ein Bauteil unterscheidet sich ausschließlich dadurch,
 welche Anschlussflächen vorhanden sind.
+
+## Historische Entwicklung
+
+Das Würfelmodell ist nicht nur ein theoretisches Modell.
+
+In späteren Baukastenserien existiert der vollständige
+6-fach-Knoten als reales Bauteil.
+
+Die klassischen Strukturbauteile (Rohr, Winkel, T-Stück, Kreuz ...)
+können als Teilmengen dieses Knotens verstanden werden.
