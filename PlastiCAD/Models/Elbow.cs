@@ -8,6 +8,7 @@ namespace PlastiCAD.Models
 {
     public class Elbow : StructuralPart
     {
+        public double LegLength => Length / 2 + OuterDiameter / 2;
         public Elbow()
         {
             InitializeProperties();
@@ -25,13 +26,14 @@ namespace PlastiCAD.Models
 
         private void InitializeSockets()
         {
+
             // linker Anschluss
             Sockets.Add(new Socket
             {
                 Index = 0,
                 Name = "Horizontal",
 
-                Position = new Vector3(0, 0, 0),
+                Position = new Vector3(0, LegLength, 0),
 
                 Direction = new Vector3(-1, 0, 0),
 

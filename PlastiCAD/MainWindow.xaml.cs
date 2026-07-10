@@ -306,7 +306,7 @@ namespace PlastiCAD
             // Horizontaler Schenkel
             Rectangle horizontal = new Rectangle();
 
-            horizontal.Width = elbow.Length * Scale;
+            horizontal.Width = elbow.LegLength * Scale;
             horizontal.Height = elbow.OuterDiameter;
 
             horizontal.Fill = placed == selectedPlacedPart
@@ -322,7 +322,7 @@ namespace PlastiCAD
             Rectangle vertical = new Rectangle();
 
             vertical.Width = elbow.OuterDiameter;
-            vertical.Height = elbow.Length * Scale;
+            vertical.Height = elbow.LegLength * Scale;
 
             vertical.Fill = placed == selectedPlacedPart
                 ? Brushes.Gold
