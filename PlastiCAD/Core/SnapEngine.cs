@@ -41,11 +41,7 @@ namespace PlastiCAD.Core
             return movingPos.DistanceTo(otherPos);
         }
 
-        public static SnapResult FindBestSnap(
-    Assembly assembly,
-    PlacedPart movingPart,
-    double scale,
-    double snapDistance)
+        public static SnapResult FindBestSnap(    Assembly assembly,    PlacedPart movingPart,    double scale,    double snapDistance)
         {
             Socket bestMovingSocket = null;
             Socket bestOtherSocket = null;
@@ -64,7 +60,8 @@ namespace PlastiCAD.Core
                 {
                     foreach (Socket otherSocket in otherPart.Sockets)
                     {
-                        if (movingSocket.Index == otherSocket.Index)
+                      
+                        if (!DirectionsMatch(movingSocket, otherSocket))
                             continue;
 
                         double distance = GetSocketDistance(
@@ -88,6 +85,7 @@ namespace PlastiCAD.Core
 
 
             }
+
             if (bestDistance < snapDistance)
             {
                 return new SnapResult
@@ -102,10 +100,7 @@ namespace PlastiCAD.Core
             return null;
 
         }
-        public static void ApplySnap(
-    PlacedPart movingPart,
-    SnapResult snap,
-    double scale)
+        public static void ApplySnap(    PlacedPart movingPart,    SnapResult snap,    double scale)
         {
             Vector3 movingPos = GetWorldSocketPosition(
                 movingPart,
@@ -120,5 +115,14 @@ namespace PlastiCAD.Core
             movingPart.Transform.Position.X += otherPos.X - movingPos.X;
             movingPart.Transform.Position.Y += otherPos.Y - movingPos.Y;
         }
+
+        private static bool DirectionsMatch(Socket a, Socket b)
+        {
+            return
+                a.Direction.X == -b.Direction.X &&
+                a.Direction.Y == -b.Direction.Y &&
+                a.Direction.Z == -b.Direction.Z;
+        }
     }
+
 }
