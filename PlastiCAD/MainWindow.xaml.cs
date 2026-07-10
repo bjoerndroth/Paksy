@@ -1,19 +1,19 @@
-﻿using PlastiCAD.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using PlastiCAD.Core;
+﻿    using PlastiCAD.Models;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Text;
+    using System.Threading.Tasks;
+    using System.Windows;
+    using System.Windows.Controls;
+    using System.Windows.Data;
+    using System.Windows.Documents;
+    using System.Windows.Input;
+    using System.Windows.Media;
+    using System.Windows.Media.Imaging;
+    using System.Windows.Navigation;
+    using System.Windows.Shapes;
+    using PlastiCAD.Core;
 
 
 namespace PlastiCAD
@@ -25,7 +25,7 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
-      
+
 
         private Assembly assembly = new Assembly();
         private Part selectedPart;
@@ -37,7 +37,7 @@ namespace PlastiCAD
         private Vector3 dragOffset = new Vector3();
         private SnapResult currentSnap;
         public MainWindow()
-        
+
         {
 
             //test
@@ -150,7 +150,7 @@ namespace PlastiCAD
                 RedrawScene();
                 return;
             }
-           
+
 
             // Wenn kein Teil getroffen wurde und kein Bibliotheksteil ausgewählt ist
             if (selectedPart == null)
@@ -207,7 +207,7 @@ namespace PlastiCAD
                         return placed;
                     }
                 }
-                
+
                 else if (placed.Part is Elbow elbow)
                 {
                     double width = elbow.Length * Scale;
@@ -230,8 +230,8 @@ namespace PlastiCAD
             return null;
         }
 
- 
-       
+
+
         private void DisconnectPart(PlacedPart part)
         {
             foreach (Connection connection in assembly.Connections.ToList())
@@ -301,6 +301,8 @@ namespace PlastiCAD
 
             BuildArea.Children.Add(rightSocket);
         }
+
+
         private void DrawElbow(PlacedPart placed, Elbow elbow)
         {
             // Horizontaler Schenkel
@@ -332,9 +334,43 @@ namespace PlastiCAD
             Canvas.SetTop(vertical, placed.Transform.Position.Y);
 
             BuildArea.Children.Add(vertical);
+
+            // Linker Socket
+            Ellipse leftSocket = new Ellipse();
+            leftSocket.Width = 8;
+            leftSocket.Height = 8;
+
+            leftSocket.Fill = placed.Sockets[0].IsConnected
+                ? Brushes.Green
+                : Brushes.Red;
+
+            Canvas.SetLeft(leftSocket,
+                placed.Transform.Position.X + placed.Sockets[0].Position.X * Scale - 4);
+
+            Canvas.SetTop(leftSocket,
+                placed.Transform.Position.Y + placed.Sockets[0].Position.Y * Scale - 4);
+
+            BuildArea.Children.Add(leftSocket);
+
+            // Oberer Socket
+            Ellipse topSocket = new Ellipse();
+            topSocket.Width = 8;
+            topSocket.Height = 8;
+
+            topSocket.Fill = placed.Sockets[1].IsConnected
+                ? Brushes.Green
+                : Brushes.Red;
+
+            Canvas.SetLeft(topSocket,
+                placed.Transform.Position.X + placed.Sockets[1].Position.X * Scale - 4);
+
+            Canvas.SetTop(topSocket,
+                placed.Transform.Position.Y + placed.Sockets[1].Position.Y * Scale - 4);
+
+            BuildArea.Children.Add(topSocket);
         }
     }
-    }
+}
 
     
 

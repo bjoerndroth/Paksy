@@ -46,7 +46,7 @@ namespace PlastiCAD.Models
                 Index = 1,
                 Name = "Vertikal",
 
-                Position = new Vector3(0, Length, 0),
+                Position = new Vector3(LegLength, 0, 0),
 
                 Direction = new Vector3(0, 1, 0),
 
