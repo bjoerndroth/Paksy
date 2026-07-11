@@ -49,8 +49,13 @@ namespace PlastiCAD
             {
                 PartsList.Items.Add(part.Name);
             }
-        }
 
+            Loaded += MainWindow_Loaded;
+        }
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            RedrawScene();
+        }
         private void PartsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             selectedPart = PartLibrary.Parts[PartsList.SelectedIndex];
@@ -188,6 +193,7 @@ namespace PlastiCAD
         private void RedrawScene()
         {
             BuildArea.Children.Clear();
+            DrawGrid();
 
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
@@ -424,6 +430,38 @@ namespace PlastiCAD
                 placed.Transform.Position.X + Grider.CellSize * Scale / 2,
                 placed.Transform.Position.Y + Grider.CellSize * Scale / 2,
                 0);
+        }
+
+        private void DrawGrid()
+        {
+            double grid = Grider.CellSize * Scale;
+
+            double cross = 3; // halbe Kreuzgröße
+
+            for (double x = 0; x < BuildArea.ActualWidth; x += grid)
+            {
+                for (double y = 0; y < BuildArea.ActualHeight; y += grid)
+                {
+                    Line h = new Line();
+                    h.X1 = x - cross;
+                    h.Y1 = y;
+                    h.X2 = x + cross;
+                    h.Y2 = y;
+                    h.Stroke = Brushes.LightGray;
+                    h.StrokeThickness = 1;
+
+                    Line v = new Line();
+                    v.X1 = x;
+                    v.Y1 = y - cross;
+                    v.X2 = x;
+                    v.Y2 = y + cross;
+                    v.Stroke = Brushes.LightGray;
+                    v.StrokeThickness = 1;
+
+                    BuildArea.Children.Add(h);
+                    BuildArea.Children.Add(v);
+                }
+            }
         }
     }
 }
