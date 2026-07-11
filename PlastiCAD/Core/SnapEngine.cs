@@ -127,6 +127,65 @@ namespace PlastiCAD.Core
                 (a == Face.Front && b == Face.Back) ||
                 (a == Face.Back && b == Face.Front);
         }
+
+        public static Vector3 GetSocketWorldPosition(
+    PlacedPart placed,
+    Socket socket,
+    double scale)
+        {
+            double centerX = placed.Transform.Position.X + Grider.CellSize * scale / 2;
+            double centerY = placed.Transform.Position.Y + Grider.CellSize * scale / 2;
+
+            double r = Grider.CellSize * scale / 2;
+
+            switch (socket.Face)
+            {
+                case Face.Left:
+                    return new Vector3(centerX - r, centerY, 0);
+
+                case Face.Right:
+                    return new Vector3(centerX + r, centerY, 0);
+
+                case Face.Top:
+                    return new Vector3(centerX, centerY - r, 0);
+
+                case Face.Bottom:
+                    return new Vector3(centerX, centerY + r, 0);
+
+                default:
+                    return new Vector3(centerX, centerY, 0);
+            }
+        }
+        public static Vector3 GetWorldSocketPositionByFace(
+    PlacedPart placed,
+    Socket socket,
+    double scale)
+        {
+            double centerX = placed.Transform.Position.X + Grider.CellSize * scale / 2;
+            double centerY = placed.Transform.Position.Y + Grider.CellSize * scale / 2;
+
+            double r = Grider.CellSize * scale / 2;
+
+            switch (socket.Face)
+            {
+                case Face.Left:
+                    return new Vector3(centerX - r, centerY, 0);
+
+                case Face.Right:
+                    return new Vector3(centerX + r, centerY, 0);
+
+                case Face.Top:
+                    return new Vector3(centerX, centerY - r, 0);
+
+                case Face.Bottom:
+                    return new Vector3(centerX, centerY + r, 0);
+
+                case Face.Front:
+                case Face.Back:
+                default:
+                    return new Vector3(centerX, centerY, 0);
+            }
+        }
     }
 
 }

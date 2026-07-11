@@ -143,6 +143,12 @@ namespace PlastiCAD
                 isDragging = true;
 
                 BuildArea.CaptureMouse();
+                double gridS = Grider.CellSize * Scale;
+                selectedPlacedPart.Transform.Position.X =
+                    Math.Round((p.X - gridS / 2) / gridS) * gridS;
+
+                selectedPlacedPart.Transform.Position.Y =
+                    Math.Round((p.Y - gridS / 2) / gridS) * gridS;
 
                 dragOffset = new Vector3(
                     p.X - selectedPlacedPart.Transform.Position.X,
@@ -236,23 +242,12 @@ namespace PlastiCAD
         private void DrawPipe(PlacedPart placed, Pipe pipe)
         {
 
-            Rectangle cell = new Rectangle();
-
-            cell.Width = Grider.CellSize * Scale;
-            cell.Height = Grider.CellSize * Scale;
-
-            cell.Stroke = Brushes.LightGray;
-            cell.StrokeThickness = 1;
-            cell.Fill = Brushes.Transparent;
-
-            Canvas.SetLeft(cell, placed.Transform.Position.X);
-            Canvas.SetTop(cell, placed.Transform.Position.Y);
-
-            BuildArea.Children.Add(cell);
+            DrawGridCell(placed);
 
             // Mittelpunkt der Rasterzelle
-            double centerX = placed.Transform.Position.X + Grider.CellSize * Scale / 2;
-            double centerY = placed.Transform.Position.Y + Grider.CellSize * Scale / 2;
+            Vector3 centerCell = GetCellCenter(placed);
+
+
 
             // Jetzt erst das Rohr erzeugen
             Rectangle rect = new Rectangle();
@@ -265,10 +260,10 @@ namespace PlastiCAD
                 : Brushes.Blue;
 
             Canvas.SetLeft(rect,
-                centerX - rect.Width / 2);
+                centerCell.X - rect.Width / 2);
 
             Canvas.SetTop(rect,
-                centerY - rect.Height / 2);
+                centerCell.Y - rect.Height / 2);
 
             BuildArea.Children.Add(rect);
 
@@ -286,10 +281,10 @@ namespace PlastiCAD
                 leftSocket.Fill = Brushes.Red;
 
             Canvas.SetLeft(leftSocket,
-            centerX - rect.Width / 2 - 4);
+            centerCell.X - rect.Width / 2 - 4);
 
             Canvas.SetTop(leftSocket,
-                centerY - 4);
+                centerCell.Y - 4);
 
 
             BuildArea.Children.Add(leftSocket);
@@ -303,10 +298,10 @@ namespace PlastiCAD
             else
                 rightSocket.Fill = Brushes.Red;
             Canvas.SetLeft(rightSocket,
-       centerX + rect.Width / 2 - 4);
+       centerCell.X + rect.Width / 2 - 4);
 
             Canvas.SetTop(rightSocket,
-                centerY - 4);
+                centerCell.Y - 4);
 
             BuildArea.Children.Add(rightSocket);
         }
@@ -314,25 +309,10 @@ namespace PlastiCAD
 
         private void DrawElbow(PlacedPart placed, Elbow elbow)
         {
-            Rectangle cell = new Rectangle();
+            DrawGridCell(placed);
 
-            cell.Width = Grider.CellSize * Scale;
-            cell.Height = Grider.CellSize * Scale;
 
-            cell.Stroke = Brushes.LightGray;
-            cell.StrokeThickness = 1;
-            cell.Fill = Brushes.Transparent;
-
-            Canvas.SetLeft(cell, placed.Transform.Position.X);
-            Canvas.SetTop(cell, placed.Transform.Position.Y);
-
-            BuildArea.Children.Add(cell);
-
-       
-
-            double centerX = placed.Transform.Position.X + Grider.CellSize * Scale / 2;
-            double centerY = placed.Transform.Position.Y + Grider.CellSize * Scale / 2;
-
+            Vector3 centerCell = GetCellCenter(placed);
 
 
             Ellipse center = new Ellipse();
@@ -345,10 +325,10 @@ namespace PlastiCAD
                 : Brushes.Blue;
 
             Canvas.SetLeft(center,
-                centerX - elbow.OuterDiameter*Scale / 2);
+                centerCell.X - elbow.OuterDiameter*Scale / 2);
 
             Canvas.SetTop(center,
-                centerY - elbow.OuterDiameter*Scale / 2);
+                centerCell.Y - elbow.OuterDiameter*Scale / 2);
 
             BuildArea.Children.Add(center);
             // Horizontaler Schenkel
@@ -362,10 +342,10 @@ namespace PlastiCAD
                 : Brushes.Blue;
 
             Canvas.SetLeft(horizontal,
-                centerX - horizontal.Width);
+                centerCell.X - horizontal.Width);
 
             Canvas.SetTop(horizontal,
-                centerY - horizontal.Height / 2);
+                centerCell.Y - horizontal.Height / 2);
 
             BuildArea.Children.Add(horizontal);
 
@@ -380,13 +360,12 @@ namespace PlastiCAD
                 : Brushes.Blue;
 
             Canvas.SetLeft(vertical,
-                centerX - vertical.Width / 2);
+                centerCell.X - vertical.Width / 2);
 
             Canvas.SetTop(vertical,
-                centerY - vertical.Height);
+               centerCell.Y - vertical.Height);
 
             BuildArea.Children.Add(vertical);
-
             // Linker Socket
             Ellipse leftSocket = new Ellipse();
             leftSocket.Width = 8;
@@ -395,14 +374,8 @@ namespace PlastiCAD
             leftSocket.Fill = placed.Sockets[0].IsConnected
                 ? Brushes.Green
                 : Brushes.Red;
+            
 
-            Canvas.SetLeft(leftSocket,
-                placed.Transform.Position.X + placed.Sockets[0].Position.X * Scale - 4);
-
-            Canvas.SetTop(leftSocket,
-                placed.Transform.Position.Y + placed.Sockets[0].Position.Y * Scale - 4);
-
-            BuildArea.Children.Add(leftSocket);
 
             // Oberer Socket
             Ellipse topSocket = new Ellipse();
@@ -413,13 +386,44 @@ namespace PlastiCAD
                 ? Brushes.Green
                 : Brushes.Red;
 
+            Canvas.SetLeft(leftSocket,
+    centerCell.X - horizontal.Width - 4);
+
+            Canvas.SetTop(leftSocket,
+                centerCell.Y - 4);
+
             Canvas.SetLeft(topSocket,
-                placed.Transform.Position.X + placed.Sockets[1].Position.X * Scale - 4);
+            centerCell.X - 4);
 
             Canvas.SetTop(topSocket,
-                placed.Transform.Position.Y + placed.Sockets[1].Position.Y * Scale - 4);
+                centerCell.Y - vertical.Height - 4);
 
+            BuildArea.Children.Add(leftSocket);
             BuildArea.Children.Add(topSocket);
+        }
+        private void DrawGridCell(PlacedPart placed)
+        {
+            Rectangle cell = new Rectangle();
+
+            cell.Width = Grider.CellSize * Scale;
+            cell.Height = Grider.CellSize * Scale;
+
+            cell.Stroke = Brushes.LightGray;
+            cell.StrokeThickness = 1;
+            cell.Fill = Brushes.Transparent;
+
+            Canvas.SetLeft(cell, placed.Transform.Position.X);
+            Canvas.SetTop(cell, placed.Transform.Position.Y);
+
+            BuildArea.Children.Add(cell);
+        }
+
+        private Vector3 GetCellCenter(PlacedPart placed)
+        {
+            return new Vector3(
+                placed.Transform.Position.X + Grider.CellSize * Scale / 2,
+                placed.Transform.Position.Y + Grider.CellSize * Scale / 2,
+                0);
         }
     }
 }
