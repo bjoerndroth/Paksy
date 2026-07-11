@@ -1,10 +1,9 @@
-﻿using System;
+﻿using PlastiCAD.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
-using PlastiCAD.Models;
 
 namespace PlastiCAD.Core
 {
@@ -28,12 +27,12 @@ namespace PlastiCAD.Core
     Socket otherSocket,
     double scale)
         {
-            Vector3 movingPos = GetWorldSocketPosition(
-                movingPart,
-                movingSocket,
-                scale);
+            Vector3 movingPos = GetSocketWorldPosition(
+         movingPart,
+         movingSocket,
+         scale);
 
-            Vector3 otherPos = GetWorldSocketPosition(
+            Vector3 otherPos = GetSocketWorldPosition(
                 otherPart,
                 otherSocket,
                 scale);
@@ -60,7 +59,7 @@ namespace PlastiCAD.Core
                 {
                     foreach (Socket otherSocket in otherPart.Sockets)
                     {
-
+                     
                         if (!FacesMatch(movingSocket.Face, otherSocket.Face))
                             continue;
 
@@ -85,7 +84,7 @@ namespace PlastiCAD.Core
 
 
             }
-
+            System.Diagnostics.Debug.WriteLine(bestDistance);
             if (bestDistance < snapDistance)
             {
                 return new SnapResult
@@ -102,12 +101,12 @@ namespace PlastiCAD.Core
         }
         public static void ApplySnap(    PlacedPart movingPart,    SnapResult snap,    double scale)
         {
-            Vector3 movingPos = GetWorldSocketPosition(
+            Vector3 movingPos = GetSocketWorldPosition(
                 movingPart,
                 snap.MovingSocket,
                 scale);
 
-            Vector3 otherPos = GetWorldSocketPosition(
+            Vector3 otherPos = GetSocketWorldPosition(
                 snap.OtherPart,
                 snap.OtherSocket,
                 scale);

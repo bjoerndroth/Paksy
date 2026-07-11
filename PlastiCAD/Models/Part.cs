@@ -27,6 +27,7 @@ namespace PlastiCAD.Models
                 {
                     Index = socket.Index,
                     Name = socket.Name,
+                    Face = socket.Face,
 
                     Position = new Vector3(
                         socket.Position.X,
