@@ -72,8 +72,13 @@ namespace PlastiCAD
 
             Point p = e.GetPosition(BuildArea);
 
-            selectedPlacedPart.Transform.Position.X = p.X - dragOffset.X;
-            selectedPlacedPart.Transform.Position.Y = p.Y - dragOffset.Y;
+            double grid = Grider.CellSize * Scale;
+
+            selectedPlacedPart.Transform.Position.X =
+                Math.Round((p.X - dragOffset.X) / grid) * grid;
+
+            selectedPlacedPart.Transform.Position.Y =
+                Math.Round((p.Y - dragOffset.Y) / grid) * grid;
 
             currentSnap = SnapEngine.FindBestSnap(
     assembly,
@@ -161,9 +166,11 @@ namespace PlastiCAD
 
             placed.Part = selectedPart;
 
+            double grid = Grider.CellSize * Scale;
+
             placed.Transform.Position = new Vector3(
-                p.X,
-                p.Y,
+                Math.Round(p.X / grid) * grid,
+                Math.Round(p.Y / grid) * grid,
                 0
             );
 
@@ -197,7 +204,7 @@ namespace PlastiCAD
                 if (placed.Part is Pipe pipe)
                 {
                     double width = pipe.Length * Scale;
-                    double height = pipe.OuterDiameter;
+                    double height = pipe.OuterDiameter*Scale;
 
                     if (p.X >= placed.Transform.Position.X &&
                         p.X <= placed.Transform.Position.X + width &&
@@ -251,22 +258,47 @@ namespace PlastiCAD
         }
         private void DrawPipe(PlacedPart placed, Pipe pipe)
         {
+
+            Rectangle cell = new Rectangle();
+
+            cell.Width = Grider.CellSize * Scale;
+            cell.Height = Grider.CellSize * Scale;
+
+            cell.Stroke = Brushes.LightGray;
+            cell.StrokeThickness = 1;
+            cell.Fill = Brushes.Transparent;
+
+            Canvas.SetLeft(cell, placed.Transform.Position.X);
+            Canvas.SetTop(cell, placed.Transform.Position.Y);
+
+            BuildArea.Children.Add(cell);
+
+            // Mittelpunkt der Rasterzelle
+            double centerX = placed.Transform.Position.X + Grider.CellSize * Scale / 2;
+            double centerY = placed.Transform.Position.Y + Grider.CellSize * Scale / 2;
+
+            // Jetzt erst das Rohr erzeugen
             Rectangle rect = new Rectangle();
 
             rect.Width = pipe.Length * Scale;
-            rect.Height = pipe.OuterDiameter;
+            rect.Height = pipe.OuterDiameter*Scale;
 
-            if (placed == selectedPlacedPart)
-                rect.Fill = Brushes.Gold;
-            else
-                rect.Fill = Brushes.Blue;
+            rect.Fill = placed == selectedPlacedPart
+                ? Brushes.Gold
+                : Brushes.Blue;
 
-            Canvas.SetLeft(rect, placed.Transform.Position.X);
-            Canvas.SetTop(rect, placed.Transform.Position.Y);
+            Canvas.SetLeft(rect,
+                centerX - rect.Width / 2);
+
+            Canvas.SetTop(rect,
+                centerY - rect.Height / 2);
 
             BuildArea.Children.Add(rect);
+
             // linker Socket
             // linker Socket
+
+
             Ellipse leftSocket = new Ellipse();
             leftSocket.Width = 8;
             leftSocket.Height = 8;
@@ -277,10 +309,10 @@ namespace PlastiCAD
                 leftSocket.Fill = Brushes.Red;
 
             Canvas.SetLeft(leftSocket,
-                placed.Transform.Position.X + placed.Sockets[0].Position.X * Scale - 4);
+            centerX - rect.Width / 2 - 4);
 
             Canvas.SetTop(leftSocket,
-                placed.Transform.Position.Y + placed.Sockets[0].Position.Y);
+                centerY - 4);
 
 
             BuildArea.Children.Add(leftSocket);
@@ -294,10 +326,10 @@ namespace PlastiCAD
             else
                 rightSocket.Fill = Brushes.Red;
             Canvas.SetLeft(rightSocket,
-           placed.Transform.Position.X + placed.Sockets[1].Position.X * Scale - 4);
+       centerX + rect.Width / 2 - 4);
 
             Canvas.SetTop(rightSocket,
-                placed.Transform.Position.Y + placed.Sockets[1].Position.Y);
+                centerY - 4);
 
             BuildArea.Children.Add(rightSocket);
         }
@@ -305,33 +337,76 @@ namespace PlastiCAD
 
         private void DrawElbow(PlacedPart placed, Elbow elbow)
         {
+            Rectangle cell = new Rectangle();
+
+            cell.Width = Grider.CellSize * Scale;
+            cell.Height = Grider.CellSize * Scale;
+
+            cell.Stroke = Brushes.LightGray;
+            cell.StrokeThickness = 1;
+            cell.Fill = Brushes.Transparent;
+
+            Canvas.SetLeft(cell, placed.Transform.Position.X);
+            Canvas.SetTop(cell, placed.Transform.Position.Y);
+
+            BuildArea.Children.Add(cell);
+
+       
+
+            double centerX = placed.Transform.Position.X + Grider.CellSize * Scale / 2;
+            double centerY = placed.Transform.Position.Y + Grider.CellSize * Scale / 2;
+
+
+
+            Ellipse center = new Ellipse();
+
+            center.Width = elbow.OuterDiameter*Scale;
+            center.Height = elbow.OuterDiameter*Scale;
+
+            center.Fill = placed == selectedPlacedPart
+                ? Brushes.Gold
+                : Brushes.Blue;
+
+            Canvas.SetLeft(center,
+                centerX - elbow.OuterDiameter*Scale / 2);
+
+            Canvas.SetTop(center,
+                centerY - elbow.OuterDiameter*Scale / 2);
+
+            BuildArea.Children.Add(center);
             // Horizontaler Schenkel
             Rectangle horizontal = new Rectangle();
 
             horizontal.Width = elbow.LegLength * Scale;
-            horizontal.Height = elbow.OuterDiameter;
+            horizontal.Height = elbow.OuterDiameter*Scale;
 
             horizontal.Fill = placed == selectedPlacedPart
                 ? Brushes.Gold
                 : Brushes.Blue;
 
-            Canvas.SetLeft(horizontal, placed.Transform.Position.X);
-            Canvas.SetTop(horizontal, placed.Transform.Position.Y);
+            Canvas.SetLeft(horizontal,
+                centerX - horizontal.Width);
+
+            Canvas.SetTop(horizontal,
+                centerY - horizontal.Height / 2);
 
             BuildArea.Children.Add(horizontal);
 
             // Vertikaler Schenkel
             Rectangle vertical = new Rectangle();
 
-            vertical.Width = elbow.OuterDiameter;
+            vertical.Width = elbow.OuterDiameter*Scale;
             vertical.Height = elbow.LegLength * Scale;
 
             vertical.Fill = placed == selectedPlacedPart
                 ? Brushes.Gold
                 : Brushes.Blue;
 
-            Canvas.SetLeft(vertical, placed.Transform.Position.X);
-            Canvas.SetTop(vertical, placed.Transform.Position.Y);
+            Canvas.SetLeft(vertical,
+                centerX - vertical.Width / 2);
+
+            Canvas.SetTop(vertical,
+                centerY - vertical.Height);
 
             BuildArea.Children.Add(vertical);
 

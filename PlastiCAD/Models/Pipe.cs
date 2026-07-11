@@ -20,6 +20,7 @@ namespace PlastiCAD.Models
             {
                 Index = 0,
                 Name = "Links",
+                Face = Face.Left,
                 Position = new Vector3(0, 0, 0),
                 Direction = new Vector3(-1, 0, 0),
                 Owner = this
@@ -29,6 +30,7 @@ namespace PlastiCAD.Models
             {
                 Index = 1,
                 Name = "Rechts",
+                Face = Face.Right,
                 Position = new Vector3(Length, 0, 0),
                 Direction = new Vector3(1, 0, 0),
                 Owner = this

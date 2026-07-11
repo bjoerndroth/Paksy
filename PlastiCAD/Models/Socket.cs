@@ -8,6 +8,8 @@ namespace PlastiCAD.Models
 {
     public class Socket
     {
+
+        public Face Face { get; set; }
         public int Index { get; set; }
 
         public string Name { get; set; }

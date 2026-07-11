@@ -60,8 +60,8 @@ namespace PlastiCAD.Core
                 {
                     foreach (Socket otherSocket in otherPart.Sockets)
                     {
-                      
-                        if (!DirectionsMatch(movingSocket, otherSocket))
+
+                        if (!FacesMatch(movingSocket.Face, otherSocket.Face))
                             continue;
 
                         double distance = GetSocketDistance(
@@ -116,12 +116,16 @@ namespace PlastiCAD.Core
             movingPart.Transform.Position.Y += otherPos.Y - movingPos.Y;
         }
 
-        private static bool DirectionsMatch(Socket a, Socket b)
+     
+        private static bool FacesMatch(Face a, Face b)
         {
             return
-                a.Direction.X == -b.Direction.X &&
-                a.Direction.Y == -b.Direction.Y &&
-                a.Direction.Z == -b.Direction.Z;
+                (a == Face.Left && b == Face.Right) ||
+                (a == Face.Right && b == Face.Left) ||
+                (a == Face.Top && b == Face.Bottom) ||
+                (a == Face.Bottom && b == Face.Top) ||
+                (a == Face.Front && b == Face.Back) ||
+                (a == Face.Back && b == Face.Front);
         }
     }
 
