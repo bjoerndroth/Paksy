@@ -70,6 +70,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Models\Assembly.cs" />
+    <Compile Include="Models\Face.cs" />
     <Compile Include="Models\StructuralPart.cs" />
     <Compile Include="Models\SnapResult.cs" />
     <Compile Include="Models\Renderer.cs" />
