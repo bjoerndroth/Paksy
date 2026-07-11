@@ -73,12 +73,11 @@ namespace PlastiCAD
             Point p = e.GetPosition(BuildArea);
 
             double grid = Grider.CellSize * Scale;
-
             selectedPlacedPart.Transform.Position.X =
-                Math.Round((p.X - dragOffset.X) / grid) * grid;
+                Math.Round((p.X - grid / 2) / grid) * grid;
 
             selectedPlacedPart.Transform.Position.Y =
-                Math.Round((p.Y - dragOffset.Y) / grid) * grid;
+                Math.Round((p.Y - grid / 2) / grid) * grid;
 
             currentSnap = SnapEngine.FindBestSnap(
     assembly,
@@ -199,39 +198,17 @@ namespace PlastiCAD
 
         private PlacedPart GetPartAt(Point p)
         {
+            double size = Grider.CellSize * Scale;
+
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
-                if (placed.Part is Pipe pipe)
+                if (p.X >= placed.Transform.Position.X &&
+                    p.X <= placed.Transform.Position.X + size &&
+                    p.Y >= placed.Transform.Position.Y &&
+                    p.Y <= placed.Transform.Position.Y + size)
                 {
-                    double width = pipe.Length * Scale;
-                    double height = pipe.OuterDiameter*Scale;
-
-                    if (p.X >= placed.Transform.Position.X &&
-                        p.X <= placed.Transform.Position.X + width &&
-                        p.Y >= placed.Transform.Position.Y &&
-                        p.Y <= placed.Transform.Position.Y + height)
-                    {
-                        return placed;
-                    }
+                    return placed;
                 }
-
-                else if (placed.Part is Elbow elbow)
-                {
-                    double width = elbow.Length * Scale;
-                    double height = elbow.Length * Scale;
-
-                    if (p.X >= placed.Transform.Position.X &&
-                        p.X <= placed.Transform.Position.X + width &&
-                        p.Y >= placed.Transform.Position.Y &&
-                        p.Y <= placed.Transform.Position.Y + height)
-                    {
-                        return placed;
-                    }
-                }
-
-
-
-
             }
 
             return null;
