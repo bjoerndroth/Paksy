@@ -14,6 +14,6 @@ namespace PlastiCAD.Models
 
         public List<Socket> Sockets { get; set; } = new List<Socket>();
 
-        public int Rotation { get; set; }
+        public int Rotation { get; set; } = 0;
     }
 }

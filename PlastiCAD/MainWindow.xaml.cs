@@ -51,7 +51,10 @@ namespace PlastiCAD
             }
 
             Loaded += MainWindow_Loaded;
+            KeyDown += MainWindow_KeyDown;
         }
+
+        
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             RedrawScene();
@@ -179,14 +182,17 @@ namespace PlastiCAD
             double grid = Grider.CellSize * Scale;
 
             placed.Transform.Position = new Vector3(
-                Math.Round(p.X / grid) * grid,
-                Math.Round(p.Y / grid) * grid,
+                Math.Floor(p.X / grid) * grid,
+                Math.Floor(p.Y / grid) * grid,
                 0
             );
 
             placed.Sockets = selectedPart.CreateSockets();
 
             assembly.PlacedParts.Add(placed);
+            //if (selectedPlacedPart == null)   return;
+
+            selectedPlacedPart = placed;
 
             RedrawScene();
         }
@@ -317,61 +323,42 @@ namespace PlastiCAD
         {
             DrawGridCell(placed);
 
+            Vector3 center = GetCellCenter(placed);
 
-            Vector3 centerCell = GetCellCenter(placed);
-
-
-            Ellipse center = new Ellipse();
-
-            center.Width = elbow.OuterDiameter*Scale;
-            center.Height = elbow.OuterDiameter*Scale;
-
-            center.Fill = placed == selectedPlacedPart
+            Brush brush = placed == selectedPlacedPart
                 ? Brushes.Gold
                 : Brushes.Blue;
 
-            Canvas.SetLeft(center,
-                centerCell.X - elbow.OuterDiameter*Scale / 2);
+            // Mittelpunkt
+            Ellipse circle = new Ellipse();
 
-            Canvas.SetTop(center,
-                centerCell.Y - elbow.OuterDiameter*Scale / 2);
+            circle.Width = elbow.OuterDiameter * Scale;
+            circle.Height = elbow.OuterDiameter * Scale;
+            circle.Fill = brush;
 
-            BuildArea.Children.Add(center);
-            // Horizontaler Schenkel
-            Rectangle horizontal = new Rectangle();
+            Canvas.SetLeft(circle,
+                center.X - circle.Width / 2);
 
-            horizontal.Width = elbow.LegLength * Scale;
-            horizontal.Height = elbow.OuterDiameter*Scale;
+            Canvas.SetTop(circle,
+                center.Y - circle.Height / 2);
 
-            horizontal.Fill = placed == selectedPlacedPart
-                ? Brushes.Gold
-                : Brushes.Blue;
+            BuildArea.Children.Add(circle);
 
-            Canvas.SetLeft(horizontal,
-                centerCell.X - horizontal.Width);
+            // Arme
+            DrawArm(
+                center,
+                RotateFace(Face.Left, placed.Rotation),
+                elbow.LegLength,
+                elbow.OuterDiameter,
+                brush);
 
-            Canvas.SetTop(horizontal,
-                centerCell.Y - horizontal.Height / 2);
+            DrawArm(
+                center,
+                RotateFace(Face.Top, placed.Rotation),
+                elbow.LegLength,
+                elbow.OuterDiameter,
+                brush);
 
-            BuildArea.Children.Add(horizontal);
-
-            // Vertikaler Schenkel
-            Rectangle vertical = new Rectangle();
-
-            vertical.Width = elbow.OuterDiameter*Scale;
-            vertical.Height = elbow.LegLength * Scale;
-
-            vertical.Fill = placed == selectedPlacedPart
-                ? Brushes.Gold
-                : Brushes.Blue;
-
-            Canvas.SetLeft(vertical,
-                centerCell.X - vertical.Width / 2);
-
-            Canvas.SetTop(vertical,
-               centerCell.Y - vertical.Height);
-
-            BuildArea.Children.Add(vertical);
             // Linker Socket
             Ellipse leftSocket = new Ellipse();
             leftSocket.Width = 8;
@@ -380,8 +367,14 @@ namespace PlastiCAD
             leftSocket.Fill = placed.Sockets[0].IsConnected
                 ? Brushes.Green
                 : Brushes.Red;
-            
 
+            Canvas.SetLeft(leftSocket,
+                center.X - elbow.LegLength * Scale - 4);
+
+            Canvas.SetTop(leftSocket,
+                center.Y - 4);
+
+            BuildArea.Children.Add(leftSocket);
 
             // Oberer Socket
             Ellipse topSocket = new Ellipse();
@@ -392,19 +385,12 @@ namespace PlastiCAD
                 ? Brushes.Green
                 : Brushes.Red;
 
-            Canvas.SetLeft(leftSocket,
-    centerCell.X - horizontal.Width - 4);
-
-            Canvas.SetTop(leftSocket,
-                centerCell.Y - 4);
-
             Canvas.SetLeft(topSocket,
-            centerCell.X - 4);
+                center.X - 4);
 
             Canvas.SetTop(topSocket,
-                centerCell.Y - vertical.Height - 4);
+                center.Y - elbow.LegLength * Scale - 4);
 
-            BuildArea.Children.Add(leftSocket);
             BuildArea.Children.Add(topSocket);
         }
         private void DrawGridCell(PlacedPart placed)
@@ -462,6 +448,124 @@ namespace PlastiCAD
                     BuildArea.Children.Add(v);
                 }
             }
+        }
+
+        private void MainWindow_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (selectedPlacedPart == null)
+                return;
+
+            if (e.Key != Key.R)
+                return;
+
+            if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
+            {
+                // -90°
+                selectedPlacedPart.Rotation =
+                    (selectedPlacedPart.Rotation + 270) % 360;
+            }
+            else
+            {
+                // +90°
+                selectedPlacedPart.Rotation =
+                    (selectedPlacedPart.Rotation + 90) % 360;
+            }
+            e.Handled = true;
+            RedrawScene();
+        }
+
+        private Face RotateFace(Face face, int rotation)
+        {
+            int steps = ((rotation % 360) + 360) % 360 / 90;
+
+            for (int i = 0; i < steps; i++)
+            {
+                switch (face)
+                {
+                    case Face.Left:
+                        face = Face.Top;
+                        break;
+
+                    case Face.Top:
+                        face = Face.Right;
+                        break;
+
+                    case Face.Right:
+                        face = Face.Bottom;
+                        break;
+
+                    case Face.Bottom:
+                        face = Face.Left;
+                        break;
+                }
+            }
+            //StatusText.Text =RotateFace(Face.Left, selectedPlacedPart.Rotation).ToString();
+            return face;
+        }
+
+        private void DrawArm(
+    Vector3 center,
+    Face face,
+    double length,
+    double diameter,
+    Brush brush)
+        {
+            Rectangle arm = new Rectangle();
+
+            arm.Fill = brush;
+
+            switch (face)
+            {
+                case Face.Left:
+
+                    arm.Width = length * Scale;
+                    arm.Height = diameter * Scale;
+
+                    Canvas.SetLeft(arm,
+                        center.X - arm.Width);
+
+                    Canvas.SetTop(arm,
+                        center.Y - arm.Height / 2);
+                    break;
+
+                case Face.Right:
+
+                    arm.Width = length * Scale;
+                    arm.Height = diameter * Scale;
+
+                    Canvas.SetLeft(arm,
+                        center.X);
+
+                    Canvas.SetTop(arm,
+                        center.Y - arm.Height / 2);
+                    break;
+
+                case Face.Top:
+
+                    arm.Width = diameter * Scale;
+                    arm.Height = length * Scale;
+
+                    Canvas.SetLeft(arm,
+                        center.X - arm.Width / 2);
+
+                    Canvas.SetTop(arm,
+                        center.Y - arm.Height);
+                    break;
+
+                case Face.Bottom:
+
+                    arm.Width = diameter * Scale;
+                    arm.Height = length * Scale;
+
+                    Canvas.SetLeft(arm,
+                        center.X - arm.Width / 2);
+
+                    Canvas.SetTop(arm,
+                        center.Y);
+                    break;
+            }
+
+            BuildArea.Children.Add(arm);
         }
     }
 }

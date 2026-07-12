@@ -28,6 +28,7 @@
 
         <!-- Baufläche -->
         <Canvas x:Name="BuildArea"
+                Focusable="True"
         Grid.Column="1"
         Background="WhiteSmoke"
         Margin="5"
