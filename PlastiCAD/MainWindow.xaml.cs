@@ -261,61 +261,35 @@ namespace PlastiCAD
 
 
 
-            // Jetzt erst das Rohr erzeugen
-            Rectangle rect = new Rectangle();
+            Brush brush = placed == selectedPlacedPart
+              ? Brushes.Gold
+              : Brushes.Blue;
 
-            rect.Width = pipe.Length * Scale;
-            rect.Height = pipe.OuterDiameter*Scale;
+            DrawArm(
+                centerCell,
+                FaceHelper.RotateFace(Face.Left, placed.Rotation),
+                pipe.Length / 2,
+                pipe.OuterDiameter,
+                brush);
 
-            rect.Fill = placed == selectedPlacedPart
-                ? Brushes.Gold
-                : Brushes.Blue;
+            DrawArm(
+                centerCell,
+                FaceHelper.RotateFace(Face.Right, placed.Rotation),
+                pipe.Length / 2,
+                pipe.OuterDiameter,
+                brush);
 
-            Canvas.SetLeft(rect,
-                centerCell.X - rect.Width / 2);
+            DrawSocket(
+                 centerCell,
+                 FaceHelper.RotateFace(Face.Left, placed.Rotation),
+                 pipe.Length / 2,
+                 placed.Sockets[0].IsConnected);
 
-            Canvas.SetTop(rect,
-                centerCell.Y - rect.Height / 2);
-
-            BuildArea.Children.Add(rect);
-
-            // linker Socket
-            // linker Socket
-
-
-            Ellipse leftSocket = new Ellipse();
-            leftSocket.Width = 8;
-            leftSocket.Height = 8;
-
-            if (placed.Sockets[0].IsConnected)
-                leftSocket.Fill = Brushes.Green;
-            else
-                leftSocket.Fill = Brushes.Red;
-
-            Canvas.SetLeft(leftSocket,
-            centerCell.X - rect.Width / 2 - 4);
-
-            Canvas.SetTop(leftSocket,
-                centerCell.Y - 4);
-
-
-            BuildArea.Children.Add(leftSocket);
-
-            // rechter Socket
-            Ellipse rightSocket = new Ellipse();
-            rightSocket.Width = 8;
-            rightSocket.Height = 8;
-            if (placed.Sockets[1].IsConnected)
-                rightSocket.Fill = Brushes.Green;
-            else
-                rightSocket.Fill = Brushes.Red;
-            Canvas.SetLeft(rightSocket,
-       centerCell.X + rect.Width / 2 - 4);
-
-            Canvas.SetTop(rightSocket,
-                centerCell.Y - 4);
-
-            BuildArea.Children.Add(rightSocket);
+            DrawSocket(
+                centerCell,
+                FaceHelper.RotateFace(Face.Right, placed.Rotation),
+                pipe.Length / 2,
+                placed.Sockets[1].IsConnected);
         }
 
 
@@ -347,51 +321,29 @@ namespace PlastiCAD
             // Arme
             DrawArm(
                 center,
-                RotateFace(Face.Left, placed.Rotation),
+                FaceHelper.RotateFace(Face.Left, placed.Rotation),
                 elbow.LegLength,
                 elbow.OuterDiameter,
                 brush);
 
             DrawArm(
                 center,
-                RotateFace(Face.Top, placed.Rotation),
+                FaceHelper.RotateFace(Face.Top, placed.Rotation),
                 elbow.LegLength,
                 elbow.OuterDiameter,
                 brush);
 
-            // Linker Socket
-            Ellipse leftSocket = new Ellipse();
-            leftSocket.Width = 8;
-            leftSocket.Height = 8;
+            DrawSocket(
+                center,
+                FaceHelper.RotateFace(Face.Left, placed.Rotation),
+                elbow.LegLength,
+                placed.Sockets[0].IsConnected);
 
-            leftSocket.Fill = placed.Sockets[0].IsConnected
-                ? Brushes.Green
-                : Brushes.Red;
-
-            Canvas.SetLeft(leftSocket,
-                center.X - elbow.LegLength * Scale - 4);
-
-            Canvas.SetTop(leftSocket,
-                center.Y - 4);
-
-            BuildArea.Children.Add(leftSocket);
-
-            // Oberer Socket
-            Ellipse topSocket = new Ellipse();
-            topSocket.Width = 8;
-            topSocket.Height = 8;
-
-            topSocket.Fill = placed.Sockets[1].IsConnected
-                ? Brushes.Green
-                : Brushes.Red;
-
-            Canvas.SetLeft(topSocket,
-                center.X - 4);
-
-            Canvas.SetTop(topSocket,
-                center.Y - elbow.LegLength * Scale - 4);
-
-            BuildArea.Children.Add(topSocket);
+            DrawSocket(
+                center,
+                FaceHelper.RotateFace(Face.Top, placed.Rotation),
+                elbow.LegLength,
+                placed.Sockets[1].IsConnected);
         }
         private void DrawGridCell(PlacedPart placed)
         {
@@ -474,34 +426,7 @@ namespace PlastiCAD
             RedrawScene();
         }
 
-        private Face RotateFace(Face face, int rotation)
-        {
-            int steps = ((rotation % 360) + 360) % 360 / 90;
-
-            for (int i = 0; i < steps; i++)
-            {
-                switch (face)
-                {
-                    case Face.Left:
-                        face = Face.Top;
-                        break;
-
-                    case Face.Top:
-                        face = Face.Right;
-                        break;
-
-                    case Face.Right:
-                        face = Face.Bottom;
-                        break;
-
-                    case Face.Bottom:
-                        face = Face.Left;
-                        break;
-                }
-            }
-            //StatusText.Text =RotateFace(Face.Left, selectedPlacedPart.Rotation).ToString();
-            return face;
-        }
+      
 
         private void DrawArm(
     Vector3 center,
@@ -566,6 +491,47 @@ namespace PlastiCAD
             }
 
             BuildArea.Children.Add(arm);
+        }
+
+        private void DrawSocket(
+    Vector3 center,
+    Face face,
+    double length,
+    bool connected)
+        {
+            Ellipse socket = new Ellipse();
+
+            socket.Width = 8;
+            socket.Height = 8;
+
+            socket.Fill = connected
+                ? Brushes.Green
+                : Brushes.Red;
+
+            switch (face)
+            {
+                case Face.Left:
+                    Canvas.SetLeft(socket, center.X - length * Scale - 4);
+                    Canvas.SetTop(socket, center.Y - 4);
+                    break;
+
+                case Face.Right:
+                    Canvas.SetLeft(socket, center.X + length * Scale - 4);
+                    Canvas.SetTop(socket, center.Y - 4);
+                    break;
+
+                case Face.Top:
+                    Canvas.SetLeft(socket, center.X - 4);
+                    Canvas.SetTop(socket, center.Y - length * Scale - 4);
+                    break;
+
+                case Face.Bottom:
+                    Canvas.SetLeft(socket, center.X - 4);
+                    Canvas.SetTop(socket, center.Y + length * Scale - 4);
+                    break;
+            }
+
+            BuildArea.Children.Add(socket);
         }
     }
 }

@@ -59,8 +59,18 @@ namespace PlastiCAD.Core
                 {
                     foreach (Socket otherSocket in otherPart.Sockets)
                     {
-                     
-                        if (!FacesMatch(movingSocket.Face, otherSocket.Face))
+
+                        Face movingFace =
+                            FaceHelper.RotateFace(
+                                movingSocket.Face,
+                                movingPart.Rotation);
+
+                        Face otherFace =
+                            FaceHelper.RotateFace(
+                                otherSocket.Face,
+                                otherPart.Rotation);
+
+                        if (!FacesMatch(movingFace, otherFace))
                             continue;
 
                         double distance = GetSocketDistance(
@@ -137,7 +147,11 @@ namespace PlastiCAD.Core
 
             double r = Grider.CellSize * scale / 2;
 
-            switch (socket.Face)
+            Face face = FaceHelper.RotateFace(
+    socket.Face,
+    placed.Rotation);
+
+            switch (face)
             {
                 case Face.Left:
                     return new Vector3(centerX - r, centerY, 0);
