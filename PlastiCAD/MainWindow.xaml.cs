@@ -35,7 +35,7 @@ namespace PlastiCAD
 
         private bool isDragging = false;
         private Vector3 dragOffset = new Vector3();
-        private SnapResult currentSnap;
+        private List<SnapResult> currentSnaps = new List<SnapResult>();
         public MainWindow()
 
         {
@@ -87,20 +87,31 @@ namespace PlastiCAD
             selectedPlacedPart.Transform.Position.Y =
                 Math.Round((p.Y - grid / 2) / grid) * grid;
 
-            currentSnap = SnapEngine.FindBestSnap(
+            currentSnaps = SnapEngine.FindSnaps(
     assembly,
     selectedPlacedPart,
     Scale,
     SnapDistance);
 
-            if (currentSnap != null)
+            foreach (SnapResult snap in currentSnaps)
             {
-                SnapEngine.ApplySnap(
-                    selectedPlacedPart,
-                    currentSnap,
-                    Scale);
-            }
+                if (!snap.MovingSocket.IsConnected &&
+                    !snap.OtherSocket.IsConnected)
+                {
+                    assembly.Connections.Add(new Connection
+                    {
+                        SocketA = snap.MovingSocket,
+                        SocketB = snap.OtherSocket
+                    });
 
+                    snap.MovingSocket.IsConnected = true;
+                    snap.OtherSocket.IsConnected = true;
+
+                    snap.MovingSocket.ConnectedTo = snap.OtherSocket;
+                    snap.OtherSocket.ConnectedTo = snap.MovingSocket;
+                }
+            }
+            currentSnaps.Clear();
             RedrawScene();
         }
 
@@ -109,30 +120,35 @@ namespace PlastiCAD
             isDragging = false;
             BuildArea.ReleaseMouseCapture();
 
-            if (currentSnap != null &&
-                !currentSnap.MovingSocket.IsConnected &&
-                !currentSnap.OtherSocket.IsConnected)
+            if (currentSnaps.Count > 0)
             {
-                assembly.Connections.Add(new Connection
+                foreach (SnapResult snap in currentSnaps)
                 {
-                    SocketA = currentSnap.MovingSocket,
-                    SocketB = currentSnap.OtherSocket
-                });
+                    if (!snap.MovingSocket.IsConnected &&
+                        !snap.OtherSocket.IsConnected)
+                    {
+                        assembly.Connections.Add(new Connection
+                        {
+                            SocketA = snap.MovingSocket,
+                            SocketB = snap.OtherSocket
+                        });
 
-                currentSnap.MovingSocket.IsConnected = true;
-                currentSnap.OtherSocket.IsConnected = true;
+                        snap.MovingSocket.IsConnected = true;
+                        snap.OtherSocket.IsConnected = true;
 
-                currentSnap.MovingSocket.ConnectedTo = currentSnap.OtherSocket;
-                currentSnap.OtherSocket.ConnectedTo = currentSnap.MovingSocket;
+                        snap.MovingSocket.ConnectedTo = snap.OtherSocket;
+                        snap.OtherSocket.ConnectedTo = snap.MovingSocket;
+                    }
+                }
 
-                StatusText.Text = "Verbunden";
+                StatusText.Text = $"{currentSnaps.Count} Verbindung(en)";
             }
             else
             {
                 StatusText.Text = "Bereit";
             }
 
-            currentSnap = null;
+            currentSnaps.Clear();
 
             RedrawScene();
         }

@@ -40,6 +40,61 @@ namespace PlastiCAD.Core
             return movingPos.DistanceTo(otherPos);
         }
 
+        public static List<SnapResult> FindSnaps(
+    Assembly assembly,
+    PlacedPart movingPart,
+    double scale,
+    double snapDistance)
+        {
+            List<SnapResult> snaps = new List<SnapResult>();
+
+            foreach (PlacedPart otherPart in assembly.PlacedParts)
+            {
+                // Sich selbst überspringen
+                if (otherPart == movingPart)
+                    continue;
+
+                foreach (Socket movingSocket in movingPart.Sockets)
+                {
+                    foreach (Socket otherSocket in otherPart.Sockets)
+                    {
+                        Face movingFace =
+                            FaceHelper.RotateFace(
+                                movingSocket.Face,
+                                movingPart.Rotation);
+
+                        Face otherFace =
+                            FaceHelper.RotateFace(
+                                otherSocket.Face,
+                                otherPart.Rotation);
+
+                        if (!FacesMatch(movingFace, otherFace))
+                            continue;
+
+                        double distance = GetSocketDistance(
+                            movingPart,
+                            movingSocket,
+                            otherPart,
+                            otherSocket,
+                            scale);
+
+                        if (distance < snapDistance)
+                        {
+                            snaps.Add(new SnapResult
+                            {
+                                MovingSocket = movingSocket,
+                                OtherSocket = otherSocket,
+                                OtherPart = otherPart,
+                                Distance = distance
+                            });
+                        }
+                    }
+                }
+            }
+
+            return snaps;
+        }
+
         public static SnapResult FindBestSnap(    Assembly assembly,    PlacedPart movingPart,    double scale,    double snapDistance)
         {
             Socket bestMovingSocket = null;
