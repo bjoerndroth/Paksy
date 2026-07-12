@@ -115,40 +115,18 @@ namespace PlastiCAD
             RedrawScene();
         }
 
-        private void BuildArea_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        private void BuildArea_MouseLeftButtonUp(
+     object sender,
+     MouseButtonEventArgs e)
         {
             isDragging = false;
             BuildArea.ReleaseMouseCapture();
 
-            if (currentSnaps.Count > 0)
-            {
-                foreach (SnapResult snap in currentSnaps)
-                {
-                    if (!snap.MovingSocket.IsConnected &&
-                        !snap.OtherSocket.IsConnected)
-                    {
-                        assembly.Connections.Add(new Connection
-                        {
-                            SocketA = snap.MovingSocket,
-                            SocketB = snap.OtherSocket
-                        });
+            int connectionCount = ConnectCurrentSnaps();
 
-                        snap.MovingSocket.IsConnected = true;
-                        snap.OtherSocket.IsConnected = true;
-
-                        snap.MovingSocket.ConnectedTo = snap.OtherSocket;
-                        snap.OtherSocket.ConnectedTo = snap.MovingSocket;
-                    }
-                }
-
-                StatusText.Text = $"{currentSnaps.Count} Verbindung(en)";
-            }
-            else
-            {
-                StatusText.Text = "Bereit";
-            }
-
-            currentSnaps.Clear();
+            StatusText.Text = connectionCount > 0
+                ? $"{connectionCount} Verbindung(en)"
+                : "Bereit";
 
             RedrawScene();
         }
@@ -209,6 +187,18 @@ namespace PlastiCAD
             //if (selectedPlacedPart == null)   return;
 
             selectedPlacedPart = placed;
+
+            RefreshSnaps(true);
+
+            int connectionCount = ConnectCurrentSnaps();
+
+            StatusText.Text = connectionCount > 0
+                ? $"{connectionCount} Verbindung(en)"
+                : "Bauteil gesetzt";
+
+            Keyboard.Focus(BuildArea);
+
+            RedrawScene();
 
             RedrawScene();
         }
@@ -426,23 +416,34 @@ namespace PlastiCAD
             if (e.Key != Key.R)
                 return;
 
+            // Vor dem Drehen vorhandene Verbindungen dieses Teils lösen.
+            DisconnectPart(selectedPlacedPart);
+
             if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
             {
-                // -90°
                 selectedPlacedPart.Rotation =
                     (selectedPlacedPart.Rotation + 270) % 360;
             }
             else
             {
-                // +90°
                 selectedPlacedPart.Rotation =
                     (selectedPlacedPart.Rotation + 90) % 360;
             }
+
+            RefreshSnaps(true);
+
+            int connectionCount = ConnectCurrentSnaps();
+
+            StatusText.Text = connectionCount > 0
+                ? $"{connectionCount} Verbindung(en)"
+                : $"Drehung: {selectedPlacedPart.Rotation}°";
+
             e.Handled = true;
+
             RedrawScene();
         }
 
-      
+
 
         private void DrawArm(
     Vector3 center,
@@ -548,6 +549,69 @@ namespace PlastiCAD
             }
 
             BuildArea.Children.Add(socket);
+        }
+
+        private void RefreshSnaps(bool applySnap)
+        {
+            if (selectedPlacedPart == null)
+            {
+                currentSnaps.Clear();
+                return;
+            }
+
+            currentSnaps = SnapEngine.FindSnaps(
+                assembly,
+                selectedPlacedPart,
+                Scale,
+                SnapDistance);
+
+            if (applySnap && currentSnaps.Count > 0)
+            {
+                SnapEngine.ApplySnap(
+                    selectedPlacedPart,
+                    currentSnaps[0],
+                    Scale);
+
+                // Nach dem Verschieben noch einmal prüfen,
+                // welche Verbindungen an der endgültigen Position passen.
+                currentSnaps = SnapEngine.FindSnaps(
+                    assembly,
+                    selectedPlacedPart,
+                    Scale,
+                    SnapDistance);
+            }
+        }
+
+        private int ConnectCurrentSnaps()
+        {
+            int connectionCount = 0;
+
+            foreach (SnapResult snap in currentSnaps)
+            {
+                if (snap.MovingSocket.IsConnected ||
+                    snap.OtherSocket.IsConnected)
+                {
+                    continue;
+                }
+
+                assembly.Connections.Add(new Connection
+                {
+                    SocketA = snap.MovingSocket,
+                    SocketB = snap.OtherSocket
+                });
+
+                snap.MovingSocket.IsConnected = true;
+                snap.OtherSocket.IsConnected = true;
+
+                snap.MovingSocket.ConnectedTo = snap.OtherSocket;
+                snap.OtherSocket.ConnectedTo = snap.MovingSocket;
+
+                connectionCount++;
+            }
+
+            currentSnaps.Clear();
+
+            return connectionCount;
         }
     }
 }
