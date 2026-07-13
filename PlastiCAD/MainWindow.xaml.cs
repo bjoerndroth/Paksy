@@ -414,6 +414,14 @@ namespace PlastiCAD
             if (selectedPlacedPart == null)
                 return;
 
+            if (e.Key == Key.Delete)
+            {
+                DeleteSelectedPart();
+
+                e.Handled = true;
+                return;
+            }
+
             if (e.Key != Key.R)
                 return;
 
@@ -717,6 +725,24 @@ namespace PlastiCAD
             bool verticalLine = hasTop && hasBottom;
 
             return !horizontalLine && !verticalLine;
+        }
+
+        private void DeleteSelectedPart()
+        {
+            if (selectedPlacedPart == null)
+                return;
+
+            DisconnectPart(selectedPlacedPart);
+
+            assembly.PlacedParts.Remove(selectedPlacedPart);
+
+            selectedPlacedPart = null;
+
+            currentSnaps.Clear();
+
+            StatusText.Text = "Bauteil gelöscht";
+
+            RedrawScene();
         }
     }
 }
