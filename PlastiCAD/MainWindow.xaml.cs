@@ -417,7 +417,7 @@ namespace PlastiCAD
             if (e.Key == Key.Delete)
             {
                 DeleteSelectedPart();
-
+                 
                 e.Handled = true;
                 return;
             }
