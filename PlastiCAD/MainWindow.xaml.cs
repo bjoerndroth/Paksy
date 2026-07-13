@@ -209,13 +209,11 @@ namespace PlastiCAD
 
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
-                if (placed.Part is Pipe pipe)
+                if (placed.Part is StructuralPart structuralPart)
                 {
-                    DrawPipe(placed, pipe);
-                }
-                else if (placed.Part is Elbow elbow)
-                {
-                    DrawElbow(placed, elbow);
+                    DrawStructuralPart(
+                        placed,
+                        structuralPart);
                 }
             }
         }
@@ -612,6 +610,108 @@ namespace PlastiCAD
             currentSnaps.Clear();
 
             return connectionCount;
+        }
+
+
+        private void DrawStructuralPart(
+      PlacedPart placed,
+      StructuralPart part)
+        {
+            DrawGridCell(placed);
+
+            Vector3 center = GetCellCenter(placed);
+
+            Brush brush = GetPartBrush(placed);
+
+            if (part.DrawCenter)
+            {
+                DrawCenter(
+                    center,
+                    part.OuterDiameter,
+                    brush);
+            }
+
+            foreach (Socket socket in placed.Sockets)
+            {
+                Face face =
+                    FaceHelper.RotateFace(
+                        socket.Face,
+                        placed.Rotation);
+
+                DrawArm(
+                    center,
+                    face,
+                    part.Length / 2,
+                    part.OuterDiameter,
+                    brush);
+
+                DrawSocket(
+                    center,
+                    face,
+                    part.Length / 2,
+                    socket.IsConnected);
+            }
+        }
+
+        private Brush GetPartBrush(PlacedPart placed)
+        {
+            return placed == selectedPlacedPart
+                ? Brushes.Gold
+                : Brushes.Blue;
+        }
+        private void DrawCenter(
+    Vector3 center,
+    double diameter,
+    Brush brush)
+        {
+            Ellipse circle = new Ellipse
+            {
+                Width = diameter * Scale,
+                Height = diameter * Scale,
+                Fill = brush
+            };
+
+            Canvas.SetLeft(
+                circle,
+                center.X - circle.Width / 2);
+
+            Canvas.SetTop(
+                circle,
+                center.Y - circle.Height / 2);
+
+            BuildArea.Children.Add(circle);
+        }
+
+        private bool NeedsCenterCircle(PlacedPart placed)
+        {
+            if (placed.Sockets.Count < 2)
+                return false;
+
+            bool hasLeft = false;
+            bool hasRight = false;
+            bool hasTop = false;
+            bool hasBottom = false;
+
+            foreach (Socket socket in placed.Sockets)
+            {
+                Face face = FaceHelper.RotateFace(
+                    socket.Face,
+                    placed.Rotation);
+
+                if (face == Face.Left)
+                    hasLeft = true;
+                else if (face == Face.Right)
+                    hasRight = true;
+                else if (face == Face.Top)
+                    hasTop = true;
+                else if (face == Face.Bottom)
+                    hasBottom = true;
+            }
+
+            bool horizontalLine = hasLeft && hasRight;
+            bool verticalLine = hasTop && hasBottom;
+
+            return !horizontalLine && !verticalLine;
         }
     }
 }

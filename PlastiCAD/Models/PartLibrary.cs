@@ -38,6 +38,7 @@ namespace PlastiCAD.Models
 
         private static void AddTees()
         {
+            Parts.Add(new Tee());
         }
 
         private static void AddCrosses()

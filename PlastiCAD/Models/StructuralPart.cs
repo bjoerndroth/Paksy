@@ -15,5 +15,7 @@ namespace PlastiCAD.Models
         public double InnerDiameter { get; protected set; } = 7.0;
 
         public double SocketDepth { get; protected set; } = 10.5;
+        public virtual bool DrawCenter => true;
+
     }
 }
