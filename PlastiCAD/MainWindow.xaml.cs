@@ -116,11 +116,14 @@ namespace PlastiCAD
         }
 
         private void BuildArea_MouseLeftButtonUp(
-     object sender,
-     MouseButtonEventArgs e)
+      object sender,
+      MouseButtonEventArgs e)
         {
             isDragging = false;
             BuildArea.ReleaseMouseCapture();
+
+            // Wichtig: an der endgültigen Position noch einmal neu prüfen
+            RefreshSnaps(false);
 
             int connectionCount = ConnectCurrentSnaps();
 
@@ -557,6 +560,7 @@ namespace PlastiCAD
                 return;
             }
 
+            // Erste Suche: einen passenden Anker finden
             currentSnaps = SnapEngine.FindSnaps(
                 assembly,
                 selectedPlacedPart,
@@ -565,13 +569,14 @@ namespace PlastiCAD
 
             if (applySnap && currentSnaps.Count > 0)
             {
+                // Nur einmal positionieren
                 SnapEngine.ApplySnap(
                     selectedPlacedPart,
                     currentSnaps[0],
                     Scale);
 
-                // Nach dem Verschieben noch einmal prüfen,
-                // welche Verbindungen an der endgültigen Position passen.
+                // Wichtig:
+                // Nach dem Einrasten alle nun passenden Sockets neu suchen
                 currentSnaps = SnapEngine.FindSnaps(
                     assembly,
                     selectedPlacedPart,

@@ -43,6 +43,7 @@ namespace PlastiCAD.Models
 
         private static void AddCrosses()
         {
+            Parts.Add(new Cross());
         }
 
         private static void AddJoints()
