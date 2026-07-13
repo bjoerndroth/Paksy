@@ -523,8 +523,8 @@ namespace PlastiCAD
             socket.Height = 8;
 
             socket.Fill = connected
-                ? Brushes.Green
-                : Brushes.Red;
+             ? Brushes.Gold
+             : Brushes.Red;
 
             switch (face)
             {
@@ -661,8 +661,8 @@ namespace PlastiCAD
         private Brush GetPartBrush(PlacedPart placed)
         {
             return placed == selectedPlacedPart
-                ? Brushes.Gold
-                : Brushes.Blue;
+            ? Brushes.LimeGreen
+            : Brushes.Blue;
         }
         private void DrawCenter(
     Vector3 center,
