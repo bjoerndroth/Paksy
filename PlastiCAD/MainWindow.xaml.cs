@@ -28,8 +28,15 @@ namespace PlastiCAD
 
 
         private Assembly assembly = new Assembly();
+        private List<PlacedPart> selectedParts = new List<PlacedPart>();
+
+        private PlacedPart SelectedPart =>
+            selectedParts.Count == 1
+                ? selectedParts[0]
+                : null;
+
         private Part selectedPart;
-        private PlacedPart selectedPlacedPart;
+
         private const double Scale = 2.0;
         private const double SnapDistance = 12.0;
 
@@ -68,7 +75,7 @@ namespace PlastiCAD
 
         private void BuildArea_MouseMove(object sender, MouseEventArgs e)
         {
-            if (!isDragging || selectedPlacedPart == null)
+            if (!isDragging || SelectedPart == null)
                 return;
 
             if (e.LeftButton != MouseButtonState.Pressed)
@@ -81,15 +88,15 @@ namespace PlastiCAD
             Point p = e.GetPosition(BuildArea);
 
             double grid = Grider.CellSize * Scale;
-            selectedPlacedPart.Transform.Position.X =
+            SelectedPart.Transform.Position.X =
                 Math.Round((p.X - grid / 2) / grid) * grid;
 
-            selectedPlacedPart.Transform.Position.Y =
+            SelectedPart.Transform.Position.Y =
                 Math.Round((p.Y - grid / 2) / grid) * grid;
 
             currentSnaps = SnapEngine.FindSnaps(
     assembly,
-    selectedPlacedPart,
+    SelectedPart,
     Scale,
     SnapDistance);
 
@@ -138,26 +145,51 @@ namespace PlastiCAD
             Point p = e.GetPosition(BuildArea);
 
             // Prüfen, ob ein vorhandenes Teil angeklickt wurde
-            selectedPlacedPart = GetPartAt(p);
+            PlacedPart clickedPart = GetPartAt(p);
 
-
-
-            if (selectedPlacedPart != null)
+            if (clickedPart != null)
             {
-                DisconnectPart(selectedPlacedPart);
+                selectedParts.Clear();
+                selectedParts.Add(clickedPart);
+
+                DisconnectPart(clickedPart);
+                isDragging = true;
+
+                BuildArea.CaptureMouse();
+
+                double gridS = Grider.CellSize * Scale;
+
+                clickedPart.Transform.Position.X =
+                    Math.Round((p.X - gridS / 2) / gridS) * gridS;
+
+                clickedPart.Transform.Position.Y =
+                    Math.Round((p.Y - gridS / 2) / gridS) * gridS;
+
+                dragOffset = new Vector3(
+                    p.X - clickedPart.Transform.Position.X,
+                    p.Y - clickedPart.Transform.Position.Y,
+                    0);
+
+                StatusText.Text = "Bauteil ausgewählt";
+
+                RedrawScene();
+                return;
+            }
+            {
+                DisconnectPart(SelectedPart);
                 isDragging = true;
 
                 BuildArea.CaptureMouse();
                 double gridS = Grider.CellSize * Scale;
-                selectedPlacedPart.Transform.Position.X =
+                SelectedPart.Transform.Position.X =
                     Math.Round((p.X - gridS / 2) / gridS) * gridS;
 
-                selectedPlacedPart.Transform.Position.Y =
+                SelectedPart.Transform.Position.Y =
                     Math.Round((p.Y - gridS / 2) / gridS) * gridS;
 
                 dragOffset = new Vector3(
-                    p.X - selectedPlacedPart.Transform.Position.X,
-                    p.Y - selectedPlacedPart.Transform.Position.Y,
+                    p.X - SelectedPart.Transform.Position.X,
+                    p.Y - SelectedPart.Transform.Position.Y,
                     0);
 
                 StatusText.Text = "Bauteil ausgewählt";
@@ -187,9 +219,9 @@ namespace PlastiCAD
             placed.Sockets = selectedPart.CreateSockets();
 
             assembly.PlacedParts.Add(placed);
-            //if (selectedPlacedPart == null)   return;
 
-            selectedPlacedPart = placed;
+            selectedParts.Clear();
+            selectedParts.Add(placed);
 
             RefreshSnaps(true);
 
@@ -268,7 +300,7 @@ namespace PlastiCAD
 
 
 
-            Brush brush = placed == selectedPlacedPart
+            Brush brush = placed == SelectedPart
               ? Brushes.Gold
               : Brushes.Blue;
 
@@ -306,7 +338,7 @@ namespace PlastiCAD
 
             Vector3 center = GetCellCenter(placed);
 
-            Brush brush = placed == selectedPlacedPart
+            Brush brush = placed == SelectedPart
                 ? Brushes.Gold
                 : Brushes.Blue;
 
@@ -411,7 +443,7 @@ namespace PlastiCAD
 
         private void MainWindow_KeyDown(object sender, KeyEventArgs e)
         {
-            if (selectedPlacedPart == null)
+            if (SelectedPart == null)
                 return;
 
             if (e.Key == Key.Delete)
@@ -426,17 +458,17 @@ namespace PlastiCAD
                 return;
 
             // Vor dem Drehen vorhandene Verbindungen dieses Teils lösen.
-            DisconnectPart(selectedPlacedPart);
+            DisconnectPart(SelectedPart);
 
             if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
             {
-                selectedPlacedPart.Rotation =
-                    (selectedPlacedPart.Rotation + 270) % 360;
+                SelectedPart.Rotation =
+                    (SelectedPart.Rotation + 270) % 360;
             }
             else
             {
-                selectedPlacedPart.Rotation =
-                    (selectedPlacedPart.Rotation + 90) % 360;
+                SelectedPart.Rotation =
+                    (SelectedPart.Rotation + 90) % 360;
             }
 
             RefreshSnaps(true);
@@ -445,7 +477,7 @@ namespace PlastiCAD
 
             StatusText.Text = connectionCount > 0
                 ? $"{connectionCount} Verbindung(en)"
-                : $"Drehung: {selectedPlacedPart.Rotation}°";
+                : $"Drehung: {SelectedPart.Rotation}°";
 
             e.Handled = true;
 
@@ -562,7 +594,7 @@ namespace PlastiCAD
 
         private void RefreshSnaps(bool applySnap)
         {
-            if (selectedPlacedPart == null)
+            if (SelectedPart == null)
             {
                 currentSnaps.Clear();
                 return;
@@ -571,7 +603,7 @@ namespace PlastiCAD
             // Erste Suche: einen passenden Anker finden
             currentSnaps = SnapEngine.FindSnaps(
                 assembly,
-                selectedPlacedPart,
+                SelectedPart,
                 Scale,
                 SnapDistance);
 
@@ -579,7 +611,7 @@ namespace PlastiCAD
             {
                 // Nur einmal positionieren
                 SnapEngine.ApplySnap(
-                    selectedPlacedPart,
+                    SelectedPart,
                     currentSnaps[0],
                     Scale);
 
@@ -587,7 +619,7 @@ namespace PlastiCAD
                 // Nach dem Einrasten alle nun passenden Sockets neu suchen
                 currentSnaps = SnapEngine.FindSnaps(
                     assembly,
-                    selectedPlacedPart,
+                    SelectedPart,
                     Scale,
                     SnapDistance);
             }
@@ -668,7 +700,7 @@ namespace PlastiCAD
 
         private Brush GetPartBrush(PlacedPart placed)
         {
-            return placed == selectedPlacedPart
+            return placed == SelectedPart
             ? Brushes.LimeGreen
             : Brushes.Blue;
         }
@@ -729,15 +761,16 @@ namespace PlastiCAD
 
         private void DeleteSelectedPart()
         {
-            if (selectedPlacedPart == null)
+            PlacedPart part = SelectedPart;
+
+            if (part == null)
                 return;
 
-            DisconnectPart(selectedPlacedPart);
+            DisconnectPart(part);
 
-            assembly.PlacedParts.Remove(selectedPlacedPart);
+            assembly.PlacedParts.Remove(part);
 
-            selectedPlacedPart = null;
-
+            selectedParts.Clear();
             currentSnaps.Clear();
 
             StatusText.Text = "Bauteil gelöscht";
