@@ -26,7 +26,9 @@ namespace PlastiCAD
     public partial class MainWindow : Window
     {
 
+        private Dictionary<PlacedPart, Vector3> dragStartPositions= new Dictionary<PlacedPart, Vector3>();
 
+        private Point dragStartMousePosition;
         private Assembly assembly = new Assembly();
         private List<PlacedPart> selectedParts = new List<PlacedPart>();
 
@@ -66,8 +68,13 @@ namespace PlastiCAD
         {
             RedrawScene();
         }
-        private void PartsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void PartsList_SelectionChanged(
+         object sender,
+         SelectionChangedEventArgs e)
         {
+            if (PartsList.SelectedIndex < 0)
+                return;
+
             selectedPart = PartLibrary.Parts[PartsList.SelectedIndex];
 
             StatusText.Text = "Ausgewählt: " + selectedPart.Name;
@@ -75,7 +82,7 @@ namespace PlastiCAD
 
         private void BuildArea_MouseMove(object sender, MouseEventArgs e)
         {
-            if (!isDragging || SelectedPart == null)
+            if (!isDragging || selectedParts.Count == 0)
                 return;
 
             if (e.LeftButton != MouseButtonState.Pressed)
@@ -88,55 +95,59 @@ namespace PlastiCAD
             Point p = e.GetPosition(BuildArea);
 
             double grid = Grider.CellSize * Scale;
-            SelectedPart.Transform.Position.X =
-                Math.Round((p.X - grid / 2) / grid) * grid;
 
-            SelectedPart.Transform.Position.Y =
-                Math.Round((p.Y - grid / 2) / grid) * grid;
+            double deltaX = p.X - dragStartMousePosition.X;
+            double deltaY = p.Y - dragStartMousePosition.Y;
 
-            currentSnaps = SnapEngine.FindSnaps(
-    assembly,
-    SelectedPart,
-    Scale,
-    SnapDistance);
+            double snappedDeltaX =
+                Math.Round(deltaX / grid) * grid;
 
-            foreach (SnapResult snap in currentSnaps)
+            double snappedDeltaY =
+                Math.Round(deltaY / grid) * grid;
+
+            foreach (PlacedPart part in selectedParts)
             {
-                if (!snap.MovingSocket.IsConnected &&
-                    !snap.OtherSocket.IsConnected)
-                {
-                    assembly.Connections.Add(new Connection
-                    {
-                        SocketA = snap.MovingSocket,
-                        SocketB = snap.OtherSocket
-                    });
+                if (!dragStartPositions.TryGetValue(part, out Vector3 start))
+                    continue;
 
-                    snap.MovingSocket.IsConnected = true;
-                    snap.OtherSocket.IsConnected = true;
+                part.Transform.Position.X =
+                    start.X + snappedDeltaX;
 
-                    snap.MovingSocket.ConnectedTo = snap.OtherSocket;
-                    snap.OtherSocket.ConnectedTo = snap.MovingSocket;
-                }
+                part.Transform.Position.Y =
+                    start.Y + snappedDeltaY;
             }
-            currentSnaps.Clear();
+
+            if (selectedParts.Count == 1)
+            {
+                RefreshSnaps(true);
+            }
+            else
+            {
+                currentSnaps.Clear();
+            }
+
             RedrawScene();
         }
-
         private void BuildArea_MouseLeftButtonUp(
-      object sender,
-      MouseButtonEventArgs e)
+       object sender,
+       MouseButtonEventArgs e)
         {
             isDragging = false;
             BuildArea.ReleaseMouseCapture();
 
-            // Wichtig: an der endgültigen Position noch einmal neu prüfen
-            RefreshSnaps(false);
+            int connectionCount = 0;
 
-            int connectionCount = ConnectCurrentSnaps();
+            if (selectedParts.Count == 1)
+            {
+                RefreshSnaps(false);
+                connectionCount = ConnectCurrentSnaps();
+            }
+
+            dragStartPositions.Clear();
 
             StatusText.Text = connectionCount > 0
                 ? $"{connectionCount} Verbindung(en)"
-                : "Bereit";
+                : $"{selectedParts.Count} Bauteil(e) ausgewählt";
 
             RedrawScene();
         }
@@ -149,72 +160,89 @@ namespace PlastiCAD
 
             if (clickedPart != null)
             {
-                selectedParts.Clear();
-                selectedParts.Add(clickedPart);
+                bool controlPressed =
+                    (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
 
-                DisconnectPart(clickedPart);
+                if (controlPressed)
+                {
+                    // Strg+Klick: nur Auswahl ändern
+                    if (selectedParts.Contains(clickedPart))
+                        selectedParts.Remove(clickedPart);
+                    else
+                        selectedParts.Add(clickedPart);
+
+                    StatusText.Text =
+                        $"{selectedParts.Count} Bauteil(e) ausgewählt";
+
+                    RedrawScene();
+                    return;
+                }
+
+                // Wenn das angeklickte Teil nicht ausgewählt ist,
+                // wird daraus wieder eine Einzelauswahl.
+                if (!selectedParts.Contains(clickedPart))
+                {
+                    selectedParts.Clear();
+                    selectedParts.Add(clickedPart);
+                }
+
+                foreach (PlacedPart part in selectedParts)
+                {
+                    DisconnectPart(part);
+                }
+
+                dragStartMousePosition = p;
+                dragStartPositions.Clear();
+
+                foreach (PlacedPart part in selectedParts)
+                {
+                    dragStartPositions[part] = new Vector3(
+                        part.Transform.Position.X,
+                        part.Transform.Position.Y,
+                        part.Transform.Position.Z);
+                }
+
                 isDragging = true;
-
                 BuildArea.CaptureMouse();
 
-                double gridS = Grider.CellSize * Scale;
+                dragStartMousePosition = p;
+                dragStartPositions.Clear();
 
-                clickedPart.Transform.Position.X =
-                    Math.Round((p.X - gridS / 2) / gridS) * gridS;
+                foreach (PlacedPart part in selectedParts)
+                {
+                    dragStartPositions[part] = new Vector3(
+                        part.Transform.Position.X,
+                        part.Transform.Position.Y,
+                        part.Transform.Position.Z);
+                }
 
-                clickedPart.Transform.Position.Y =
-                    Math.Round((p.Y - gridS / 2) / gridS) * gridS;
-
-                dragOffset = new Vector3(
-                    p.X - clickedPart.Transform.Position.X,
-                    p.Y - clickedPart.Transform.Position.Y,
-                    0);
-
-                StatusText.Text = "Bauteil ausgewählt";
+                StatusText.Text =
+                    $"{selectedParts.Count} Bauteil(e) werden verschoben";
 
                 RedrawScene();
                 return;
             }
-            {
-                DisconnectPart(SelectedPart);
-                isDragging = true;
-
-                BuildArea.CaptureMouse();
-                double gridS = Grider.CellSize * Scale;
-                SelectedPart.Transform.Position.X =
-                    Math.Round((p.X - gridS / 2) / gridS) * gridS;
-
-                SelectedPart.Transform.Position.Y =
-                    Math.Round((p.Y - gridS / 2) / gridS) * gridS;
-
-                dragOffset = new Vector3(
-                    p.X - SelectedPart.Transform.Position.X,
-                    p.Y - SelectedPart.Transform.Position.Y,
-                    0);
-
-                StatusText.Text = "Bauteil ausgewählt";
-
-                RedrawScene();
-                return;
-            }
-
-
             // Wenn kein Teil getroffen wurde und kein Bibliotheksteil ausgewählt ist
+            // Kein vorhandenes Teil getroffen.
+            // Prüfen, ob ein Bibliotheksteil ausgewählt ist.
             if (selectedPart == null)
+            {
+                selectedParts.Clear();
+                RedrawScene();
                 return;
+            }
 
-
-            PlacedPart placed = new PlacedPart();
-
-            placed.Part = selectedPart;
+            PlacedPart placed = new PlacedPart
+            {
+                Part = selectedPart
+            };
 
             double grid = Grider.CellSize * Scale;
 
             placed.Transform.Position = new Vector3(
                 Math.Floor(p.X / grid) * grid,
                 Math.Floor(p.Y / grid) * grid,
-                0
-            );
+                0);
 
             placed.Sockets = selectedPart.CreateSockets();
 
@@ -232,8 +260,6 @@ namespace PlastiCAD
                 : "Bauteil gesetzt";
 
             Keyboard.Focus(BuildArea);
-
-            RedrawScene();
 
             RedrawScene();
         }
@@ -300,7 +326,7 @@ namespace PlastiCAD
 
 
 
-            Brush brush = placed == SelectedPart
+            Brush brush = selectedParts.Contains(placed)
               ? Brushes.Gold
               : Brushes.Blue;
 
@@ -338,7 +364,7 @@ namespace PlastiCAD
 
             Vector3 center = GetCellCenter(placed);
 
-            Brush brush = placed == SelectedPart
+            Brush brush = selectedParts.Contains(placed)
                 ? Brushes.Gold
                 : Brushes.Blue;
 
@@ -700,9 +726,9 @@ namespace PlastiCAD
 
         private Brush GetPartBrush(PlacedPart placed)
         {
-            return placed == SelectedPart
-            ? Brushes.LimeGreen
-            : Brushes.Blue;
+            return selectedParts.Contains(placed)
+       ? Brushes.LimeGreen
+       : Brushes.Blue;
         }
         private void DrawCenter(
     Vector3 center,
