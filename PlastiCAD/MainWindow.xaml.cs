@@ -128,20 +128,32 @@ namespace PlastiCAD
 
             RedrawScene();
         }
+        private int ConnectSelectedParts()
+        {
+            int connectionCount = 0;
+
+            foreach (PlacedPart part in selectedParts)
+            {
+                currentSnaps = SnapEngine.FindSnaps(
+                    assembly,
+                    part,
+                    Scale,
+                    SnapDistance);
+
+                connectionCount += ConnectCurrentSnaps();
+            }
+
+            return connectionCount;
+        }
+
         private void BuildArea_MouseLeftButtonUp(
-       object sender,
-       MouseButtonEventArgs e)
+    object sender,
+    MouseButtonEventArgs e)
         {
             isDragging = false;
             BuildArea.ReleaseMouseCapture();
 
-            int connectionCount = 0;
-
-            if (selectedParts.Count == 1)
-            {
-                RefreshSnaps(false);
-                connectionCount = ConnectCurrentSnaps();
-            }
+            int connectionCount = ConnectSelectedParts();
 
             dragStartPositions.Clear();
 
