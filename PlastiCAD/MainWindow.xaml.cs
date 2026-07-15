@@ -1,7 +1,9 @@
-﻿    using PlastiCAD.Models;
+﻿    using PlastiCAD.Core;
+    using PlastiCAD.Models;
     using System;
     using System.Collections.Generic;
     using System.Linq;
+using System.Runtime.CompilerServices;
     using System.Text;
     using System.Threading.Tasks;
     using System.Windows;
@@ -13,7 +15,6 @@
     using System.Windows.Media.Imaging;
     using System.Windows.Navigation;
     using System.Windows.Shapes;
-    using PlastiCAD.Core;
 
 
 namespace PlastiCAD
@@ -25,6 +26,7 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+        private Point lastMousePosition;
 
         private List<PlacedPart> copiedParts = new List<PlacedPart>();
 
@@ -57,6 +59,8 @@ namespace PlastiCAD
 
         {
 
+
+
             //test
             InitializeComponent();
 
@@ -71,7 +75,28 @@ namespace PlastiCAD
             KeyDown += MainWindow_KeyDown;
         }
 
-        
+        private bool IsPositionOccupied( double x,    double y,    IEnumerable<PlacedPart> ignoredParts = null)
+        {
+            const double tolerance = 0.001;
+
+            foreach (PlacedPart part in assembly.PlacedParts)
+            {
+                if (ignoredParts != null && ignoredParts.Contains(part))
+                    continue;
+
+                bool sameX =
+                    Math.Abs(part.Transform.Position.X - x) < tolerance;
+
+                bool sameY =
+                    Math.Abs(part.Transform.Position.Y - y) < tolerance;
+
+                if (sameX && sameY)
+                    return true;
+            }
+
+            return false;
+        }
+
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             RedrawScene();
@@ -90,17 +115,16 @@ namespace PlastiCAD
 
         private void BuildArea_MouseMove(object sender, MouseEventArgs e)
         {
-
+            Point p = e.GetPosition(BuildArea);
+            lastMousePosition = p;
 
             if (isSelecting)
             {
-                Point ppp = e.GetPosition(BuildArea);
+                double left = Math.Min(selectionStart.X, p.X);
+                double top = Math.Min(selectionStart.Y, p.Y);
 
-                double left = Math.Min(selectionStart.X, ppp.X);
-                double top = Math.Min(selectionStart.Y, ppp.Y);
-
-                double width = Math.Abs(ppp.X - selectionStart.X);
-                double height = Math.Abs(ppp.Y - selectionStart.Y);
+                double width = Math.Abs(p.X - selectionStart.X);
+                double height = Math.Abs(p.Y - selectionStart.Y);
 
                 Canvas.SetLeft(selectionRectangle, left);
                 Canvas.SetTop(selectionRectangle, top);
@@ -110,6 +134,7 @@ namespace PlastiCAD
 
                 return;
             }
+
             if (!isDragging || selectedParts.Count == 0)
                 return;
 
@@ -119,8 +144,6 @@ namespace PlastiCAD
                 BuildArea.ReleaseMouseCapture();
                 return;
             }
-
-            Point p = e.GetPosition(BuildArea);
 
             double grid = Grider.CellSize * Scale;
 
@@ -133,25 +156,54 @@ namespace PlastiCAD
             double snappedDeltaY =
                 Math.Round(deltaY / grid) * grid;
 
+            bool positionIsValid = true;
+
+            // Erst prüfen, ob alle Zielzellen frei sind
             foreach (PlacedPart part in selectedParts)
             {
                 if (!dragStartPositions.TryGetValue(part, out Vector3 start))
                     continue;
 
-                part.Transform.Position.X =
-                    start.X + snappedDeltaX;
+                double newX = start.X + snappedDeltaX;
+                double newY = start.Y + snappedDeltaY;
 
-                part.Transform.Position.Y =
-                    start.Y + snappedDeltaY;
+                if (IsPositionOccupied(
+                    newX,
+                    newY,
+                    selectedParts))
+                {
+                    positionIsValid = false;
+                    break;
+                }
             }
 
-            if (selectedParts.Count == 1)
+            // Nur bewegen, wenn die gesamte Auswahl Platz hat
+            if (positionIsValid)
             {
-                RefreshSnaps(true);
+                foreach (PlacedPart part in selectedParts)
+                {
+                    if (!dragStartPositions.TryGetValue(part, out Vector3 start))
+                        continue;
+
+                    part.Transform.Position.X =
+                        start.X + snappedDeltaX;
+
+                    part.Transform.Position.Y =
+                        start.Y + snappedDeltaY;
+                }
+
+                if (selectedParts.Count == 1)
+                {
+                    RefreshSnaps(true);
+                }
+                else
+                {
+                    currentSnaps.Clear();
+                }
             }
             else
             {
-                currentSnaps.Clear();
+                StatusText.Text = "Zielposition ist belegt";
             }
 
             RedrawScene();
@@ -225,6 +277,16 @@ namespace PlastiCAD
         {
             Point p = e.GetPosition(BuildArea);
 
+            double grid = Grider.CellSize * Scale;
+
+            double targetX =
+    Math.Floor(p.X / grid) * grid;
+
+            double targetY =
+                Math.Floor(p.Y / grid) * grid;
+
+
+            lastMousePosition = p;
             // Prüfen, ob ein vorhandenes Teil angeklickt wurde
             PlacedPart clickedPart = GetPartAt(p);
 
@@ -329,8 +391,7 @@ namespace PlastiCAD
                 Part = selectedPart
             };
 
-            double grid = Grider.CellSize * Scale;
-
+        
             placed.Transform.Position = new Vector3(
                 Math.Floor(p.X / grid) * grid,
                 Math.Floor(p.Y / grid) * grid,
@@ -974,7 +1035,39 @@ namespace PlastiCAD
             if (copiedParts.Count == 0)
                 return;
 
-            double offset = Grider.CellSize * Scale;
+            double grid = Grider.CellSize * Scale;
+
+            double minX = copiedParts.Min(
+                part => part.Transform.Position.X);
+
+            double minY = copiedParts.Min(
+                part => part.Transform.Position.Y);
+
+            double targetX =
+                Math.Floor(lastMousePosition.X / grid) * grid;
+
+            double targetY =
+                Math.Floor(lastMousePosition.Y / grid) * grid;
+
+            double offsetX = targetX - minX;
+            double offsetY = targetY - minY;
+
+            foreach (PlacedPart source in copiedParts)
+            {
+                double newX =
+                    source.Transform.Position.X + offsetX;
+
+                double newY =
+                    source.Transform.Position.Y + offsetY;
+
+                if (IsPositionOccupied(newX, newY))
+                {
+                    StatusText.Text =
+                        "Einfügen nicht möglich: Rasterzelle ist belegt";
+
+                    return;
+                }
+            }
 
             selectedParts.Clear();
 
@@ -987,8 +1080,8 @@ namespace PlastiCAD
                 };
 
                 pasted.Transform.Position = new Vector3(
-                    source.Transform.Position.X + offset,
-                    source.Transform.Position.Y + offset,
+                    source.Transform.Position.X + offsetX,
+                    source.Transform.Position.Y + offsetY,
                     source.Transform.Position.Z);
 
                 pasted.Sockets = source.Part.CreateSockets();
