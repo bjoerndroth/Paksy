@@ -25,6 +25,9 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+
+        private List<PlacedPart> copiedParts = new List<PlacedPart>();
+
         private bool isSelecting = false;
 
         private Point selectionStart;
@@ -87,6 +90,7 @@ namespace PlastiCAD
 
         private void BuildArea_MouseMove(object sender, MouseEventArgs e)
         {
+
 
             if (isSelecting)
             {
@@ -558,6 +562,22 @@ namespace PlastiCAD
         private void MainWindow_KeyDown(object sender, KeyEventArgs e)
         {
 
+            bool controlPressed = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+
+            if (controlPressed && e.Key == Key.C)
+            {
+                CopySelection();
+                e.Handled = true;
+                return;
+            }
+
+            if (controlPressed && e.Key == Key.V)
+            {
+                PasteSelection();
+                e.Handled = true;
+                return;
+            }
+
             if (e.Key == Key.Escape)
             {
                 selectedPart = null;
@@ -920,6 +940,65 @@ namespace PlastiCAD
             currentSnaps.Clear();
 
             StatusText.Text = "Bauteile gelöscht";
+
+            RedrawScene();
+        }
+        private void CopySelection()
+        {
+            copiedParts.Clear();
+
+            foreach (PlacedPart part in selectedParts)
+            {
+                PlacedPart copy = new PlacedPart
+                {
+                    Part = part.Part,
+                    Rotation = part.Rotation
+                };
+
+                copy.Transform.Position = new Vector3(
+                    part.Transform.Position.X,
+                    part.Transform.Position.Y,
+                    part.Transform.Position.Z);
+
+                copy.Sockets = part.Part.CreateSockets();
+
+                copiedParts.Add(copy);
+            }
+
+            StatusText.Text =
+                $"{copiedParts.Count} Bauteil(e) kopiert";
+        }
+
+        private void PasteSelection()
+        {
+            if (copiedParts.Count == 0)
+                return;
+
+            double offset = Grider.CellSize * Scale;
+
+            selectedParts.Clear();
+
+            foreach (PlacedPart source in copiedParts)
+            {
+                PlacedPart pasted = new PlacedPart
+                {
+                    Part = source.Part,
+                    Rotation = source.Rotation
+                };
+
+                pasted.Transform.Position = new Vector3(
+                    source.Transform.Position.X + offset,
+                    source.Transform.Position.Y + offset,
+                    source.Transform.Position.Z);
+
+                pasted.Sockets = source.Part.CreateSockets();
+
+                assembly.PlacedParts.Add(pasted);
+                selectedParts.Add(pasted);
+            }
+
+            StatusText.Text =
+                $"{selectedParts.Count} Bauteil(e) eingefügt";
 
             RedrawScene();
         }
