@@ -25,6 +25,11 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+        private bool isSelecting = false;
+
+        private Point selectionStart;
+
+        private Rectangle selectionRectangle;
 
         private Dictionary<PlacedPart, Vector3> dragStartPositions= new Dictionary<PlacedPart, Vector3>();
 
@@ -82,6 +87,25 @@ namespace PlastiCAD
 
         private void BuildArea_MouseMove(object sender, MouseEventArgs e)
         {
+
+            if (isSelecting)
+            {
+                Point ppp = e.GetPosition(BuildArea);
+
+                double left = Math.Min(selectionStart.X, ppp.X);
+                double top = Math.Min(selectionStart.Y, ppp.Y);
+
+                double width = Math.Abs(ppp.X - selectionStart.X);
+                double height = Math.Abs(ppp.Y - selectionStart.Y);
+
+                Canvas.SetLeft(selectionRectangle, left);
+                Canvas.SetTop(selectionRectangle, top);
+
+                selectionRectangle.Width = width;
+                selectionRectangle.Height = height;
+
+                return;
+            }
             if (!isDragging || selectedParts.Count == 0)
                 return;
 
@@ -150,6 +174,36 @@ namespace PlastiCAD
     object sender,
     MouseButtonEventArgs e)
         {
+            if (isSelecting)
+            {
+                isSelecting = false;
+
+                BuildArea.Children.Remove(selectionRectangle);
+
+                selectedParts.Clear();
+
+                Rect selection = new Rect(
+                    Canvas.GetLeft(selectionRectangle),
+                    Canvas.GetTop(selectionRectangle),
+                    selectionRectangle.Width,
+                    selectionRectangle.Height);
+
+                foreach (PlacedPart part in assembly.PlacedParts)
+                {
+                    Rect partRect = new Rect(
+                        part.Transform.Position.X,
+                        part.Transform.Position.Y,
+                        Grider.CellSize * Scale,
+                        Grider.CellSize * Scale);
+
+                    if (selection.Contains(partRect))
+                        selectedParts.Add(part);
+                }
+
+                RedrawScene();
+
+                return;
+            }
             isDragging = false;
             BuildArea.ReleaseMouseCapture();
 
@@ -169,6 +223,28 @@ namespace PlastiCAD
 
             // Prüfen, ob ein vorhandenes Teil angeklickt wurde
             PlacedPart clickedPart = GetPartAt(p);
+
+            if (clickedPart == null && selectedPart == null)
+            {
+                isSelecting = true;
+
+                selectionStart = p;
+
+                selectionRectangle = new Rectangle
+                {
+                    Stroke = Brushes.DodgerBlue,
+                    StrokeThickness = 1,
+                    Fill = new SolidColorBrush(
+                        Color.FromArgb(40, 30, 144, 255))
+                };
+
+                Canvas.SetLeft(selectionRectangle, p.X);
+                Canvas.SetTop(selectionRectangle, p.Y);
+
+                BuildArea.Children.Add(selectionRectangle);
+
+                return;
+            }
 
             if (clickedPart != null)
             {
@@ -481,13 +557,28 @@ namespace PlastiCAD
 
         private void MainWindow_KeyDown(object sender, KeyEventArgs e)
         {
-            if (SelectedPart == null)
+
+            if (e.Key == Key.Escape)
+            {
+                selectedPart = null;
+                PartsList.SelectedIndex = -1;
+
+                selectedParts.Clear();
+
+                StatusText.Text = "Auswahlmodus";
+                RedrawScene();
+
+                e.Handled = true;
+                return;
+            }
+
+            if (selectedParts.Count == 0)
                 return;
 
             if (e.Key == Key.Delete)
             {
-                DeleteSelectedPart();
-                 
+                DeleteSelection();
+
                 e.Handled = true;
                 return;
             }
@@ -700,7 +791,7 @@ namespace PlastiCAD
       PlacedPart placed,
       StructuralPart part)
         {
-            DrawGridCell(placed);
+            //DrawGridCell(placed);
 
             Vector3 center = GetCellCenter(placed);
 
@@ -812,6 +903,23 @@ namespace PlastiCAD
             currentSnaps.Clear();
 
             StatusText.Text = "Bauteil gelöscht";
+
+            RedrawScene();
+        }
+
+        private void DeleteSelection()
+        {
+            foreach (PlacedPart part in selectedParts.ToList())
+            {
+                DisconnectPart(part);
+
+                assembly.PlacedParts.Remove(part);
+            }
+
+            selectedParts.Clear();
+            currentSnaps.Clear();
+
+            StatusText.Text = "Bauteile gelöscht";
 
             RedrawScene();
         }
