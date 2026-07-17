@@ -664,34 +664,21 @@ namespace PlastiCAD
                 return;
             }
 
-            if (e.Key != Key.R)
+            if (e.Key == Key.R)
+            {
+                int angle =
+                    (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift
+                        ? -90
+                        : 90;
+
+                RotateSelection(angle);
+
+                e.Handled = true;
                 return;
-
-            // Vor dem Drehen vorhandene Verbindungen dieses Teils lösen.
-            DisconnectPart(SelectedPart);
-
-            if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
-            {
-                SelectedPart.Rotation =
-                    (SelectedPart.Rotation + 270) % 360;
-            }
-            else
-            {
-                SelectedPart.Rotation =
-                    (SelectedPart.Rotation + 90) % 360;
             }
 
-            RefreshSnaps(true);
-
-            int connectionCount = ConnectCurrentSnaps();
-
-            StatusText.Text = connectionCount > 0
-                ? $"{connectionCount} Verbindung(en)"
-                : $"Drehung: {SelectedPart.Rotation}°";
-
-            e.Handled = true;
-
-            RedrawScene();
+          
+          
         }
 
 
@@ -1092,6 +1079,76 @@ namespace PlastiCAD
 
             StatusText.Text =
                 $"{selectedParts.Count} Bauteil(e) eingefügt";
+
+            RedrawScene();
+        }
+
+        private void RotateSelection(int angle)
+        {
+            if (selectedParts.Count == 0)
+                return;
+
+            double grid = Grider.CellSize * Scale;
+
+            double minX = selectedParts.Min(
+                part => part.Transform.Position.X);
+
+            double minY = selectedParts.Min(
+                part => part.Transform.Position.Y);
+
+            double maxX = selectedParts.Max(
+                part => part.Transform.Position.X);
+
+            double maxY = selectedParts.Max(
+                part => part.Transform.Position.Y);
+
+            // Mittelpunkt der Auswahl in Rasterkoordinaten
+            double pivotX = (minX + maxX) / 2.0;
+            double pivotY = (minY + maxY) / 2.0;
+
+            foreach (PlacedPart part in selectedParts)
+            {
+                DisconnectPart(part);
+            }
+
+            foreach (PlacedPart part in selectedParts)
+            {
+                double relativeX =
+                    part.Transform.Position.X - pivotX;
+
+                double relativeY =
+                    part.Transform.Position.Y - pivotY;
+
+                double rotatedX;
+                double rotatedY;
+
+                if (angle == 90)
+                {
+                    rotatedX = -relativeY;
+                    rotatedY = relativeX;
+                }
+                else
+                {
+                    // -90°
+                    rotatedX = relativeY;
+                    rotatedY = -relativeX;
+                }
+
+                part.Transform.Position.X =
+                    Math.Round((pivotX + rotatedX) / grid) * grid;
+
+                part.Transform.Position.Y =
+                    Math.Round((pivotY + rotatedY) / grid) * grid;
+
+                part.Rotation =
+                    (part.Rotation + angle + 360) % 360;
+            }
+
+            int connectionCount = ConnectSelectedParts();
+
+            StatusText.Text = connectionCount > 0
+                ? $"{connectionCount} Verbindung(en)"
+                : $"{selectedParts.Count} Bauteil(e) gedreht";
 
             RedrawScene();
         }
