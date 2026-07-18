@@ -26,6 +26,9 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+        private double? selectionRotationPivotX;
+        private double? selectionRotationPivotY;
+
         private Point lastMousePosition;
 
         private List<PlacedPart> copiedParts = new List<PlacedPart>();
@@ -1133,13 +1136,13 @@ namespace PlastiCAD
                     rotatedX = relativeY;
                     rotatedY = -relativeX;
                 }
-
                 part.Transform.Position.X =
-                    Math.Round((pivotX + rotatedX) / grid) * grid;
+                    Math.Round((pivotX + rotatedX) / grid,
+                               MidpointRounding.AwayFromZero) * grid;
 
                 part.Transform.Position.Y =
-                    Math.Round((pivotY + rotatedY) / grid) * grid;
-
+                    Math.Round((pivotY + rotatedY) / grid,
+                               MidpointRounding.AwayFromZero) * grid;
                 part.Rotation =
                     (part.Rotation + angle + 360) % 360;
             }
@@ -1151,6 +1154,12 @@ namespace PlastiCAD
                 : $"{selectedParts.Count} Bauteil(e) gedreht";
 
             RedrawScene();
+        }
+
+        private void ResetSelectionRotationPivot()
+        {
+            selectionRotationPivotX = null;
+            selectionRotationPivotY = null;
         }
     }
 }
