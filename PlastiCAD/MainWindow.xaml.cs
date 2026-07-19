@@ -15,6 +15,9 @@ using System.Runtime.CompilerServices;
     using System.Windows.Media.Imaging;
     using System.Windows.Navigation;
     using System.Windows.Shapes;
+using Microsoft.Win32;
+using System.IO;
+using System.Text.Json;
 
 
 namespace PlastiCAD
@@ -26,8 +29,6 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
-        private double? selectionRotationPivotX;
-        private double? selectionRotationPivotY;
 
         private Point lastMousePosition;
 
@@ -362,16 +363,6 @@ namespace PlastiCAD
                 isDragging = true;
                 BuildArea.CaptureMouse();
 
-                dragStartMousePosition = p;
-                dragStartPositions.Clear();
-
-                foreach (PlacedPart part in selectedParts)
-                {
-                    dragStartPositions[part] = new Vector3(
-                        part.Transform.Position.X,
-                        part.Transform.Position.Y,
-                        part.Transform.Position.Z);
-                }
 
                 StatusText.Text =
                     $"{selectedParts.Count} Bauteil(e) werden verschoben";
@@ -627,6 +618,25 @@ namespace PlastiCAD
         {
 
             bool controlPressed = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+
+
+            if (controlPressed && e.Key == Key.S)
+            {
+                SaveProject();
+
+                e.Handled = true;
+                return;
+            }
+
+            if (controlPressed && e.Key == Key.O)
+            {
+                LoadProject();
+
+                e.Handled = true;
+                return;
+            }
+
+
 
             if (controlPressed && e.Key == Key.C)
             {
@@ -1156,11 +1166,136 @@ namespace PlastiCAD
             RedrawScene();
         }
 
-        private void ResetSelectionRotationPivot()
+        private void SaveProject()
         {
-            selectionRotationPivotX = null;
-            selectionRotationPivotY = null;
+            SaveFileDialog dialog = new SaveFileDialog
+            {
+                Title = "PlastiCAD-Projekt speichern",
+                Filter = "PlastiCAD-Projekt (*.plasticad)|*.plasticad|JSON-Datei (*.json)|*.json",
+                DefaultExt = ".plasticad",
+                AddExtension = true
+            };
+
+            if (dialog.ShowDialog() != true)
+                return;
+
+            ProjectFile project = new ProjectFile();
+
+            foreach (PlacedPart placed in assembly.PlacedParts)
+            {
+                project.Parts.Add(new PlacedPartData
+                {
+                    PartName = placed.Part.Name,
+
+                    X = placed.Transform.Position.X,
+                    Y = placed.Transform.Position.Y,
+                    Z = placed.Transform.Position.Z,
+
+                    Rotation = placed.Rotation
+                });
+            }
+
+            JsonSerializerOptions options = new JsonSerializerOptions
+            {
+                WriteIndented = true
+            };
+
+            string json = JsonSerializer.Serialize(project, options);
+
+            File.WriteAllText(dialog.FileName, json);
+
+            StatusText.Text =
+                $"{project.Parts.Count} Bauteil(e) gespeichert";
         }
+
+        private void LoadProject()
+        {
+            OpenFileDialog dialog = new OpenFileDialog
+            {
+                Title = "PlastiCAD-Projekt öffnen",
+                Filter = "PlastiCAD-Projekt (*.plasticad)|*.plasticad|JSON-Datei (*.json)|*.json"
+            };
+
+            if (dialog.ShowDialog() != true)
+                return;
+
+            string json = File.ReadAllText(dialog.FileName);
+
+            ProjectFile project =
+                JsonSerializer.Deserialize<ProjectFile>(json);
+
+            if (project == null)
+            {
+                StatusText.Text = "Projekt konnte nicht geladen werden";
+                return;
+            }
+
+            assembly.PlacedParts.Clear();
+            assembly.Connections.Clear();
+
+            selectedParts.Clear();
+            currentSnaps.Clear();
+
+            foreach (PlacedPartData data in project.Parts)
+            {
+                Part part = PartLibrary.Parts.FirstOrDefault(
+                    item => item.Name == data.PartName);
+
+                if (part == null)
+                    continue;
+
+                PlacedPart placed = new PlacedPart
+                {
+                    Part = part,
+                    Rotation = data.Rotation
+                };
+
+                placed.Transform.Position = new Vector3(
+                    data.X,
+                    data.Y,
+                    data.Z);
+
+                placed.Sockets = part.CreateSockets();
+
+                assembly.PlacedParts.Add(placed);
+            }
+
+            RebuildConnections();
+
+            StatusText.Text =
+                $"{assembly.PlacedParts.Count} Bauteil(e) geladen";
+
+            RedrawScene();
+        }
+
+        private void RebuildConnections()
+        {
+            assembly.Connections.Clear();
+
+            foreach (PlacedPart part in assembly.PlacedParts)
+            {
+                foreach (Socket socket in part.Sockets)
+                {
+                    socket.IsConnected = false;
+                    socket.ConnectedTo = null;
+                }
+            }
+
+            foreach (PlacedPart part in assembly.PlacedParts)
+            {
+                currentSnaps = SnapEngine.FindSnaps(
+                    assembly,
+                    part,
+                    Scale,
+                    SnapDistance);
+
+                ConnectCurrentSnaps();
+            }
+
+            currentSnaps.Clear();
+        }
+
+
     }
 }
 
