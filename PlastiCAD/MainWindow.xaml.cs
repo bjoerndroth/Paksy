@@ -1090,8 +1090,11 @@ namespace PlastiCAD
                 selectedParts.Add(pasted);
             }
 
-            StatusText.Text =
-                $"{selectedParts.Count} Bauteil(e) eingefügt";
+            int connectionCount = ConnectSelectedParts();
+
+            StatusText.Text = connectionCount > 0
+                ? $"{selectedParts.Count} Bauteil(e) eingefügt, {connectionCount} Verbindung(en)"
+                : $"{selectedParts.Count} Bauteil(e) eingefügt";
 
             RedrawScene();
         }
