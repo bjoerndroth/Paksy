@@ -29,6 +29,9 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+        private readonly Stack<ProjectFile> undoStack = new Stack<ProjectFile>();
+
+        private readonly Stack<ProjectFile> redoStack = new Stack<ProjectFile>();
 
         private Point lastMousePosition;
 
@@ -344,6 +347,8 @@ namespace PlastiCAD
                     selectedParts.Add(clickedPart);
                 }
 
+                SaveUndoState();
+
                 foreach (PlacedPart part in selectedParts)
                 {
                     DisconnectPart(part);
@@ -393,7 +398,11 @@ namespace PlastiCAD
 
             placed.Sockets = selectedPart.CreateSockets();
 
+            SaveUndoState();
+
             assembly.PlacedParts.Add(placed);
+
+
 
             selectedParts.Clear();
             selectedParts.Add(placed);
@@ -618,6 +627,22 @@ namespace PlastiCAD
         {
 
             bool controlPressed = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+
+            if (controlPressed && e.Key == Key.Z)
+            {
+                Undo();
+
+                e.Handled = true;
+                return;
+            }
+
+            if (controlPressed && e.Key == Key.Y)
+            {
+                Redo();
+
+                e.Handled = true;
+                return;
+            }
 
 
             if (controlPressed && e.Key == Key.S)
@@ -990,10 +1015,14 @@ namespace PlastiCAD
 
         private void DeleteSelection()
         {
+            if (selectedParts.Count == 0)
+                return;
+
+            SaveUndoState();
+
             foreach (PlacedPart part in selectedParts.ToList())
             {
                 DisconnectPart(part);
-
                 assembly.PlacedParts.Remove(part);
             }
 
@@ -1068,6 +1097,7 @@ namespace PlastiCAD
                     return;
                 }
             }
+            SaveUndoState();
 
             selectedParts.Clear();
 
@@ -1103,6 +1133,10 @@ namespace PlastiCAD
         {
             if (selectedParts.Count == 0)
                 return;
+
+            SaveUndoState();
+
+
 
             double grid = Grider.CellSize * Scale;
 
@@ -1296,6 +1330,111 @@ namespace PlastiCAD
             }
 
             currentSnaps.Clear();
+        }
+
+        private ProjectFile CreateProjectSnapshot()
+        {
+            ProjectFile project = new ProjectFile();
+
+            foreach (PlacedPart placed in assembly.PlacedParts)
+            {
+                project.Parts.Add(new PlacedPartData
+                {
+                    PartName = placed.Part.Name,
+
+                    X = placed.Transform.Position.X,
+                    Y = placed.Transform.Position.Y,
+                    Z = placed.Transform.Position.Z,
+
+                    Rotation = placed.Rotation
+                });
+            }
+
+            return project;
+        }
+
+        private void RestoreProjectSnapshot(ProjectFile project)
+        {
+            assembly.PlacedParts.Clear();
+            assembly.Connections.Clear();
+
+            selectedParts.Clear();
+            currentSnaps.Clear();
+
+            foreach (PlacedPartData data in project.Parts)
+            {
+                Part part = PartLibrary.Parts.FirstOrDefault(
+                    p => p.Name == data.PartName);
+
+                if (part == null)
+                    continue;
+
+                PlacedPart placed = new PlacedPart
+                {
+                    Part = part,
+                    Rotation = data.Rotation
+                };
+
+                placed.Transform.Position = new Vector3(
+                    data.X,
+                    data.Y,
+                    data.Z);
+
+                placed.Sockets = part.CreateSockets();
+
+                assembly.PlacedParts.Add(placed);
+            }
+
+            RebuildConnections();
+
+            RedrawScene();
+        }
+
+        private void SaveUndoState()
+        {
+            undoStack.Push(CreateProjectSnapshot());
+
+            // Sobald etwas Neues geändert wird,
+            // ist die alte Redo-Kette ungültig.
+            redoStack.Clear();
+        }
+
+        private void Undo()
+        {
+            if (undoStack.Count == 0)
+            {
+                StatusText.Text = "Nichts rückgängig zu machen";
+                return;
+            }
+
+            // Aktuellen Zustand für Redo merken
+            redoStack.Push(CreateProjectSnapshot());
+
+            ProjectFile previous =
+                undoStack.Pop();
+
+            RestoreProjectSnapshot(previous);
+
+            StatusText.Text =
+                $"Rückgängig ({undoStack.Count} weitere)";
+        }
+
+        private void Redo()
+        {
+            if (redoStack.Count == 0)
+            {
+                StatusText.Text = "Nichts wiederherzustellen";
+                return;
+            }
+
+            // aktuellen Zustand wieder für Undo merken
+            undoStack.Push(CreateProjectSnapshot());
+
+            ProjectFile nextState = redoStack.Pop();
+
+            RestoreProjectSnapshot(nextState);
+
+            StatusText.Text = "Wiederhergestellt";
         }
 
 
