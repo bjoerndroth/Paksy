@@ -1355,6 +1355,10 @@ namespace PlastiCAD
                     Z = placed.Transform.Position.Z,
 
                     Rotation = placed.Rotation
+
+                     RotationX = placed.Transform.Rotation.X,
+                    RotationY = placed.Transform.Rotation.Y,
+                    RotationZ = placed.Transform.Rotation.Z
                 });
             }
 
