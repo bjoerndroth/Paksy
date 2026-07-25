@@ -28,5 +28,28 @@ namespace PlastiCAD.Models
         {
             Rotation.Z = (Rotation.Z + 90) % 360;
         }
+
+        public Vector3 ApplyRotation(Vector3 vector)
+        {
+            Vector3 result = new Vector3(
+                vector.X,
+                vector.Y,
+                vector.Z);
+
+            int xSteps = ((int)Rotation.X / 90) % 4;
+            int ySteps = ((int)Rotation.Y / 90) % 4;
+            int zSteps = ((int)Rotation.Z / 90) % 4;
+
+            for (int i = 0; i < xSteps; i++)
+                result = result.RotateX90();
+
+            for (int i = 0; i < ySteps; i++)
+                result = result.RotateY90();
+
+            for (int i = 0; i < zSteps; i++)
+                result = result.RotateZ90();
+
+            return result;
+        }
     }
 }
