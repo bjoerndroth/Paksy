@@ -33,6 +33,30 @@ namespace PlastiCAD.Models
             return Math.Sqrt(dx * dx + dy * dy + dz * dz);
         }
 
+        public Vector3 RotateX90()
+        {
+            return new Vector3(
+                X,
+                -Z,
+                Y);
+        }
+
+        public Vector3 RotateY90()
+        {
+            return new Vector3(
+                Z,
+                Y,
+                -X);
+        }
+
+        public Vector3 RotateZ90()
+        {
+            return new Vector3(
+                -Y,
+                X,
+                Z);
+        }
+
 
     }
 }
