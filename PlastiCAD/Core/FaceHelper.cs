@@ -94,6 +94,26 @@ namespace PlastiCAD.Core
             }
         }
 
+        public static Face ApplyRotation3D(Face face, Vector3 rotation)
+        {
+            Face result = face;
+
+            int xSteps = ((int)rotation.X / 90) % 4;
+            int ySteps = ((int)rotation.Y / 90) % 4;
+            int zSteps = ((int)rotation.Z / 90) % 4;
+
+            for (int i = 0; i < xSteps; i++)
+                result = RotateFace3D(result, 'X');
+
+            for (int i = 0; i < ySteps; i++)
+                result = RotateFace3D(result, 'Y');
+
+            for (int i = 0; i < zSteps; i++)
+                result = RotateFace3D(result, 'Z');
+
+            return result;
+        }
+
 
     }
 }
