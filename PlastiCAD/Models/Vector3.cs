@@ -37,8 +37,8 @@ namespace PlastiCAD.Models
         {
             return new Vector3(
                 X,
-                -Z,
-                Y);
+                Z,
+                -Y);
         }
 
         public Vector3 RotateY90()
@@ -56,7 +56,6 @@ namespace PlastiCAD.Models
                 X,
                 Z);
         }
-
 
     }
 }
