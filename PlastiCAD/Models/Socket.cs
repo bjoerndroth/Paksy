@@ -1,4 +1,5 @@
-﻿using System;
+﻿using PlastiCAD.Core;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -52,6 +53,13 @@ namespace PlastiCAD.Models
                 transform.Position.X + rotatedPosition.X,
                 transform.Position.Y + rotatedPosition.Y,
                 transform.Position.Z + rotatedPosition.Z);
+        }
+
+        public Face GetRotatedFace(Transform transform)
+        {
+            return FaceHelper.RotateFace3D(
+                Face,
+                transform.Rotation);
         }
     }
 }

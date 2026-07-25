@@ -27,14 +27,27 @@
          SelectionChanged="PartsList_SelectionChanged"/>
 
         <!-- Baufläche -->
-        <Canvas x:Name="BuildArea"
+        <TabControl Grid.Column="1"
+            Margin="5">
+
+            <!-- Paksy Plan -->
+            <TabItem Header="Paksy Plan">
+                <Canvas x:Name="BuildArea"
                 Focusable="True"
-        Grid.Column="1"
-        Background="WhiteSmoke"
-        Margin="5"
-        MouseLeftButtonDown="BuildArea_MouseLeftButtonDown"
-        MouseMove="BuildArea_MouseMove"
-        MouseLeftButtonUp="BuildArea_MouseLeftButtonUp"/>
+                Background="WhiteSmoke"
+                MouseLeftButtonDown="BuildArea_MouseLeftButtonDown"
+                MouseMove="BuildArea_MouseMove"
+                MouseLeftButtonUp="BuildArea_MouseLeftButtonUp"/>
+            </TabItem>
+
+            <!-- Paksy World -->
+            <TabItem Header="Paksy World">
+                <Border Background="LightGray">
+                    <Viewport3D x:Name="WorldViewport"/>
+                </Border>
+            </TabItem>
+
+        </TabControl>
 
         <!-- Statusleiste -->
                 <StatusBar Grid.Row="1"
