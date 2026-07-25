@@ -34,5 +34,10 @@ namespace PlastiCAD.Models
 
         public double MaxAngle { get; set; }
 
+        public Vector3 GetRotatedDirection(Transform transform)
+        {
+            return transform.ApplyRotation(Direction);
+        }
+
     }
 }
