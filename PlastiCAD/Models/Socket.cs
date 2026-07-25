@@ -43,5 +43,15 @@ namespace PlastiCAD.Models
         {
             return transform.ApplyRotation(Position);
         }
+
+        public Vector3 GetWorldPosition(Transform transform)
+        {
+            Vector3 rotatedPosition = GetRotatedPosition(transform);
+
+            return new Vector3(
+                transform.Position.X + rotatedPosition.X,
+                transform.Position.Y + rotatedPosition.Y,
+                transform.Position.Z + rotatedPosition.Z);
+        }
     }
 }
