@@ -1228,7 +1228,11 @@ namespace PlastiCAD
                     Y = placed.Transform.Position.Y,
                     Z = placed.Transform.Position.Z,
 
-                    Rotation = placed.Rotation
+                    Rotation = placed.Rotation,
+
+                    RotationX = placed.Transform.Rotation.X,
+                    RotationY = placed.Transform.Rotation.Y,
+                    RotationZ = placed.Transform.Rotation.Z
                 });
             }
 
@@ -1291,6 +1295,10 @@ namespace PlastiCAD
                     data.X,
                     data.Y,
                     data.Z);
+
+                placed.Transform.Rotation.X = data.RotationX;
+                placed.Transform.Rotation.Y = data.RotationY;
+                placed.Transform.Rotation.Z = data.RotationZ;
 
                 placed.Sockets = part.CreateSockets();
 
