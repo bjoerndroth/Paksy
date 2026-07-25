@@ -38,5 +38,62 @@ namespace PlastiCAD.Core
 
             return face;
         }
+
+
+        public static Face RotateFace3D(Face face, char axis)
+        {
+            switch (axis)
+            {
+                case 'X':
+                    switch (face)
+                    {
+                        case Face.Top:
+                            return Face.Front;
+                        case Face.Front:
+                            return Face.Bottom;
+                        case Face.Bottom:
+                            return Face.Back;
+                        case Face.Back:
+                            return Face.Top;
+                        default:
+                            return face;
+                    }
+
+                case 'Y':
+                    switch (face)
+                    {
+                        case Face.Front:
+                            return Face.Right;
+                        case Face.Right:
+                            return Face.Back;
+                        case Face.Back:
+                            return Face.Left;
+                        case Face.Left:
+                            return Face.Front;
+                        default:
+                            return face;
+                    }
+
+                case 'Z':
+                    switch (face)
+                    {
+                        case Face.Left:
+                            return Face.Top;
+                        case Face.Top:
+                            return Face.Right;
+                        case Face.Right:
+                            return Face.Bottom;
+                        case Face.Bottom:
+                            return Face.Left;
+                        default:
+                            return face;
+                    }
+
+                default:
+                    return face;
+            }
+        }
+
+
     }
 }
