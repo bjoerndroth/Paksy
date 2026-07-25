@@ -39,5 +39,9 @@ namespace PlastiCAD.Models
             return transform.ApplyRotation(Direction);
         }
 
+        public Vector3 GetRotatedPosition(Transform transform)
+        {
+            return transform.ApplyRotation(Position);
+        }
     }
 }
