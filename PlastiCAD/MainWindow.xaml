@@ -43,7 +43,26 @@
             <!-- Paksy World -->
             <TabItem Header="Paksy World">
                 <Border Background="LightGray">
-                    <Viewport3D x:Name="WorldViewport"/>
+                    <Viewport3D x:Name="WorldViewport">
+
+                        <!-- Kamera -->
+                        <Viewport3D.Camera>
+                            <PerspectiveCamera Position="3,3,5"
+                           LookDirection="-3,-3,-5"
+                           UpDirection="0,1,0"
+                           FieldOfView="60"/>
+                        </Viewport3D.Camera>
+
+                        <!-- Licht -->
+                        <ModelVisual3D>
+                            <ModelVisual3D.Content>
+                                <DirectionalLight Color="White"
+                              Direction="-1,-1,-2"/>
+                            </ModelVisual3D.Content>
+                        </ModelVisual3D>
+
+                        
+                    </Viewport3D>
                 </Border>
             </TabItem>
 

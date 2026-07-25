@@ -18,6 +18,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.Win32;
 using System.IO;
 using System.Text.Json;
+using System.Windows.Media.Media3D;
 
 
 namespace PlastiCAD
@@ -433,8 +434,61 @@ namespace PlastiCAD
                         structuralPart);
                 }
             }
+
+            RedrawWorld();
         }
 
+        private void RedrawWorld()
+        {
+            // Licht aus dem XAML behalten,
+            // alte Bauteile entfernen.
+            while (WorldViewport.Children.Count > 1)
+                WorldViewport.Children.RemoveAt(1);
+
+            foreach (PlacedPart placed in assembly.PlacedParts)
+            {
+                double x = placed.Transform.Position.X / 100.0;
+                double y = -placed.Transform.Position.Y / 100.0;
+                double z = placed.Transform.Position.Z / 100.0;
+
+                MeshGeometry3D mesh = new MeshGeometry3D();
+
+                mesh.Positions = new Point3DCollection
+        {
+            new Point3D(x - 0.4, y - 0.4, z - 0.4),
+            new Point3D(x + 0.4, y - 0.4, z - 0.4),
+            new Point3D(x + 0.4, y + 0.4, z - 0.4),
+            new Point3D(x - 0.4, y + 0.4, z - 0.4),
+
+            new Point3D(x - 0.4, y - 0.4, z + 0.4),
+            new Point3D(x + 0.4, y - 0.4, z + 0.4),
+            new Point3D(x + 0.4, y + 0.4, z + 0.4),
+            new Point3D(x - 0.4, y + 0.4, z + 0.4)
+        };
+
+                mesh.TriangleIndices = new Int32Collection
+        {
+            0,2,1, 0,3,2,
+            4,5,6, 4,6,7,
+            0,1,5, 0,5,4,
+            2,3,7, 2,7,6,
+            0,4,7, 0,7,3,
+            1,2,6, 1,6,5
+        };
+
+                GeometryModel3D model = new GeometryModel3D
+                {
+                    Geometry = mesh,
+                    Material = new DiffuseMaterial(Brushes.SteelBlue)
+                };
+
+                WorldViewport.Children.Add(
+                    new ModelVisual3D
+                    {
+                        Content = model
+                    });
+            }
+        }
         private PlacedPart GetPartAt(Point p)
         {
             double size = Grider.CellSize * Scale;
