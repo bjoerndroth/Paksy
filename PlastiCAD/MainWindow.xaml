@@ -46,6 +46,8 @@
         PreviewMouseWheel="WorldViewport_MouseWheel"
         MouseRightButtonDown="WorldViewport_MouseRightButtonDown"
         MouseRightButtonUp="WorldViewport_MouseRightButtonUp"
+        MouseDown="WorldViewport_MouseDown"
+        MouseUp="WorldViewport_MouseUp"
         MouseMove="WorldViewport_MouseMove">
 
                     <Viewport3D x:Name="WorldViewport">

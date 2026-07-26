@@ -32,6 +32,7 @@ namespace PlastiCAD
     {
         private bool isWorldOrbiting = false;
         private Point worldLastMousePosition;
+        private bool isWorldPanning = false;
 
         private readonly Stack<ProjectFile> undoStack = new Stack<ProjectFile>();
 
@@ -1827,10 +1828,10 @@ namespace PlastiCAD
         }
 
         private void WorldViewport_MouseMove(
-            object sender,
-            MouseEventArgs e)
+     object sender,
+     MouseEventArgs e)
         {
-            if (!isWorldOrbiting)
+            if (!isWorldOrbiting && !isWorldPanning)
                 return;
 
             Point current =
@@ -1844,9 +1845,55 @@ namespace PlastiCAD
 
             worldLastMousePosition = current;
 
-            OrbitWorldCamera(deltaX, deltaY);
+            if (isWorldOrbiting)
+            {
+                OrbitWorldCamera(deltaX, deltaY);
+                return;
+            }
+
+            if (isWorldPanning)
+            {
+                PanWorldCamera(deltaX, deltaY);
+            }
         }
 
+
+        private void PanWorldCamera(
+    double deltaX,
+    double deltaY)
+        {
+            Vector3D look =
+                WorldCamera.LookDirection;
+
+            double distance = look.Length;
+
+            if (distance == 0)
+                return;
+
+            look.Normalize();
+
+            Vector3D up =
+                WorldCamera.UpDirection;
+
+            up.Normalize();
+
+            Vector3D right =
+                Vector3D.CrossProduct(look, up);
+
+            if (right.Length == 0)
+                return;
+
+            right.Normalize();
+
+            double speed =
+                distance * 0.0015;
+
+            Vector3D movement =
+                right * (-deltaX * speed) +
+                up * (deltaY * speed);
+
+            WorldCamera.Position += movement;
+        }
         private void OrbitWorldCamera(
     double deltaX,
     double deltaY)
@@ -1909,6 +1956,35 @@ namespace PlastiCAD
 
             WorldCamera.UpDirection =
                 newUp;
+        }
+
+        private void WorldViewport_MouseDown(
+    object sender,
+    MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton != MouseButton.Middle)
+                return;
+
+            isWorldPanning = true;
+            worldLastMousePosition = e.GetPosition(WorldViewport);
+
+            Mouse.Capture((IInputElement)sender);
+
+            e.Handled = true;
+        }
+
+        private void WorldViewport_MouseUp(
+            object sender,
+            MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton != MouseButton.Middle)
+                return;
+
+            isWorldPanning = false;
+
+            Mouse.Capture(null);
+
+            e.Handled = true;
         }
 
     }
