@@ -43,7 +43,10 @@
             <!-- Paksy World -->
             <TabItem Header="Paksy World">
                 <Border Background="LightGray"
-            PreviewMouseWheel="WorldViewport_MouseWheel">
+        PreviewMouseWheel="WorldViewport_MouseWheel"
+        MouseRightButtonDown="WorldViewport_MouseRightButtonDown"
+        MouseRightButtonUp="WorldViewport_MouseRightButtonUp"
+        MouseMove="WorldViewport_MouseMove">
 
                     <Viewport3D x:Name="WorldViewport">
 

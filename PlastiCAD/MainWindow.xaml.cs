@@ -30,6 +30,9 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+        private bool isWorldOrbiting = false;
+        private Point worldLastMousePosition;
+
         private readonly Stack<ProjectFile> undoStack = new Stack<ProjectFile>();
 
         private readonly Stack<ProjectFile> redoStack = new Stack<ProjectFile>();
@@ -1798,6 +1801,114 @@ namespace PlastiCAD
 
             WorldCamera.LookDirection =
                 newLookDirection;
+        }
+
+        private void WorldViewport_MouseRightButtonDown(
+    object sender,
+    MouseButtonEventArgs e)
+        {
+            isWorldOrbiting = true;
+            worldLastMousePosition = e.GetPosition(WorldViewport);
+
+            Mouse.Capture((IInputElement)sender);
+
+            e.Handled = true;
+        }
+
+        private void WorldViewport_MouseRightButtonUp(
+            object sender,
+            MouseButtonEventArgs e)
+        {
+            isWorldOrbiting = false;
+
+            Mouse.Capture(null);
+
+            e.Handled = true;
+        }
+
+        private void WorldViewport_MouseMove(
+            object sender,
+            MouseEventArgs e)
+        {
+            if (!isWorldOrbiting)
+                return;
+
+            Point current =
+                e.GetPosition(WorldViewport);
+
+            double deltaX =
+                current.X - worldLastMousePosition.X;
+
+            double deltaY =
+                current.Y - worldLastMousePosition.Y;
+
+            worldLastMousePosition = current;
+
+            OrbitWorldCamera(deltaX, deltaY);
+        }
+
+        private void OrbitWorldCamera(
+    double deltaX,
+    double deltaY)
+        {
+            Point3D target =
+                WorldCamera.Position +
+                WorldCamera.LookDirection;
+
+            Vector3D cameraOffset =
+                WorldCamera.Position - target;
+
+            Vector3D up =
+                WorldCamera.UpDirection;
+
+            up.Normalize();
+
+            Vector3D right =
+                Vector3D.CrossProduct(
+                    WorldCamera.LookDirection,
+                    up);
+
+            if (right.Length == 0)
+                return;
+
+            right.Normalize();
+
+            double horizontalAngle =
+                -deltaX * 0.4;
+
+            double verticalAngle =
+                -deltaY * 0.4;
+
+            Quaternion horizontalRotation =
+                new Quaternion(
+                    up,
+                    horizontalAngle);
+
+            Quaternion verticalRotation =
+                new Quaternion(
+                    right,
+                    verticalAngle);
+
+            Matrix3D matrix =
+                Matrix3D.Identity;
+
+            matrix.Rotate(horizontalRotation);
+            matrix.Rotate(verticalRotation);
+
+            cameraOffset =
+                matrix.Transform(cameraOffset);
+
+            Vector3D newUp =
+                matrix.Transform(up);
+
+            WorldCamera.Position =
+                target + cameraOffset;
+
+            WorldCamera.LookDirection =
+                target - WorldCamera.Position;
+
+            WorldCamera.UpDirection =
+                newUp;
         }
 
     }
