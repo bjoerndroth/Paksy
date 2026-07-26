@@ -499,10 +499,79 @@ namespace PlastiCAD
                         end,
                         radius);
                 }
+                FitWorldCamera();
             }
         }
 
+        private void FitWorldCamera()
+        {
+            if (assembly.PlacedParts.Count == 0)
+                return;
 
+            double minX = double.MaxValue;
+            double minY = double.MaxValue;
+            double minZ = double.MaxValue;
+
+            double maxX = double.MinValue;
+            double maxY = double.MinValue;
+            double maxZ = double.MinValue;
+
+            foreach (PlacedPart placed in assembly.PlacedParts)
+            {
+                double x =
+                    (placed.Transform.Position.X / Scale
+                    + Grider.CellSize / 2.0) / 100.0;
+
+                double y =
+                    -(placed.Transform.Position.Y / Scale
+                    + Grider.CellSize / 2.0) / 100.0;
+
+                double z =
+                    placed.Transform.Position.Z / 100.0;
+
+                minX = Math.Min(minX, x);
+                maxX = Math.Max(maxX, x);
+
+                minY = Math.Min(minY, y);
+                maxY = Math.Max(maxY, y);
+
+                minZ = Math.Min(minZ, z);
+                maxZ = Math.Max(maxZ, z);
+            }
+
+            double centerX = (minX + maxX) / 2.0;
+            double centerY = (minY + maxY) / 2.0;
+            double centerZ = (minZ + maxZ) / 2.0;
+
+            double sizeX = maxX - minX;
+            double sizeY = maxY - minY;
+            double sizeZ = maxZ - minZ;
+
+            double size = Math.Max(
+                Math.Max(sizeX, sizeY),
+                sizeZ);
+
+            // Auch bei nur einem Bauteil sinnvollen Abstand behalten.
+            size = Math.Max(size, 1.0);
+
+            Point3D target =
+                new Point3D(
+                    centerX,
+                    centerY,
+                    centerZ);
+
+            WorldCamera.Position =
+                new Point3D(
+                    centerX + size * 1.5,
+                    centerY + size * 1.5,
+                    centerZ + size * 2.0);
+
+            WorldCamera.LookDirection =
+                target - WorldCamera.Position;
+
+            WorldCamera.UpDirection =
+                new Vector3D(0, 1, 0);
+        }
         private Vector3 GetDirectionFromFace(Face face)
         {
             switch (face)

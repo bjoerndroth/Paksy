@@ -47,7 +47,9 @@
 
                         <!-- Kamera -->
                         <Viewport3D.Camera>
-                            <PerspectiveCamera Position="3,3,5"
+                            <PerspectiveCamera 
+                                x:Name="WorldCamera"
+                                Position="3,3,5"
                            LookDirection="-3,-3,-5"
                            UpDirection="0,1,0"
                            FieldOfView="60"/>
