@@ -448,10 +448,18 @@ namespace PlastiCAD
                 if (!(placed.Part is StructuralPart part))
                     continue;
 
-                double x = placed.Transform.Position.X / 100.0;
-                double y = -placed.Transform.Position.Y / 100.0;
-                double z = placed.Transform.Position.Z / 100.0;
+                double x =
+                    (placed.Transform.Position.X / Scale
+                    + Grider.CellSize / 2.0) / 100.0;
 
+                double y =
+                    -(placed.Transform.Position.Y / Scale
+                    + Grider.CellSize / 2.0) / 100.0;
+
+                double z =
+                    placed.Transform.Position.Z / 100.0;
+
+              
                 Point3D center = new Point3D(x, y, z);
 
                 double radius = part.OuterDiameter / 200.0;
@@ -468,16 +476,16 @@ namespace PlastiCAD
                 // Ein Rohrarm pro Socket
                 foreach (Socket socket in placed.Sockets)
                 {
-                    Vector3 direction = socket.Direction;
+                    
+                    Face rotatedFace =
+    FaceHelper.RotateFace(
+        socket.Face,
+        placed.Rotation);
 
-                    // bestehende Paksy-Plan-Rotation mitnehmen
-                    int zSteps =
-                        (((placed.Rotation % 360) + 360) % 360) / 90;
+                    Vector3 direction =
+                        GetDirectionFromFace(rotatedFace);
 
-                    for (int i = 0; i < zSteps; i++)
-                        direction = direction.RotateZ90();
-
-                    // zukünftige echte X/Y/Z-Rotation ebenfalls anwenden
+                    // zukünftige echte 3D-Rotation zusätzlich anwenden
                     direction =
                         placed.Transform.ApplyRotation(direction);
 
@@ -494,6 +502,33 @@ namespace PlastiCAD
             }
         }
 
+
+        private Vector3 GetDirectionFromFace(Face face)
+        {
+            switch (face)
+            {
+                case Face.Left:
+                    return new Vector3(-1, 0, 0);
+
+                case Face.Right:
+                    return new Vector3(1, 0, 0);
+
+                case Face.Top:
+                    return new Vector3(0, -1, 0);
+
+                case Face.Bottom:
+                    return new Vector3(0, 1, 0);
+
+                case Face.Front:
+                    return new Vector3(0, 0, 1);
+
+                case Face.Back:
+                    return new Vector3(0, 0, -1);
+
+                default:
+                    return new Vector3(0, 0, 0);
+            }
+        }
         private void AddSphere(
     Point3D center,
     double radius)
