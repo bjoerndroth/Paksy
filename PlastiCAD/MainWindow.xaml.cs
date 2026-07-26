@@ -440,54 +440,138 @@ namespace PlastiCAD
 
         private void RedrawWorld()
         {
-            // Licht aus dem XAML behalten,
-            // alte Bauteile entfernen.
             while (WorldViewport.Children.Count > 1)
                 WorldViewport.Children.RemoveAt(1);
 
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
+                if (!(placed.Part is StructuralPart part))
+                    continue;
+
                 double x = placed.Transform.Position.X / 100.0;
                 double y = -placed.Transform.Position.Y / 100.0;
                 double z = placed.Transform.Position.Z / 100.0;
 
-                MeshGeometry3D mesh = new MeshGeometry3D();
+                Point3D center = new Point3D(x, y, z);
 
-                mesh.Positions = new Point3DCollection
+                double radius = part.OuterDiameter / 200.0;
+                double armLength = (part.Length / 2.0) / 100.0;
+
+                // Kugel im Mittelpunkt für Winkel, T-Stück, Kreuz usw.
+                if (part.DrawCenter)
+                {
+                    AddSphere(
+                        center,
+                        radius);
+                }
+
+                // Ein Rohrarm pro Socket
+                foreach (Socket socket in placed.Sockets)
+                {
+                    Vector3 direction = socket.Direction;
+
+                    // bestehende Paksy-Plan-Rotation mitnehmen
+                    int zSteps =
+                        (((placed.Rotation % 360) + 360) % 360) / 90;
+
+                    for (int i = 0; i < zSteps; i++)
+                        direction = direction.RotateZ90();
+
+                    // zukünftige echte X/Y/Z-Rotation ebenfalls anwenden
+                    direction =
+                        placed.Transform.ApplyRotation(direction);
+
+                    Point3D end = new Point3D(
+                        center.X + direction.X * armLength,
+                        center.Y - direction.Y * armLength,
+                        center.Z + direction.Z * armLength);
+
+                    AddCylinder(
+                        center,
+                        end,
+                        radius);
+                }
+            }
+        }
+
+        private void AddSphere(
+    Point3D center,
+    double radius)
         {
-            new Point3D(x - 0.4, y - 0.4, z - 0.4),
-            new Point3D(x + 0.4, y - 0.4, z - 0.4),
-            new Point3D(x + 0.4, y + 0.4, z - 0.4),
-            new Point3D(x - 0.4, y + 0.4, z - 0.4),
+            const int latitudeSegments = 12;
+            const int longitudeSegments = 20;
 
-            new Point3D(x - 0.4, y - 0.4, z + 0.4),
-            new Point3D(x + 0.4, y - 0.4, z + 0.4),
-            new Point3D(x + 0.4, y + 0.4, z + 0.4),
-            new Point3D(x - 0.4, y + 0.4, z + 0.4)
-        };
+            MeshGeometry3D mesh = new MeshGeometry3D();
 
-                mesh.TriangleIndices = new Int32Collection
-        {
-            0,2,1, 0,3,2,
-            4,5,6, 4,6,7,
-            0,1,5, 0,5,4,
-            2,3,7, 2,7,6,
-            0,4,7, 0,7,3,
-            1,2,6, 1,6,5
-        };
+            for (int lat = 0; lat <= latitudeSegments; lat++)
+            {
+                double theta =
+                    Math.PI * lat / latitudeSegments;
 
-                GeometryModel3D model = new GeometryModel3D
+                double sinTheta = Math.Sin(theta);
+                double cosTheta = Math.Cos(theta);
+
+                for (int lon = 0; lon <= longitudeSegments; lon++)
+                {
+                    double phi =
+                        2 * Math.PI * lon / longitudeSegments;
+
+                    double sinPhi = Math.Sin(phi);
+                    double cosPhi = Math.Cos(phi);
+
+                    double x =
+                        center.X +
+                        radius * sinTheta * cosPhi;
+
+                    double y =
+                        center.Y +
+                        radius * cosTheta;
+
+                    double z =
+                        center.Z +
+                        radius * sinTheta * sinPhi;
+
+                    mesh.Positions.Add(
+                        new Point3D(x, y, z));
+                }
+            }
+
+            for (int lat = 0; lat < latitudeSegments; lat++)
+            {
+                for (int lon = 0; lon < longitudeSegments; lon++)
+                {
+                    int first =
+                        lat * (longitudeSegments + 1) + lon;
+
+                    int second =
+                        first + longitudeSegments + 1;
+
+                    mesh.TriangleIndices.Add(first);
+                    mesh.TriangleIndices.Add(second);
+                    mesh.TriangleIndices.Add(first + 1);
+
+                    mesh.TriangleIndices.Add(second);
+                    mesh.TriangleIndices.Add(second + 1);
+                    mesh.TriangleIndices.Add(first + 1);
+                }
+            }
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(Brushes.SteelBlue);
+
+            GeometryModel3D model =
+                new GeometryModel3D
                 {
                     Geometry = mesh,
-                    Material = new DiffuseMaterial(Brushes.SteelBlue)
+                    Material = material,
+                    BackMaterial = material
                 };
 
-                WorldViewport.Children.Add(
-                    new ModelVisual3D
-                    {
-                        Content = model
-                    });
-            }
+            WorldViewport.Children.Add(
+                new ModelVisual3D
+                {
+                    Content = model
+                });
         }
         private PlacedPart GetPartAt(Point p)
         {
@@ -507,6 +591,86 @@ namespace PlastiCAD
             return null;
         }
 
+        private void AddCylinder(
+    Point3D start,
+    Point3D end,
+    double radius)
+        {
+            const int segments = 16;
+
+            Vector3D axis = end - start;
+
+            if (axis.Length == 0)
+                return;
+
+            axis.Normalize();
+
+            Vector3D reference =
+                Math.Abs(axis.Y) < 0.9
+                ? new Vector3D(0, 1, 0)
+                : new Vector3D(1, 0, 0);
+
+            Vector3D side1 =
+                Vector3D.CrossProduct(axis, reference);
+
+            side1.Normalize();
+
+            Vector3D side2 =
+                Vector3D.CrossProduct(axis, side1);
+
+            side2.Normalize();
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+            for (int i = 0; i < segments; i++)
+            {
+                double angle =
+                    2 * Math.PI * i / segments;
+
+                Vector3D offset =
+                    side1 * (Math.Cos(angle) * radius) +
+                    side2 * (Math.Sin(angle) * radius);
+
+                mesh.Positions.Add(start + offset);
+                mesh.Positions.Add(end + offset);
+            }
+
+            for (int i = 0; i < segments; i++)
+            {
+                int next = (i + 1) % segments;
+
+                int a = i * 2;
+                int b = next * 2;
+                int c = a + 1;
+                int d = b + 1;
+
+                mesh.TriangleIndices.Add(a);
+                mesh.TriangleIndices.Add(b);
+                mesh.TriangleIndices.Add(c);
+
+                mesh.TriangleIndices.Add(c);
+                mesh.TriangleIndices.Add(b);
+                mesh.TriangleIndices.Add(d);
+            }
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(Brushes.SteelBlue);
+
+            GeometryModel3D model =
+                new GeometryModel3D
+                {
+                    Geometry = mesh,
+                    Material = material,
+                    BackMaterial = material
+                };
+
+            WorldViewport.Children.Add(
+                new ModelVisual3D
+                {
+                    Content = model
+                });
+        }
 
 
         private void DisconnectPart(PlacedPart part)
