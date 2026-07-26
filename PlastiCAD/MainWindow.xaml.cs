@@ -1776,6 +1776,30 @@ namespace PlastiCAD
         }
 
 
+        private void WorldViewport_MouseWheel(
+    object sender,
+    MouseWheelEventArgs e)
+        {
+            Point3D target =
+                WorldCamera.Position + WorldCamera.LookDirection;
+
+            double factor =
+                e.Delta > 0 ? 0.85 : 1.15;
+
+            Vector3D newLookDirection =
+                WorldCamera.LookDirection * factor;
+
+            // Nicht durch das Ziel hindurch zoomen.
+            if (newLookDirection.Length < 0.3)
+                return;
+
+            WorldCamera.Position =
+                target - newLookDirection;
+
+            WorldCamera.LookDirection =
+                newLookDirection;
+        }
+
     }
 }
 

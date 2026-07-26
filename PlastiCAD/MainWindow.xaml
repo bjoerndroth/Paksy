@@ -43,7 +43,8 @@
             <!-- Paksy World -->
             <TabItem Header="Paksy World">
                 <Border Background="LightGray">
-                    <Viewport3D x:Name="WorldViewport">
+                    <Viewport3D x:Name="WorldViewport"
+                                MouseWheel="WorldViewport_MouseWheel">
 
                         <!-- Kamera -->
                         <Viewport3D.Camera>
