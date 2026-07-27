@@ -1237,6 +1237,25 @@ namespace PlastiCAD
                     brush);
             }
 
+            var rotatedFaces = placed.Sockets
+    .Select(socket =>
+    {
+        Face face = FaceHelper.RotateFace(
+            socket.Face,
+            placed.Rotation);
+
+        return FaceHelper.RotateFace3D(
+            face,
+            placed.Transform.Rotation);
+    })
+    .ToList();
+
+            bool hasFrontAndBack =
+                rotatedFaces.Contains(Face.Front) &&
+                rotatedFaces.Contains(Face.Back);
+
+            bool depthSymbolDrawn = false;
+
             foreach (Socket socket in placed.Sockets)
             {
                 Face face =
@@ -1252,6 +1271,28 @@ namespace PlastiCAD
                 if (face == Face.Front ||
                     face == Face.Back)
                 {
+                    if (hasFrontAndBack)
+                    {
+                        if (!depthSymbolDrawn)
+                        {
+                            DrawThroughDepthSocket(
+                                center,
+                                part.OuterDiameter,
+                                brush);
+
+                            depthSymbolDrawn = true;
+                        }
+                    }
+                    else
+                    {
+                        DrawDepthSocket(
+                            center,
+                            face,
+                            part.OuterDiameter,
+                            brush,
+                            socket.IsConnected);
+                    }
+
                     continue;
                 }
 
@@ -1267,6 +1308,131 @@ namespace PlastiCAD
                     face,
                     part.Length / 2,
                     socket.IsConnected);
+            }   
+        }
+
+        private void DrawThroughDepthSocket(
+    Vector3 center,
+    double outerDiameter,
+    Brush brush)
+        {
+            double size = outerDiameter * Scale;
+
+            Ellipse circle = new Ellipse
+            {
+                Width = size,
+                Height = size,
+                Stroke = brush,
+                StrokeThickness = 2,
+                Fill = Brushes.Transparent
+            };
+
+            Canvas.SetLeft(
+                circle,
+                center.X - size / 2);
+
+            Canvas.SetTop(
+                circle,
+                center.Y - size / 2);
+
+            BuildArea.Children.Add(circle);
+
+            double innerSize = Math.Max(4, size * 0.25);
+
+            Ellipse innerCircle = new Ellipse
+            {
+                Width = innerSize,
+                Height = innerSize,
+                Stroke = brush,
+                StrokeThickness = 2,
+                Fill = Brushes.Transparent
+            };
+
+            Canvas.SetLeft(
+                innerCircle,
+                center.X - innerSize / 2);
+
+            Canvas.SetTop(
+                innerCircle,
+                center.Y - innerSize / 2);
+
+            BuildArea.Children.Add(innerCircle);
+        }
+        private void DrawDepthSocket(
+    Vector3 center,
+    Face face,
+    double outerDiameter,
+    Brush brush,
+    bool isConnected)
+        {
+            double size = outerDiameter * Scale;
+
+            double x = center.X - size / 2;
+            double y = center.Y - size / 2;
+
+            Ellipse circle = new Ellipse
+            {
+                Width = size,
+                Height = size,
+                Stroke = brush,
+                StrokeThickness = 2,
+                Fill = Brushes.Transparent
+            };
+
+            Canvas.SetLeft(circle, x);
+            Canvas.SetTop(circle, y);
+
+            BuildArea.Children.Add(circle);
+
+            if (face == Face.Front)
+            {
+                // Punkt: Anschluss zeigt aus der Ebene heraus
+                double dotSize = Math.Max(4, size * 0.22);
+
+                Ellipse dot = new Ellipse
+                {
+                    Width = dotSize,
+                    Height = dotSize,
+                    Fill = brush
+                };
+
+                Canvas.SetLeft(
+                    dot,
+                    center.X - dotSize / 2);
+
+                Canvas.SetTop(
+                    dot,
+                    center.Y - dotSize / 2);
+
+                BuildArea.Children.Add(dot);
+            }
+            else
+            {
+                // Kreuz: Anschluss zeigt in die Ebene hinein
+                double inset = size * 0.25;
+
+                Line line1 = new Line
+                {
+                    X1 = center.X - size / 2 + inset,
+                    Y1 = center.Y - size / 2 + inset,
+                    X2 = center.X + size / 2 - inset,
+                    Y2 = center.Y + size / 2 - inset,
+                    Stroke = brush,
+                    StrokeThickness = 2
+                };
+
+                Line line2 = new Line
+                {
+                    X1 = center.X + size / 2 - inset,
+                    Y1 = center.Y - size / 2 + inset,
+                    X2 = center.X - size / 2 + inset,
+                    Y2 = center.Y + size / 2 - inset,
+                    Stroke = brush,
+                    StrokeThickness = 2
+                };
+
+                BuildArea.Children.Add(line1);
+                BuildArea.Children.Add(line2);
             }
         }
 
