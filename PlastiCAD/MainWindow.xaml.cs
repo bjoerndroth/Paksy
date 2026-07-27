@@ -1218,7 +1218,7 @@ namespace PlastiCAD
             return connectionCount;
         }
 
-
+   
         private void DrawStructuralPart(
       PlacedPart placed,
       StructuralPart part)
@@ -1227,7 +1227,11 @@ namespace PlastiCAD
 
             Vector3 center = GetCellCenter(placed);
 
-            Brush brush = GetPartBrush(placed);
+            Brush brush =
+        selectedParts.Contains(placed)
+            ? Brushes.LimeGreen
+            : Brushes.Blue;
+
 
             if (part.DrawCenter)
             {
@@ -1255,6 +1259,8 @@ namespace PlastiCAD
                 rotatedFaces.Contains(Face.Back);
 
             bool depthSymbolDrawn = false;
+            Face? depthFace = null;
+            bool hasFrontArm = false;
 
             foreach (Socket socket in placed.Sockets)
             {
@@ -1268,31 +1274,16 @@ namespace PlastiCAD
                         face,
                         placed.Transform.Rotation);
 
-                if (face == Face.Front ||
-                    face == Face.Back)
+                if (face == Face.Front)
                 {
-                    if (hasFrontAndBack)
-                    {
-                        if (!depthSymbolDrawn)
-                        {
-                            DrawThroughDepthSocket(
-                                center,
-                                part.OuterDiameter,
-                                brush);
+                    hasFrontArm = true;
+                    continue;
+                }
 
-                            depthSymbolDrawn = true;
-                        }
-                    }
-                    else
-                    {
-                        DrawDepthSocket(
-                            center,
-                            face,
-                            part.OuterDiameter,
-                            brush,
-                            socket.IsConnected);
-                    }
-
+                if (face == Face.Back)
+                {
+                    // Arm zeigt vom Benutzer weg:
+                    // in Paksy Plan nichts zusätzlich zeichnen.
                     continue;
                 }
 
@@ -1308,7 +1299,14 @@ namespace PlastiCAD
                     face,
                     part.Length / 2,
                     socket.IsConnected);
-            }   
+            }
+
+            if (hasFrontArm)
+            {
+                DrawDepthSocket(
+                    center,
+                    part.OuterDiameter);
+            }
         }
 
         private void DrawThroughDepthSocket(
@@ -1360,88 +1358,31 @@ namespace PlastiCAD
         }
         private void DrawDepthSocket(
     Vector3 center,
-    Face face,
-    double outerDiameter,
-    Brush brush,
-    bool isConnected)
+    double outerDiameter)
         {
             double size = outerDiameter * Scale;
+            double dotSize = Math.Max(5, size * 0.8);
 
-            double x = center.X - size / 2;
-            double y = center.Y - size / 2;
-
-            Ellipse circle = new Ellipse
+            Ellipse dot = new Ellipse
             {
-                Width = size,
-                Height = size,
-                Stroke = brush,
-                StrokeThickness = 2,
-                Fill = Brushes.Transparent
+                Width = dotSize,
+                Height = dotSize,
+                Fill = Brushes.White,
+                Stroke = Brushes.White
             };
 
-            Canvas.SetLeft(circle, x);
-            Canvas.SetTop(circle, y);
+            Canvas.SetLeft(
+                dot,
+                center.X - dotSize / 2);
 
-            BuildArea.Children.Add(circle);
+            Canvas.SetTop(
+                dot,
+                center.Y - dotSize / 2);
 
-            if (face == Face.Front)
-            {
-                // Punkt: Anschluss zeigt aus der Ebene heraus
-                double dotSize = Math.Max(4, size * 0.22);
-
-                Ellipse dot = new Ellipse
-                {
-                    Width = dotSize,
-                    Height = dotSize,
-                    Fill = brush
-                };
-
-                Canvas.SetLeft(
-                    dot,
-                    center.X - dotSize / 2);
-
-                Canvas.SetTop(
-                    dot,
-                    center.Y - dotSize / 2);
-
-                BuildArea.Children.Add(dot);
-            }
-            else
-            {
-                // Kreuz: Anschluss zeigt in die Ebene hinein
-                double inset = size * 0.25;
-
-                Line line1 = new Line
-                {
-                    X1 = center.X - size / 2 + inset,
-                    Y1 = center.Y - size / 2 + inset,
-                    X2 = center.X + size / 2 - inset,
-                    Y2 = center.Y + size / 2 - inset,
-                    Stroke = brush,
-                    StrokeThickness = 2
-                };
-
-                Line line2 = new Line
-                {
-                    X1 = center.X + size / 2 - inset,
-                    Y1 = center.Y - size / 2 + inset,
-                    X2 = center.X - size / 2 + inset,
-                    Y2 = center.Y + size / 2 - inset,
-                    Stroke = brush,
-                    StrokeThickness = 2
-                };
-
-                BuildArea.Children.Add(line1);
-                BuildArea.Children.Add(line2);
-            }
+            BuildArea.Children.Add(dot);
         }
 
-        private Brush GetPartBrush(PlacedPart placed)
-        {
-            return selectedParts.Contains(placed)
-       ? Brushes.LimeGreen
-       : Brushes.Blue;
-        }
+
         private void DrawCenter(
     Vector3 center,
     double diameter,
