@@ -1244,6 +1244,17 @@ namespace PlastiCAD
                         socket.Face,
                         placed.Rotation);
 
+                face =
+                    FaceHelper.RotateFace3D(
+                        face,
+                        placed.Transform.Rotation);
+
+                if (face == Face.Front ||
+                    face == Face.Back)
+                {
+                    continue;
+                }
+
                 DrawArm(
                     center,
                     face,
@@ -1988,31 +1999,51 @@ namespace PlastiCAD
         }
 
 
-        private void BuildArea_KeyDown(
-    object sender,
-    KeyEventArgs e)
+        private void MainWindow_PreviewKeyDown(
+     object sender,
+     KeyEventArgs e)
         {
             if (selectedParts.Count == 0)
                 return;
 
             if (e.Key == Key.X)
             {
+                SaveUndoState();
+
                 foreach (PlacedPart placed in selectedParts)
                 {
                     placed.Transform.RotateX90();
                 }
 
                 RedrawScene();
+
                 e.Handled = true;
             }
             else if (e.Key == Key.Y)
             {
+                SaveUndoState();
+
                 foreach (PlacedPart placed in selectedParts)
                 {
                     placed.Transform.RotateY90();
                 }
 
                 RedrawScene();
+
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Z)
+            {
+                SaveUndoState();
+
+                foreach (PlacedPart placed in selectedParts)
+                {
+                    placed.Rotation =
+                        (placed.Rotation + 90) % 360;
+                }
+
+                RedrawScene();
+
                 e.Handled = true;
             }
         }

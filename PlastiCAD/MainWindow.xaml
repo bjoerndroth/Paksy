@@ -1,4 +1,5 @@
 ﻿<Window x:Class="PlastiCAD.MainWindow"
+        PreviewKeyDown="MainWindow_PreviewKeyDown"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -34,7 +35,6 @@
             <TabItem Header="Paksy Plan">
                 <Canvas x:Name="BuildArea"
                 Focusable="True"
-                KeyDown="BuildArea_KeyDown"        
                 Background="WhiteSmoke"
                 MouseLeftButtonDown="BuildArea_MouseLeftButtonDown"
                 MouseMove="BuildArea_MouseMove"
