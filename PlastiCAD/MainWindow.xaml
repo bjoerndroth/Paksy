@@ -34,6 +34,7 @@
             <TabItem Header="Paksy Plan">
                 <Canvas x:Name="BuildArea"
                 Focusable="True"
+                KeyDown="BuildArea_KeyDown"        
                 Background="WhiteSmoke"
                 MouseLeftButtonDown="BuildArea_MouseLeftButtonDown"
                 MouseMove="BuildArea_MouseMove"

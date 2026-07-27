@@ -1987,6 +1987,35 @@ namespace PlastiCAD
             e.Handled = true;
         }
 
+
+        private void BuildArea_KeyDown(
+    object sender,
+    KeyEventArgs e)
+        {
+            if (selectedParts.Count == 0)
+                return;
+
+            if (e.Key == Key.X)
+            {
+                foreach (PlacedPart placed in selectedParts)
+                {
+                    placed.Transform.RotateX90();
+                }
+
+                RedrawScene();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Y)
+            {
+                foreach (PlacedPart placed in selectedParts)
+                {
+                    placed.Transform.RotateY90();
+                }
+
+                RedrawScene();
+                e.Handled = true;
+            }
+        }
     }
 }
 
