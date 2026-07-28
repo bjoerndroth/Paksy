@@ -30,6 +30,10 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+        private bool worldCameraInitialized = false;
+
+        private readonly Dictionary<Model3D, PlacedPart> worldPartMap =
+    new Dictionary<Model3D, PlacedPart>();
         private bool isWorldOrbiting = false;
         private Point worldLastMousePosition;
         private bool isWorldPanning = false;
@@ -466,6 +470,8 @@ namespace PlastiCAD
 
         private void RedrawWorld()
         {
+            worldPartMap.Clear();
+
             while (WorldViewport.Children.Count > 1)
                 WorldViewport.Children.RemoveAt(1);
 
@@ -496,7 +502,8 @@ namespace PlastiCAD
                 {
                     AddSphere(
                         center,
-                        radius);
+                        radius,
+                        placed);
                 }
 
                 // Ein Rohrarm pro Socket
@@ -523,10 +530,23 @@ namespace PlastiCAD
                     AddCylinder(
                         center,
                         end,
-                        radius);
+                        radius,
+                        placed);
                 }
-                FitWorldCamera();
+                if (!worldCameraInitialized &&
+    assembly.PlacedParts.Count > 0)
+                {
+                    FitWorldCamera();
+                    worldCameraInitialized = true;
+                }
             }
+        }
+
+        private Brush GetWorldPartBrush(PlacedPart placed)
+        {
+            return selectedParts.Contains(placed)
+                ? Brushes.LimeGreen
+                : Brushes.SteelBlue;
         }
 
         private void FitWorldCamera()
@@ -626,7 +646,8 @@ namespace PlastiCAD
         }
         private void AddSphere(
     Point3D center,
-    double radius)
+    double radius,
+    PlacedPart placed)
         {
             const int latitudeSegments = 12;
             const int longitudeSegments = 20;
@@ -687,7 +708,8 @@ namespace PlastiCAD
             }
 
             DiffuseMaterial material =
-                new DiffuseMaterial(Brushes.SteelBlue);
+    new DiffuseMaterial(
+        GetWorldPartBrush(placed));
 
             GeometryModel3D model =
                 new GeometryModel3D
@@ -696,6 +718,7 @@ namespace PlastiCAD
                     Material = material,
                     BackMaterial = material
                 };
+            worldPartMap[model] = placed;
 
             WorldViewport.Children.Add(
                 new ModelVisual3D
@@ -732,7 +755,8 @@ namespace PlastiCAD
         private void AddCylinder(
     Point3D start,
     Point3D end,
-    double radius)
+    double radius,
+    PlacedPart placed)
         {
             const int segments = 16;
 
@@ -793,7 +817,8 @@ namespace PlastiCAD
             }
 
             DiffuseMaterial material =
-                new DiffuseMaterial(Brushes.SteelBlue);
+    new DiffuseMaterial(
+        GetWorldPartBrush(placed));
 
             GeometryModel3D model =
                 new GeometryModel3D
@@ -802,6 +827,7 @@ namespace PlastiCAD
                     Material = material,
                     BackMaterial = material
                 };
+            worldPartMap[model] = placed;
 
             WorldViewport.Children.Add(
                 new ModelVisual3D
@@ -1814,6 +1840,8 @@ namespace PlastiCAD
             StatusText.Text =
                 $"{assembly.PlacedParts.Count} Bauteil(e) geladen";
 
+            worldCameraInitialized = false;
+
             RedrawScene();
         }
 
@@ -2140,11 +2168,46 @@ namespace PlastiCAD
     object sender,
     MouseButtonEventArgs e)
         {
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                Point mousePosition =
+                    e.GetPosition(WorldViewport);
+
+                HitTestResult result =
+                    VisualTreeHelper.HitTest(
+                        WorldViewport,
+                        mousePosition);
+
+                RayMeshGeometry3DHitTestResult hit =
+                    result as RayMeshGeometry3DHitTestResult;
+
+                if (hit != null &&
+                    hit.ModelHit != null &&
+                    worldPartMap.TryGetValue(
+                        hit.ModelHit,
+                        out PlacedPart placed))
+                {
+                    selectedParts.Clear();
+                    selectedParts.Add(placed);
+
+                    StatusText.Text =
+                        $"{placed.Part.Name} ausgewählt";
+
+                    RedrawScene();
+
+                    e.Handled = true;
+                }
+
+                return;
+            }
+
             if (e.ChangedButton != MouseButton.Middle)
                 return;
 
             isWorldPanning = true;
-            worldLastMousePosition = e.GetPosition(WorldViewport);
+
+            worldLastMousePosition =
+                e.GetPosition(WorldViewport);
 
             Mouse.Capture((IInputElement)sender);
 
