@@ -63,6 +63,7 @@ namespace PlastiCAD
 
         private const double Scale = 2.0;
         private const double SnapDistance = 6.0;
+        private double currentPlanZ = 0.0;
 
         private bool isDragging = false;
         private Vector3 dragOffset = new Vector3();
@@ -275,6 +276,10 @@ namespace PlastiCAD
 
                 foreach (PlacedPart part in assembly.PlacedParts)
                 {
+                    if (Math.Abs(part.Transform.Position.Z - currentPlanZ) >= 0.001)
+                    {
+                        continue;
+                    }
                     Rect partRect = new Rect(
                         part.Transform.Position.X,
                         part.Transform.Position.Y,
@@ -412,11 +417,11 @@ namespace PlastiCAD
                 Part = selectedPart
             };
 
-        
+
             placed.Transform.Position = new Vector3(
                 Math.Floor(p.X / grid) * grid,
                 Math.Floor(p.Y / grid) * grid,
-                0);
+                currentPlanZ);
 
             placed.Sockets = selectedPart.CreateSockets();
 
@@ -704,6 +709,14 @@ namespace PlastiCAD
 
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
+                bool isCurrentLayer =
+                    Math.Abs(
+                        placed.Transform.Position.Z - currentPlanZ)
+                    < 0.001;
+
+                if (!isCurrentLayer)
+                    continue;
+
                 if (p.X >= placed.Transform.Position.X &&
                     p.X <= placed.Transform.Position.X + size &&
                     p.Y >= placed.Transform.Position.Y &&
@@ -1244,10 +1257,30 @@ namespace PlastiCAD
 
             Vector3 center = GetCellCenter(placed);
 
-            Brush brush =
-        selectedParts.Contains(placed)
-            ? Brushes.LimeGreen
-            : Brushes.Blue;
+            bool isCurrentLayer =
+    Math.Abs(
+        placed.Transform.Position.Z - currentPlanZ)
+    < 0.001;
+
+            Brush brush;
+
+            if (selectedParts.Contains(placed))
+            {
+                brush = Brushes.LimeGreen;
+            }
+            else if (isCurrentLayer)
+            {
+                brush = Brushes.Blue;
+            }
+            else
+            {
+                brush = new SolidColorBrush(
+                    Color.FromArgb(
+                        55,
+                        0,
+                        0,
+                        255));
+            }
 
 
             if (part.DrawCenter)
@@ -1311,14 +1344,17 @@ namespace PlastiCAD
                     part.OuterDiameter,
                     brush);
 
-                DrawSocket(
-                    center,
-                    face,
-                    part.Length / 2,
-                    socket.IsConnected);
+                if (isCurrentLayer)
+                {
+                    DrawSocket(
+                        center,
+                        face,
+                        part.Length / 2,
+                        socket.IsConnected);
+                }
             }
 
-            if (hasFrontArm)
+            if (hasFrontArm && isCurrentLayer)
             {
                 DrawDepthSocket(
                     center,
@@ -2139,6 +2175,33 @@ namespace PlastiCAD
      object sender,
      KeyEventArgs e)
         {
+
+            if (e.Key == Key.PageUp)
+            {
+                currentPlanZ += Grider.CellSize;
+
+                StatusText.Text =
+                    $"Bearbeitungsebene Z = {currentPlanZ:0.##} mm";
+
+                RedrawScene();
+
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.PageDown)
+            {
+                currentPlanZ -= Grider.CellSize;
+
+                StatusText.Text =
+                    $"Bearbeitungsebene Z = {currentPlanZ:0.##} mm";
+
+                RedrawScene();
+
+                e.Handled = true;
+                return;
+            }
+
             if (selectedParts.Count == 0)
                 return;
 
