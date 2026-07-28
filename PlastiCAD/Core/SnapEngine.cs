@@ -59,14 +59,14 @@ namespace PlastiCAD.Core
                     foreach (Socket otherSocket in otherPart.Sockets)
                     {
                         Face movingFace =
-                            FaceHelper.RotateFace(
-                                movingSocket.Face,
-                                movingPart.Rotation);
+                        GetEffectiveFace(
+                                movingPart,
+                                movingSocket);
 
                         Face otherFace =
-                            FaceHelper.RotateFace(
-                                otherSocket.Face,
-                                otherPart.Rotation);
+                            GetEffectiveFace(
+                                otherPart,
+                                otherSocket);
 
                         if (!FacesMatch(movingFace, otherFace))
                             continue;
@@ -116,14 +116,14 @@ namespace PlastiCAD.Core
                     {
 
                         Face movingFace =
-                            FaceHelper.RotateFace(
-                                movingSocket.Face,
-                                movingPart.Rotation);
+                         GetEffectiveFace(
+                             movingPart,
+                             movingSocket);
 
                         Face otherFace =
-                            FaceHelper.RotateFace(
-                                otherSocket.Face,
-                                otherPart.Rotation);
+                            GetEffectiveFace(
+                                otherPart,
+                                otherSocket);
 
                         if (!FacesMatch(movingFace, otherFace))
                             continue;
@@ -164,23 +164,45 @@ namespace PlastiCAD.Core
             return null;
 
         }
-        public static void ApplySnap(    PlacedPart movingPart,    SnapResult snap,    double scale)
+        public static void ApplySnap(
+    PlacedPart movingPart,
+    SnapResult snap,
+    double scale)
         {
-            Vector3 movingPos = GetSocketWorldPosition(
-                movingPart,
-                snap.MovingSocket,
-                scale);
+            Vector3 movingPos =
+                GetSocketWorldPosition(
+                    movingPart,
+                    snap.MovingSocket,
+                    scale);
 
-            Vector3 otherPos = GetSocketWorldPosition(
-                snap.OtherPart,
-                snap.OtherSocket,
-                scale);
+            Vector3 otherPos =
+                GetSocketWorldPosition(
+                    snap.OtherPart,
+                    snap.OtherSocket,
+                    scale);
 
-            movingPart.Transform.Position.X += otherPos.X - movingPos.X;
-            movingPart.Transform.Position.Y += otherPos.Y - movingPos.Y;
+            double deltaX =
+                otherPos.X - movingPos.X;
+
+            double deltaY =
+                otherPos.Y - movingPos.Y;
+
+            double deltaZ =
+                otherPos.Z - movingPos.Z;
+
+            // X/Y liegen im Transform weiterhin in Canvas-Koordinaten.
+            movingPart.Transform.Position.X +=
+                deltaX * scale;
+
+            movingPart.Transform.Position.Y +=
+                deltaY * scale;
+
+            // Z liegt bereits in Modellkoordinaten.
+            movingPart.Transform.Position.Z +=
+                deltaZ;
         }
 
-     
+
         private static bool FacesMatch(Face a, Face b)
         {
             return
@@ -197,31 +219,69 @@ namespace PlastiCAD.Core
     Socket socket,
     double scale)
         {
-            double centerX = placed.Transform.Position.X + Grider.CellSize * scale / 2;
-            double centerY = placed.Transform.Position.Y + Grider.CellSize * scale / 2;
+            // Mittelpunkt des Bauteils in MODELLKOORDINATEN
+            double centerX =
+                placed.Transform.Position.X / scale +
+                Grider.CellSize / 2.0;
 
-            double r = Grider.CellSize * scale / 2;
+            double centerY =
+                placed.Transform.Position.Y / scale +
+                Grider.CellSize / 2.0;
 
-            Face face = FaceHelper.RotateFace(
-    socket.Face,
-    placed.Rotation);
+            double centerZ =
+                placed.Transform.Position.Z;
+
+            double r =
+                Grider.CellSize / 2.0;
+
+            Face face =
+                GetEffectiveFace(
+                    placed,
+                    socket);
 
             switch (face)
             {
                 case Face.Left:
-                    return new Vector3(centerX - r, centerY, 0);
+                    return new Vector3(
+                        centerX - r,
+                        centerY,
+                        centerZ);
 
                 case Face.Right:
-                    return new Vector3(centerX + r, centerY, 0);
+                    return new Vector3(
+                        centerX + r,
+                        centerY,
+                        centerZ);
 
                 case Face.Top:
-                    return new Vector3(centerX, centerY - r, 0);
+                    return new Vector3(
+                        centerX,
+                        centerY - r,
+                        centerZ);
 
                 case Face.Bottom:
-                    return new Vector3(centerX, centerY + r, 0);
+                    return new Vector3(
+                        centerX,
+                        centerY + r,
+                        centerZ);
+
+                case Face.Front:
+                    return new Vector3(
+                        centerX,
+                        centerY,
+                        centerZ + r);
+
+                case Face.Back:
+                    return new Vector3(
+                        centerX,
+                        centerY,
+                        centerZ - r);
 
                 default:
-                    return new Vector3(centerX, centerY, 0);
+                    return new Vector3(
+                        centerX,
+                        centerY,
+                        centerZ);
             }
         }
         public static Vector3 GetWorldSocketPositionByFace(
@@ -253,6 +313,21 @@ namespace PlastiCAD.Core
                 default:
                     return new Vector3(centerX, centerY, 0);
             }
+        }
+
+        private static Face GetEffectiveFace(
+    PlacedPart placed,
+    Socket socket)
+        {
+            Face face = FaceHelper.RotateFace(
+                socket.Face,
+                placed.Rotation);
+
+            face = FaceHelper.RotateFace3D(
+                face,
+                placed.Transform.Rotation);
+
+            return face;
         }
     }
 

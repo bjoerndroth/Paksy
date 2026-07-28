@@ -62,7 +62,7 @@ namespace PlastiCAD
         private Part selectedPart;
 
         private const double Scale = 2.0;
-        private const double SnapDistance = 12.0;
+        private const double SnapDistance = 6.0;
 
         private bool isDragging = false;
         private Vector3 dragOffset = new Vector3();
@@ -87,22 +87,38 @@ namespace PlastiCAD
             KeyDown += MainWindow_KeyDown;
         }
 
-        private bool IsPositionOccupied( double x,    double y,    IEnumerable<PlacedPart> ignoredParts = null)
+        private bool IsPositionOccupied(
+    double x,
+    double y,
+    double z,
+    IEnumerable<PlacedPart> ignoredParts = null)
         {
             const double tolerance = 0.001;
 
             foreach (PlacedPart part in assembly.PlacedParts)
             {
-                if (ignoredParts != null && ignoredParts.Contains(part))
+                if (ignoredParts != null &&
+                    ignoredParts.Contains(part))
+                {
                     continue;
+                }
 
                 bool sameX =
-                    Math.Abs(part.Transform.Position.X - x) < tolerance;
+                    Math.Abs(
+                        part.Transform.Position.X - x)
+                    < tolerance;
 
                 bool sameY =
-                    Math.Abs(part.Transform.Position.Y - y) < tolerance;
+                    Math.Abs(
+                        part.Transform.Position.Y - y)
+                    < tolerance;
 
-                if (sameX && sameY)
+                bool sameZ =
+                    Math.Abs(
+                        part.Transform.Position.Z - z)
+                    < tolerance;
+
+                if (sameX && sameY && sameZ)
                     return true;
             }
 
@@ -182,6 +198,7 @@ namespace PlastiCAD
                 if (IsPositionOccupied(
                     newX,
                     newY,
+                    start.Z,
                     selectedParts))
                 {
                     positionIsValid = false;
@@ -1307,6 +1324,12 @@ namespace PlastiCAD
                     center,
                     part.OuterDiameter);
             }
+            if (Math.Abs(placed.Transform.Position.Z) > 0.001)
+            {
+                DrawZLabel(
+                    center,
+                    placed.Transform.Position.Z);
+            }
         }
 
         private void DrawThroughDepthSocket(
@@ -1533,10 +1556,16 @@ namespace PlastiCAD
                 double newY =
                     source.Transform.Position.Y + offsetY;
 
-                if (IsPositionOccupied(newX, newY))
+                double newZ =
+                    source.Transform.Position.Z;
+
+                if (IsPositionOccupied(
+                    newX,
+                    newY,
+                    newZ))
                 {
                     StatusText.Text =
-                        "Einfügen nicht möglich: Rasterzelle ist belegt";
+                        "Einfügen nicht möglich: Position ist belegt";
 
                     return;
                 }
@@ -2153,6 +2182,55 @@ namespace PlastiCAD
 
                 e.Handled = true;
             }
+            else if (e.Key == Key.Up)
+            {
+                SaveUndoState();
+
+                foreach (PlacedPart placed in selectedParts)
+                {
+                    placed.Transform.Position.Z += Grider.CellSize;
+                }
+
+                RedrawScene();
+
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Down)
+            {
+                SaveUndoState();
+
+                foreach (PlacedPart placed in selectedParts)
+                {
+                    placed.Transform.Position.Z -= Grider.CellSize;
+                }
+
+                RedrawScene();
+
+                e.Handled = true;
+            }
+        }
+
+        private void DrawZLabel(
+    Vector3 center,
+    double z)
+        {
+            TextBlock label = new TextBlock
+            {
+                Text = $"Z {z:0.#}",
+                FontSize = 10,
+                Foreground = Brushes.DimGray,
+                Background = Brushes.White
+            };
+
+            Canvas.SetLeft(
+                label,
+                center.X + 10);
+
+            Canvas.SetTop(
+                label,
+                center.Y - 22);
+
+            BuildArea.Children.Add(label);
         }
     }
 }
