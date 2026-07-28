@@ -1360,12 +1360,7 @@ namespace PlastiCAD
                     center,
                     part.OuterDiameter);
             }
-            if (Math.Abs(placed.Transform.Position.Z) > 0.001)
-            {
-                DrawZLabel(
-                    center,
-                    placed.Transform.Position.Z);
-            }
+           
         }
 
         private void DrawThroughDepthSocket(
@@ -2211,8 +2206,19 @@ namespace PlastiCAD
 
                 foreach (PlacedPart placed in selectedParts)
                 {
+                    DisconnectPart(placed);
+                }
+
+                foreach (PlacedPart placed in selectedParts)
+                {
                     placed.Transform.RotateX90();
                 }
+
+                int connectionCount = ConnectSelectedParts();
+
+                StatusText.Text = connectionCount > 0
+                    ? $"{connectionCount} Verbindung(en)"
+                    : $"{selectedParts.Count} Bauteil(e) um X gedreht";
 
                 RedrawScene();
 
@@ -2224,8 +2230,19 @@ namespace PlastiCAD
 
                 foreach (PlacedPart placed in selectedParts)
                 {
+                    DisconnectPart(placed);
+                }
+
+                foreach (PlacedPart placed in selectedParts)
+                {
                     placed.Transform.RotateY90();
                 }
+
+                int connectionCount = ConnectSelectedParts();
+
+                StatusText.Text = connectionCount > 0
+                    ? $"{connectionCount} Verbindung(en)"
+                    : $"{selectedParts.Count} Bauteil(e) um Y gedreht";
 
                 RedrawScene();
 
@@ -2237,9 +2254,20 @@ namespace PlastiCAD
 
                 foreach (PlacedPart placed in selectedParts)
                 {
+                    DisconnectPart(placed);
+                }
+
+                foreach (PlacedPart placed in selectedParts)
+                {
                     placed.Rotation =
                         (placed.Rotation + 90) % 360;
                 }
+
+                int connectionCount = ConnectSelectedParts();
+
+                StatusText.Text = connectionCount > 0
+                    ? $"{connectionCount} Verbindung(en)"
+                    : $"{selectedParts.Count} Bauteil(e) um Z gedreht";
 
                 RedrawScene();
 
@@ -2273,28 +2301,7 @@ namespace PlastiCAD
             }
         }
 
-        private void DrawZLabel(
-    Vector3 center,
-    double z)
-        {
-            TextBlock label = new TextBlock
-            {
-                Text = $"Z {z:0.#}",
-                FontSize = 10,
-                Foreground = Brushes.DimGray,
-                Background = Brushes.White
-            };
-
-            Canvas.SetLeft(
-                label,
-                center.X + 10);
-
-            Canvas.SetTop(
-                label,
-                center.Y - 22);
-
-            BuildArea.Children.Add(label);
-        }
+        
     }
 }
 
