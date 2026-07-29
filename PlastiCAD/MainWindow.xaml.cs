@@ -30,6 +30,7 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+        private Point3D? worldPartDragStartPoint = null;
         private PlacedPart worldMouseDownPart = null;
         private bool worldPartWasDragged = false;
         private bool isWorldPartDragging = false;
@@ -2094,13 +2095,17 @@ namespace PlastiCAD
         }
 
         private void WorldViewport_MouseMove(
-     object sender,
-     MouseEventArgs e)
+    object sender,
+    MouseEventArgs e)
         {
             bool ctrlPressed =
                 Keyboard.Modifiers.HasFlag(
                     ModifierKeys.Control);
 
+            // ------------------------------------------------------------
+            // BAUTEILE VERSCHIEBEN
+            // Ohne Strg + linke Maustaste
+            // ------------------------------------------------------------
             if (isWorldPartDragging &&
                 !ctrlPressed &&
                 e.LeftButton == MouseButtonState.Pressed)
@@ -2111,65 +2116,69 @@ namespace PlastiCAD
                 double mouseDeltaX =
                     current.X - worldPartDragStartMouse.X;
 
-                double mouseDeltaZ =
+                double mouseDeltaY =
                     current.Y - worldPartDragStartMouse.Y;
 
                 if (Math.Abs(mouseDeltaX) > 3 ||
-    Math.Abs(mouseDeltaZ) > 3)
+                    Math.Abs(mouseDeltaY) > 3)
                 {
                     worldPartWasDragged = true;
                 }
 
-                // Blickrichtung auf unsere Bearbeitungsebene X/Z projizieren
-                Vector3D forward =
-                    new Vector3D(
-                        WorldCamera.LookDirection.X,
-                        0,
-                        WorldCamera.LookDirection.Z);
-
-                if (forward.Length < 0.001)
+                if (!worldPartDragStartPoint.HasValue)
                     return;
 
-                forward.Normalize();
+                if (selectedParts.Count == 0)
+                    return;
 
-                // Rechtsrichtung innerhalb der X/Z-Ebene
-                Vector3D worldY =
-                    new Vector3D(0, 1, 0);
+                // Wir benutzen das erste ausgewählte Bauteil
+                // als Referenz für die X/Z-Arbeitsebene.
+                PlacedPart referencePart =
+                    selectedParts[0];
 
-                Vector3D right =
-                    Vector3D.CrossProduct(
-                        forward,
-                        worldY);
+                // World-Y entspricht bei unserer Darstellung
+                // der Paksy-Y-Position.
+                double planeY =
+                    -(
+                        referencePart.Transform.Position.Y / Scale
+                        + Grider.CellSize / 2.0
+                     ) / 100.0;
 
-                right.Normalize();
+                Point3D? currentPoint =
+                    GetMousePointOnWorldPlane(
+                        current,
+                        planeY);
 
+                if (!currentPoint.HasValue)
+                    return;
 
-                // 30 Pixel Mausbewegung = ein Rasterfeld
-                double horizontalSteps =
-                    mouseDeltaX / 30.0;
+                Vector3D worldDelta =
+                    currentPoint.Value -
+                    worldPartDragStartPoint.Value;
 
-                double verticalSteps =
-                    -mouseDeltaZ / 30.0;
+                // World-Koordinaten wieder auf Paksy-Koordinaten abbilden.
+                double rawDeltaX =
+                    worldDelta.X * 100.0 * Scale;
 
+                double rawDeltaZ =
+                    worldDelta.Z * 100.0;
 
-                // Maus rechts/links:
-                // immer rechts/links aus aktueller Kamerasicht.
-                //
-                // Maus hoch/runter:
-                // vor/zurück auf der X/Z-Ebene.
-                Vector3D movement =
-                    right * horizontalSteps +
-                    forward * verticalSteps;
+                double gridX =
+                    Grider.CellSize * Scale;
 
+                double gridZ =
+                    Grider.CellSize;
 
+                // Rasterung
                 double deltaX =
-                    Math.Round(movement.X)
-                    * Grider.CellSize
-                    * Scale;
+                    Math.Round(rawDeltaX / gridX)
+                    * gridX;
 
                 double deltaZ =
-                    Math.Round(movement.Z)
-                    * Grider.CellSize; foreach (PlacedPart placed in selectedParts)
+                    Math.Round(rawDeltaZ / gridZ)
+                    * gridZ;
+
+                foreach (PlacedPart placed in selectedParts)
                 {
                     if (!worldPartDragStartPositions.TryGetValue(
                         placed,
@@ -2182,14 +2191,17 @@ namespace PlastiCAD
                         start.X + deltaX;
 
                     placed.Transform.Position.Z =
-                        start.Z - deltaZ;
+                        start.Z + deltaZ;
                 }
 
                 RedrawScene();
                 return;
             }
 
-            // Ab hier ausschließlich Kamerasteuerung mit Strg
+            // ------------------------------------------------------------
+            // KAMERA
+            // Nur mit Strg
+            // ------------------------------------------------------------
             if (!ctrlPressed)
                 return;
 
@@ -2203,14 +2215,17 @@ namespace PlastiCAD
                 e.GetPosition(WorldViewport);
 
             double cameraDeltaX =
-                cameraCurrent.X - worldLastMousePosition.X;
+                cameraCurrent.X -
+                worldLastMousePosition.X;
 
             double cameraDeltaY =
-                cameraCurrent.Y - worldLastMousePosition.Y;
+                cameraCurrent.Y -
+                worldLastMousePosition.Y;
 
             worldLastMousePosition =
                 cameraCurrent;
 
+            // Kamera drehen
             if (isWorldOrbiting)
             {
                 OrbitWorldCamera(
@@ -2220,6 +2235,7 @@ namespace PlastiCAD
                 return;
             }
 
+            // Kamera verschieben
             if (isWorldPanning)
             {
                 PanWorldCamera(
@@ -2227,7 +2243,6 @@ namespace PlastiCAD
                     cameraDeltaY);
             }
         }
-
         private void PanWorldCamera(
     double deltaX,
     double deltaY)
@@ -2372,6 +2387,20 @@ namespace PlastiCAD
                             DisconnectPart(part);
 
                         worldPartDragStartMouse = mousePosition;
+
+                        PlacedPart referencePart =
+    selectedParts[0];
+
+                        double planeY =
+                            -(
+                                referencePart.Transform.Position.Y / Scale
+                                + Grider.CellSize / 2.0
+                             ) / 100.0;
+
+                        worldPartDragStartPoint =
+                            GetMousePointOnWorldPlane(
+                                mousePosition,
+                                planeY);
 
                         worldPartDragStartPositions.Clear();
 
@@ -2668,7 +2697,83 @@ namespace PlastiCAD
             }
         }
 
-        
+        private Point3D? GetMousePointOnWorldPlane(
+    Point mousePosition,
+    double planeY)
+        {
+            if (!(WorldCamera is PerspectiveCamera camera))
+                return null;
+
+            double width = WorldViewport.ActualWidth;
+            double height = WorldViewport.ActualHeight;
+
+            if (width <= 0 || height <= 0)
+                return null;
+
+            // Normalisierte Bildschirmkoordinaten
+            double x =
+                (2.0 * mousePosition.X / width) - 1.0;
+
+            double y =
+                1.0 - (2.0 * mousePosition.Y / height);
+
+            Vector3D forward =
+                camera.LookDirection;
+
+            forward.Normalize();
+
+            Vector3D up =
+                camera.UpDirection;
+
+            up.Normalize();
+
+            Vector3D right =
+                Vector3D.CrossProduct(
+                    forward,
+                    up);
+
+            right.Normalize();
+
+            // Up nochmals orthogonal machen
+            up =
+                Vector3D.CrossProduct(
+                    right,
+                    forward);
+
+            up.Normalize();
+
+            double aspect =
+                width / height;
+
+            double tan =
+                Math.Tan(
+                    camera.FieldOfView *
+                    Math.PI /
+                    360.0);
+
+            Vector3D rayDirection =
+                forward +
+                right * (x * tan * aspect) +
+                up * (y * tan);
+
+            rayDirection.Normalize();
+
+            // Schnitt mit Ebene Y = planeY
+            if (Math.Abs(rayDirection.Y) < 0.000001)
+                return null;
+
+            double t =
+                (planeY - camera.Position.Y)
+                / rayDirection.Y;
+
+            if (t < 0)
+                return null;
+
+            return camera.Position +
+                rayDirection * t;
+        }
+
+
     }
 }
 
