@@ -2182,16 +2182,39 @@ namespace PlastiCAD
                     result as RayMeshGeometry3DHitTestResult;
 
                 if (hit != null &&
-                    hit.ModelHit != null &&
-                    worldPartMap.TryGetValue(
-                        hit.ModelHit,
-                        out PlacedPart placed))
+    hit.ModelHit != null &&
+    worldPartMap.TryGetValue(
+        hit.ModelHit,
+        out PlacedPart placed))
                 {
-                    selectedParts.Clear();
-                    selectedParts.Add(placed);
+                    bool ctrlPressed =
+                        Keyboard.Modifiers.HasFlag(
+                            ModifierKeys.Control);
+
+                    if (ctrlPressed)
+                    {
+                        // Strg+Klick:
+                        // Teil zur Auswahl hinzufügen
+                        // oder wieder entfernen.
+                        if (selectedParts.Contains(placed))
+                        {
+                            selectedParts.Remove(placed);
+                        }
+                        else
+                        {
+                            selectedParts.Add(placed);
+                        }
+                    }
+                    else
+                    {
+                        // Normaler Klick:
+                        // nur dieses Teil auswählen.
+                        selectedParts.Clear();
+                        selectedParts.Add(placed);
+                    }
 
                     StatusText.Text =
-                        $"{placed.Part.Name} ausgewählt";
+                        $"{selectedParts.Count} Bauteil(e) ausgewählt";
 
                     RedrawScene();
 
