@@ -30,7 +30,8 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
-
+        private PlacedPart worldMouseDownPart = null;
+        private bool worldPartWasDragged = false;
         private bool isWorldPartDragging = false;
 
         private Point worldPartDragStartMouse;
@@ -2113,19 +2114,62 @@ namespace PlastiCAD
                 double mouseDeltaZ =
                     current.Y - worldPartDragStartMouse.Y;
 
-                double gridXY =
-                    Grider.CellSize * Scale;
+                if (Math.Abs(mouseDeltaX) > 3 ||
+    Math.Abs(mouseDeltaZ) > 3)
+                {
+                    worldPartWasDragged = true;
+                }
 
-                double gridZ =
-                    Grider.CellSize;
+                // Blickrichtung auf unsere Bearbeitungsebene X/Z projizieren
+                Vector3D forward =
+                    new Vector3D(
+                        WorldCamera.LookDirection.X,
+                        0,
+                        WorldCamera.LookDirection.Z);
+
+                if (forward.Length < 0.001)
+                    return;
+
+                forward.Normalize();
+
+                // Rechtsrichtung innerhalb der X/Z-Ebene
+                Vector3D worldY =
+                    new Vector3D(0, 1, 0);
+
+                Vector3D right =
+                    Vector3D.CrossProduct(
+                        forward,
+                        worldY);
+
+                right.Normalize();
+
+
+                // 30 Pixel Mausbewegung = ein Rasterfeld
+                double horizontalSteps =
+                    mouseDeltaX / 30.0;
+
+                double verticalSteps =
+                    -mouseDeltaZ / 30.0;
+
+
+                // Maus rechts/links:
+                // immer rechts/links aus aktueller Kamerasicht.
+                //
+                // Maus hoch/runter:
+                // vor/zurück auf der X/Z-Ebene.
+                Vector3D movement =
+                    right * horizontalSteps +
+                    forward * verticalSteps;
+
 
                 double deltaX =
-                    Math.Round(mouseDeltaX / 30.0) * gridXY;
+                    Math.Round(movement.X)
+                    * Grider.CellSize
+                    * Scale;
 
                 double deltaZ =
-                    Math.Round(mouseDeltaZ / 30.0) * gridZ;
-
-                foreach (PlacedPart placed in selectedParts)
+                    Math.Round(movement.Z)
+                    * Grider.CellSize; foreach (PlacedPart placed in selectedParts)
                 {
                     if (!worldPartDragStartPositions.TryGetValue(
                         placed,
@@ -2304,46 +2348,30 @@ namespace PlastiCAD
                 RayMeshGeometry3DHitTestResult hit =
                     result as RayMeshGeometry3DHitTestResult;
 
-                if (hit != null &&
-    hit.ModelHit != null &&
-    worldPartMap.TryGetValue(
-        hit.ModelHit,
-        out PlacedPart placed))
-                {
-                   
+                worldMouseDownPart = null;
+                worldPartWasDragged = false;
 
-                    if (ctrlPressed)
-                    {
-                        // Strg+Klick:
-                        // Teil zur Auswahl hinzufügen
-                        // oder wieder entfernen.
-                        if (selectedParts.Contains(placed))
-                        {
-                            selectedParts.Remove(placed);
-                        }
-                        else
-                        {
-                            selectedParts.Add(placed);
-                        }
-                    }
-                    else
-                    {
-                        // Normaler Klick:
-                        // nur dieses Teil auswählen.
-                        selectedParts.Clear();
-                        selectedParts.Add(placed);
-                    }
-                    if (!ctrlPressed)
+                if (hit != null &&
+                    hit.ModelHit != null &&
+                    worldPartMap.TryGetValue(
+                        hit.ModelHit,
+                        out PlacedPart placed))
+                {
+                    worldMouseDownPart = placed;
+
+                    // Wenn das Teil bereits zur Auswahl gehört,
+                    // bewegen wir die komplette vorhandene Auswahl.
+                    //
+                    // Ist es NICHT ausgewählt, wird es erst bei
+                    // MouseUp zur neuen Auswahl.
+                    if (selectedParts.Contains(placed))
                     {
                         SaveUndoState();
 
                         foreach (PlacedPart part in selectedParts)
-                        {
                             DisconnectPart(part);
-                        }
 
-                        worldPartDragStartMouse =
-                            e.GetPosition(WorldViewport);
+                        worldPartDragStartMouse = mousePosition;
 
                         worldPartDragStartPositions.Clear();
 
@@ -2360,11 +2388,6 @@ namespace PlastiCAD
 
                         Mouse.Capture((IInputElement)sender);
                     }
-
-                    StatusText.Text =
-                        $"{selectedParts.Count} Bauteil(e) ausgewählt";
-
-                    RedrawScene();
 
                     e.Handled = true;
                 }
@@ -2393,29 +2416,57 @@ namespace PlastiCAD
             bool ctrlPressed =
     Keyboard.Modifiers.HasFlag(
         ModifierKeys.Control);
-            if (e.ChangedButton == MouseButton.Left &&
-    isWorldPartDragging)
+            if (e.ChangedButton == MouseButton.Left)
             {
-                isWorldPartDragging = false;
+                if (isWorldPartDragging)
+                {
+                    isWorldPartDragging = false;
+                    Mouse.Capture(null);
 
-                Mouse.Capture(null);
+                    if (worldPartWasDragged)
+                    {
+                        int connectionCount =
+                            ConnectSelectedParts();
 
-                int connectionCount =
-                    ConnectSelectedParts();
+                        StatusText.Text =
+                            connectionCount > 0
+                                ? $"{connectionCount} Verbindung(en)"
+                                : $"{selectedParts.Count} Bauteil(e) verschoben";
+                    }
+                }
+
+                // Kein Drag -> normaler Klick
+                if (!worldPartWasDragged &&
+                    worldMouseDownPart != null)
+                {
+
+
+                    if (ctrlPressed)
+                    {
+                        if (selectedParts.Contains(worldMouseDownPart))
+                            selectedParts.Remove(worldMouseDownPart);
+                        else
+                            selectedParts.Add(worldMouseDownPart);
+                    }
+                    else
+                    {
+                        selectedParts.Clear();
+                        selectedParts.Add(worldMouseDownPart);
+                    }
+
+                    StatusText.Text =
+                        $"{selectedParts.Count} Bauteil(e) ausgewählt";
+                }
 
                 worldPartDragStartPositions.Clear();
-
-                StatusText.Text =
-                    connectionCount > 0
-                        ? $"{connectionCount} Verbindung(en)"
-                        : $"{selectedParts.Count} Bauteil(e) verschoben";
+                worldMouseDownPart = null;
+                worldPartWasDragged = false;
 
                 RedrawScene();
 
                 e.Handled = true;
                 return;
             }
-
 
             if (e.ChangedButton != MouseButton.Middle)
                 return;
