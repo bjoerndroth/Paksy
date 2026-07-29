@@ -30,6 +30,13 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+
+        private bool isWorldPartDragging = false;
+
+        private Point worldPartDragStartMouse;
+
+        private Dictionary<PlacedPart, Vector3> worldPartDragStartPositions =
+            new Dictionary<PlacedPart, Vector3>();
         private bool worldCameraInitialized = false;
 
         private readonly Dictionary<Model3D, PlacedPart> worldPartMap =
@@ -1990,30 +1997,82 @@ namespace PlastiCAD
     object sender,
     MouseWheelEventArgs e)
         {
-            Point3D target =
-                WorldCamera.Position + WorldCamera.LookDirection;
+            bool ctrlPressed =
+                Keyboard.Modifiers.HasFlag(
+                    ModifierKeys.Control);
 
-            double factor =
-                e.Delta > 0 ? 0.85 : 1.15;
+            if (ctrlPressed)
+            {
+                // Bisheriger Zoom bleibt exakt erhalten
+                Point3D target =
+                    WorldCamera.Position + WorldCamera.LookDirection;
 
-            Vector3D newLookDirection =
-                WorldCamera.LookDirection * factor;
+                double factor =
+                    e.Delta > 0 ? 0.85 : 1.15;
 
-            // Nicht durch das Ziel hindurch zoomen.
-            if (newLookDirection.Length < 0.3)
+                Vector3D newLookDirection =
+                    WorldCamera.LookDirection * factor;
+
+                // Nicht durch das Ziel hindurch zoomen.
+                if (newLookDirection.Length < 0.3)
+                    return;
+
+                WorldCamera.Position =
+                    target - newLookDirection;
+
+                WorldCamera.LookDirection =
+                    newLookDirection;
+
+                e.Handled = true;
+                return;
+            }
+
+            // Ohne Strg: ausgewählte Teile entlang Y verschieben
+            if (selectedParts.Count == 0)
                 return;
 
-            WorldCamera.Position =
-                target - newLookDirection;
+            SaveUndoState();
 
-            WorldCamera.LookDirection =
-                newLookDirection;
+            foreach (PlacedPart placed in selectedParts)
+            {
+                DisconnectPart(placed);
+            }
+
+            double step =
+                Grider.CellSize * Scale;
+
+            double deltaY =
+                e.Delta > 0
+                    ? -step
+                    : step;
+
+            foreach (PlacedPart placed in selectedParts)
+            {
+                placed.Transform.Position.Y += deltaY;
+            }
+
+            int connectionCount =
+                ConnectSelectedParts();
+
+            StatusText.Text =
+                connectionCount > 0
+                    ? $"{connectionCount} Verbindung(en)"
+                    : $"{selectedParts.Count} Bauteil(e) verschoben";
+
+            RedrawScene();
+
+            e.Handled = true;
         }
 
         private void WorldViewport_MouseRightButtonDown(
     object sender,
     MouseButtonEventArgs e)
         {
+            if (!Keyboard.Modifiers.HasFlag(
+        ModifierKeys.Control))
+            {
+                return;
+            }
             isWorldOrbiting = true;
             worldLastMousePosition = e.GetPosition(WorldViewport);
 
@@ -2037,32 +2096,93 @@ namespace PlastiCAD
      object sender,
      MouseEventArgs e)
         {
-            if (!isWorldOrbiting && !isWorldPanning)
+            bool ctrlPressed =
+                Keyboard.Modifiers.HasFlag(
+                    ModifierKeys.Control);
+
+            if (isWorldPartDragging &&
+                !ctrlPressed &&
+                e.LeftButton == MouseButtonState.Pressed)
+            {
+                Point current =
+                    e.GetPosition(WorldViewport);
+
+                double mouseDeltaX =
+                    current.X - worldPartDragStartMouse.X;
+
+                double mouseDeltaZ =
+                    current.Y - worldPartDragStartMouse.Y;
+
+                double gridXY =
+                    Grider.CellSize * Scale;
+
+                double gridZ =
+                    Grider.CellSize;
+
+                double deltaX =
+                    Math.Round(mouseDeltaX / 30.0) * gridXY;
+
+                double deltaZ =
+                    Math.Round(mouseDeltaZ / 30.0) * gridZ;
+
+                foreach (PlacedPart placed in selectedParts)
+                {
+                    if (!worldPartDragStartPositions.TryGetValue(
+                        placed,
+                        out Vector3 start))
+                    {
+                        continue;
+                    }
+
+                    placed.Transform.Position.X =
+                        start.X + deltaX;
+
+                    placed.Transform.Position.Z =
+                        start.Z - deltaZ;
+                }
+
+                RedrawScene();
+                return;
+            }
+
+            // Ab hier ausschließlich Kamerasteuerung mit Strg
+            if (!ctrlPressed)
                 return;
 
-            Point current =
+            if (!isWorldOrbiting &&
+                !isWorldPanning)
+            {
+                return;
+            }
+
+            Point cameraCurrent =
                 e.GetPosition(WorldViewport);
 
-            double deltaX =
-                current.X - worldLastMousePosition.X;
+            double cameraDeltaX =
+                cameraCurrent.X - worldLastMousePosition.X;
 
-            double deltaY =
-                current.Y - worldLastMousePosition.Y;
+            double cameraDeltaY =
+                cameraCurrent.Y - worldLastMousePosition.Y;
 
-            worldLastMousePosition = current;
+            worldLastMousePosition =
+                cameraCurrent;
 
             if (isWorldOrbiting)
             {
-                OrbitWorldCamera(deltaX, deltaY);
+                OrbitWorldCamera(
+                    cameraDeltaX,
+                    cameraDeltaY);
+
                 return;
             }
 
             if (isWorldPanning)
             {
-                PanWorldCamera(deltaX, deltaY);
+                PanWorldCamera(
+                    cameraDeltaX,
+                    cameraDeltaY);
             }
         }
-
 
         private void PanWorldCamera(
     double deltaX,
@@ -2168,6 +2288,9 @@ namespace PlastiCAD
     object sender,
     MouseButtonEventArgs e)
         {
+            bool ctrlPressed =
+    Keyboard.Modifiers.HasFlag(
+        ModifierKeys.Control);
             if (e.ChangedButton == MouseButton.Left)
             {
                 Point mousePosition =
@@ -2187,9 +2310,7 @@ namespace PlastiCAD
         hit.ModelHit,
         out PlacedPart placed))
                 {
-                    bool ctrlPressed =
-                        Keyboard.Modifiers.HasFlag(
-                            ModifierKeys.Control);
+                   
 
                     if (ctrlPressed)
                     {
@@ -2212,6 +2333,33 @@ namespace PlastiCAD
                         selectedParts.Clear();
                         selectedParts.Add(placed);
                     }
+                    if (!ctrlPressed)
+                    {
+                        SaveUndoState();
+
+                        foreach (PlacedPart part in selectedParts)
+                        {
+                            DisconnectPart(part);
+                        }
+
+                        worldPartDragStartMouse =
+                            e.GetPosition(WorldViewport);
+
+                        worldPartDragStartPositions.Clear();
+
+                        foreach (PlacedPart part in selectedParts)
+                        {
+                            worldPartDragStartPositions[part] =
+                                new Vector3(
+                                    part.Transform.Position.X,
+                                    part.Transform.Position.Y,
+                                    part.Transform.Position.Z);
+                        }
+
+                        isWorldPartDragging = true;
+
+                        Mouse.Capture((IInputElement)sender);
+                    }
 
                     StatusText.Text =
                         $"{selectedParts.Count} Bauteil(e) ausgewählt";
@@ -2226,7 +2374,8 @@ namespace PlastiCAD
 
             if (e.ChangedButton != MouseButton.Middle)
                 return;
-
+            if (!ctrlPressed)
+                return;
             isWorldPanning = true;
 
             worldLastMousePosition =
@@ -2241,6 +2390,33 @@ namespace PlastiCAD
             object sender,
             MouseButtonEventArgs e)
         {
+            bool ctrlPressed =
+    Keyboard.Modifiers.HasFlag(
+        ModifierKeys.Control);
+            if (e.ChangedButton == MouseButton.Left &&
+    isWorldPartDragging)
+            {
+                isWorldPartDragging = false;
+
+                Mouse.Capture(null);
+
+                int connectionCount =
+                    ConnectSelectedParts();
+
+                worldPartDragStartPositions.Clear();
+
+                StatusText.Text =
+                    connectionCount > 0
+                        ? $"{connectionCount} Verbindung(en)"
+                        : $"{selectedParts.Count} Bauteil(e) verschoben";
+
+                RedrawScene();
+
+                e.Handled = true;
+                return;
+            }
+
+
             if (e.ChangedButton != MouseButton.Middle)
                 return;
 
@@ -2256,6 +2432,60 @@ namespace PlastiCAD
      object sender,
      KeyEventArgs e)
         {
+
+            double moveStep = Grider.CellSize * Scale;
+
+            if (e.Key == Key.A ||
+                e.Key == Key.D ||
+                e.Key == Key.W ||
+                e.Key == Key.S)
+            {
+                if (selectedParts.Count == 0)
+                    return;
+
+                SaveUndoState();
+
+                // Alte Verbindungen lösen
+                foreach (PlacedPart placed in selectedParts)
+                {
+                    DisconnectPart(placed);
+                }
+
+                double deltaX = 0;
+                double deltaY = 0;
+
+                if (e.Key == Key.A)
+                    deltaX = -moveStep;
+
+                if (e.Key == Key.D)
+                    deltaX = moveStep;
+
+                if (e.Key == Key.W)
+                    deltaY = -moveStep;
+
+                if (e.Key == Key.S)
+                    deltaY = moveStep;
+
+                // Gesamte Auswahl gemeinsam bewegen
+                foreach (PlacedPart placed in selectedParts)
+                {
+                    placed.Transform.Position.X += deltaX;
+                    placed.Transform.Position.Y += deltaY;
+                }
+
+                // Neue räumliche Verbindungen suchen
+                int connectionCount = ConnectSelectedParts();
+
+                StatusText.Text =
+                    connectionCount > 0
+                        ? $"{connectionCount} Verbindung(en)"
+                        : $"{selectedParts.Count} Bauteil(e) verschoben";
+
+                RedrawScene();
+
+                e.Handled = true;
+                return;
+            }
 
             if (e.Key == Key.PageUp)
             {
