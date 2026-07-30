@@ -19,6 +19,7 @@ namespace PlastiCAD.Models
             AddElbows();
             AddTees();
             AddCrosses();
+            AddSpaceCrosses();
             AddJoints();
             AddWheels();
             AddPlates();
@@ -45,6 +46,12 @@ namespace PlastiCAD.Models
         {
             Parts.Add(new Cross());
         }
+        private static void AddSpaceCrosses()
+        {
+            Parts.Add(new SpaceCross());
+        }
+
+
 
         private static void AddJoints()
         {

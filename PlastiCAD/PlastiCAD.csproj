@@ -94,6 +94,7 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Models\SpaceCross.cs" />
     <Compile Include="Models\ProjectFile.cs" />
     <Compile Include="Core\FaceHelper.cs" />
     <Compile Include="Core\Grider.cs" />
