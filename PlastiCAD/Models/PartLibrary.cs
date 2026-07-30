@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Documents;
 
 
 namespace PlastiCAD.Models
@@ -20,6 +21,9 @@ namespace PlastiCAD.Models
             AddTees();
             AddCrosses();
             AddSpaceCrosses();
+            AddCorner();
+            AddEdge();
+            AddStand();
             AddJoints();
             AddWheels();
             AddPlates();
@@ -46,11 +50,23 @@ namespace PlastiCAD.Models
         {
             Parts.Add(new Cross());
         }
+        private static void AddStand()
+        {
+            Parts.Add(new Stand());
+        }
         private static void AddSpaceCrosses()
         {
             Parts.Add(new SpaceCross());
         }
-
+        private static void AddEdge()
+        {
+            Parts.Add(new Edge());
+        }
+        private static void AddCorner()
+        {
+            Parts.Add(new Corner());
+        }
+       
 
 
         private static void AddJoints()

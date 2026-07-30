@@ -94,6 +94,9 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Models\Corner.cs" />
+    <Compile Include="Models\Stand.cs" />
+    <Compile Include="Models\Edge.cs" />
     <Compile Include="Models\SpaceCross.cs" />
     <Compile Include="Models\ProjectFile.cs" />
     <Compile Include="Core\FaceHelper.cs" />
