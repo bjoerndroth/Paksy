@@ -1,10 +1,14 @@
-﻿    using PlastiCAD.Core;
+﻿using Microsoft.Win32;
+    using PlastiCAD.Core;
     using PlastiCAD.Models;
     using System;
     using System.Collections.Generic;
+using System.IO;
     using System.Linq;
+
 using System.Runtime.CompilerServices;
     using System.Text;
+using System.Text.Json;
     using System.Threading.Tasks;
     using System.Windows;
     using System.Windows.Controls;
@@ -13,12 +17,9 @@ using System.Runtime.CompilerServices;
     using System.Windows.Input;
     using System.Windows.Media;
     using System.Windows.Media.Imaging;
+using System.Windows.Media.Media3D;
     using System.Windows.Navigation;
     using System.Windows.Shapes;
-using Microsoft.Win32;
-using System.IO;
-using System.Text.Json;
-using System.Windows.Media.Media3D;
 
 
 namespace PlastiCAD
@@ -481,11 +482,16 @@ namespace PlastiCAD
         {
             worldPartMap.Clear();
 
+          
+
+
             while (WorldViewport.Children.Count > 1)
                 WorldViewport.Children.RemoveAt(1);
 
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
+
+
                 if (!(placed.Part is StructuralPart part))
                     continue;
 
