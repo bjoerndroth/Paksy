@@ -6,9 +6,27 @@ using System.Threading.Tasks;
 
 namespace PlastiCAD.Models
 {
-    public class Plate
+    public class Plate : Part
     {
-        public int Width { get; set; }
-        public int Height { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
+        public double Thickness { get; set; }
+
+        public Plate()
+        {
+            Id = "P001";
+            Name = "Platte";
+            Description = "Paksy-Platte";
+
+            Width = 25.0;
+            Height = 25.0;
+            Thickness = 5.0;
+
+            InitializeSockets();
+        }
+
+        private void InitializeSockets()
+        {
+        }
     }
 }

@@ -31,6 +31,13 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+
+        private static readonly Brush PaksyRed =
+    new SolidColorBrush(
+        Color.FromRgb(
+            235,
+            45,
+            45));
         private Point3D? worldPartDragStartPoint = null;
         private PlacedPart worldMouseDownPart = null;
         private bool worldPartWasDragged = false;
@@ -933,6 +940,15 @@ namespace PlastiCAD
                     DrawEndCap3D(
                         placed,
                         endCap);
+
+                    continue;
+                }
+
+                if (placed.Part is Plate plate)
+                {
+                    DrawPlate3D(
+                        placed,
+                        plate);
 
                     continue;
                 }
@@ -2185,6 +2201,14 @@ namespace PlastiCAD
 
             foreach (PlacedPart part in selectedParts)
             {
+
+                if (part.Part is Plate)
+                {
+                    part.PlateOrientation =
+                        (part.PlateOrientation + 1) % 3;
+
+                    continue;
+                }
                 double relativeX =
                     part.Transform.Position.X - pivotX;
 
@@ -3764,6 +3788,152 @@ namespace PlastiCAD
                     capCenter,
                     direction,
                     placed);
+        }
+
+        private void AddBox(
+    Point3D center,
+    double width,
+    double height,
+    double depth,
+    PlacedPart placed,
+    Brush brush)
+        {
+            double hx = width / 2.0;
+            double hy = height / 2.0;
+            double hz = depth / 2.0;
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+            mesh.Positions.Add(new Point3D(center.X - hx, center.Y - hy, center.Z - hz));
+            mesh.Positions.Add(new Point3D(center.X + hx, center.Y - hy, center.Z - hz));
+            mesh.Positions.Add(new Point3D(center.X + hx, center.Y + hy, center.Z - hz));
+            mesh.Positions.Add(new Point3D(center.X - hx, center.Y + hy, center.Z - hz));
+
+            mesh.Positions.Add(new Point3D(center.X - hx, center.Y - hy, center.Z + hz));
+            mesh.Positions.Add(new Point3D(center.X + hx, center.Y - hy, center.Z + hz));
+            mesh.Positions.Add(new Point3D(center.X + hx, center.Y + hy, center.Z + hz));
+            mesh.Positions.Add(new Point3D(center.X - hx, center.Y + hy, center.Z + hz));
+
+            int[] triangles =
+            {
+        0,1,2, 0,2,3,
+        4,6,5, 4,7,6,
+        0,4,5, 0,5,1,
+        1,5,6, 1,6,2,
+        2,6,7, 2,7,3,
+        3,7,4, 3,4,0
+    };
+
+            foreach (int i in triangles)
+                mesh.TriangleIndices.Add(i);
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(brush);
+
+            GeometryModel3D model =
+                new GeometryModel3D
+                {
+                    Geometry = mesh,
+                    Material = material,
+                    BackMaterial = material
+                };
+
+            worldPartMap[model] = placed;
+
+            WorldViewport.Children.Add(
+                new ModelVisual3D
+                {
+                    Content = model
+                });
+        }
+
+        private void DrawPlate3D(
+    PlacedPart placed,
+    Plate plate)
+        {
+            double x =
+                (placed.Transform.Position.X / Scale
+                + Grider.CellSize / 2.0) / 100.0;
+
+            double y =
+                -(placed.Transform.Position.Y / Scale
+                + Grider.CellSize / 2.0) / 100.0;
+
+            double z =
+                placed.Transform.Position.Z / 100.0;
+
+            double halfGrid =
+                (Grider.CellSize / 2.0) / 100.0;
+
+            double width =
+                plate.Width / 100.0;
+
+            double height =
+                plate.Height / 100.0;
+
+            double thickness =
+                plate.Thickness / 100.0;
+
+            Point3D center;
+
+            switch (placed.PlateOrientation)
+            {
+                // XY-Ebene:
+                // zwischen vier Rasterpunkten in X- und Y-Richtung
+                case 0:
+                    center = new Point3D(
+                        x + halfGrid,
+                        y - halfGrid,
+                        z);
+
+                    AddBox(
+                        center,
+                        width,
+                        height,
+                        thickness,
+                        placed,
+                        PaksyRed);
+                    break;
+
+                // XZ-Ebene:
+                // zwischen vier Rasterpunkten in X- und Z-Richtung
+                case 1:
+                    center = new Point3D(
+                        x + halfGrid,
+                        y,
+                        z + halfGrid);
+
+                    AddBox(
+                        center,
+                        width,
+                        thickness,
+                        height,
+                        placed,
+                        PaksyRed);
+                    break;
+
+                // YZ-Ebene:
+                // zwischen vier Rasterpunkten in Y- und Z-Richtung
+                case 2:
+                    center = new Point3D(
+                        x,
+                        y - halfGrid,
+                        z + halfGrid);
+
+                    AddBox(
+                        center,
+                        thickness,
+                        width,
+                        height,
+                        placed,
+                        PaksyRed);
+                    break;
+
+                default:
+                    placed.PlateOrientation = 0;
+                    return;
+            }
         }
     }
 }

@@ -84,6 +84,7 @@ namespace PlastiCAD.Models
 
         private static void AddPlates()
         {
+            Parts.Add(new Plate());
         }
         
     }

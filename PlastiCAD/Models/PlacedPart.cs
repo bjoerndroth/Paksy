@@ -8,6 +8,7 @@ namespace PlastiCAD.Models
 {
     public class PlacedPart
     {
+        public int PlateOrientation { get; set; }
         public Part Part { get; set; }
 
         public Transform Transform { get; set; } = new Transform();
