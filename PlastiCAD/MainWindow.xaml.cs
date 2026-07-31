@@ -1100,7 +1100,8 @@ namespace PlastiCAD
     Point3D start,
     Point3D end,
     double radius,
-    PlacedPart placed)
+    PlacedPart placed,
+    Brush brush = null)
         {
             const int segments = 16;
 
@@ -1160,9 +1161,11 @@ namespace PlastiCAD
                 mesh.TriangleIndices.Add(d);
             }
 
+            Brush cylinderBrush =
+    brush ?? GetWorldPartBrush(placed);
+
             DiffuseMaterial material =
-    new DiffuseMaterial(
-        GetWorldPartBrush(placed));
+                new DiffuseMaterial(cylinderBrush);
 
             GeometryModel3D model =
                 new GeometryModel3D
