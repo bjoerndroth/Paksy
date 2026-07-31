@@ -11,7 +11,7 @@ namespace PlastiCAD.Models
         public class Wheel : Part
         {
 
-        // Hallo Chatty da bin ich gehts jetzt?????
+        // Hallo Chatty TTEESSTT
 
             public double OuterDiameter { get; set; }
 
