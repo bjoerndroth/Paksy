@@ -503,12 +503,28 @@ namespace PlastiCAD
                     double wz =
                         placed.Transform.Position.Z / 100.0;
 
-                    Point3D wcenter = new Point3D(wx, wy, wz);
+                    Point3D wheelCenter = new Point3D(wx, wy, wz);
 
-                    AddSphere(
-                        wcenter,
-                        wheel.OuterDiameter / 200.0,
-                        placed);
+                    double halfWidth = wheel.Width / 200.0;
+                    double wradius = wheel.OuterDiameter / 200.0;
+
+                    Point3D start =
+                        new Point3D(
+                            wheelCenter.X,
+                            wheelCenter.Y - halfWidth,
+                            wheelCenter.Z);
+
+                    Point3D end =
+                        new Point3D(
+                            wheelCenter.X,
+                            wheelCenter.Y + halfWidth,
+                            wheelCenter.Z);
+
+                    AddCylinder(
+    start,
+    end,
+    wradius,
+    placed);
 
                     continue;
                 }
