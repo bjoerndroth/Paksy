@@ -70,16 +70,16 @@
 
                                     <!-- Hauptlicht -->
                                     <DirectionalLight
-                Color="#70FFd0"
+                Color="#a0FFd0"
                 Direction="-1,-1,-2"/>
 
                                     <!-- Schwaches Umgebungslicht -->
                                     <AmbientLight
-                Color="#202A40"/>
+                Color="#602A40"/>
 
                                     <!-- Gegenlicht / Aufhellung von hinten -->
                                     <DirectionalLight
-                Color="#80E0c0"
+                Color="#a0E0c0"
                 Direction="1,1,2"/>
 
                                 </Model3DGroup>

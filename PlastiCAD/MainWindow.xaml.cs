@@ -826,10 +826,18 @@ namespace PlastiCAD
                                 + direction.Z * halfWidth);
 
                     // Schwarzer Reifen
-                    AddCylinder(
-                        start,
-                        end,
-                        wheelRadius,
+                    double tubeRadius =
+    wheel.TireThickness / 2.0 / 100.0;
+
+                    double majorRadius =
+                        (wheel.OuterDiameter - wheel.TireThickness)
+                        / 2.0 / 100.0;
+
+                    AddTorus(
+                        wheelCenter,
+                        direction,
+                        majorRadius,
+                        tubeRadius,
                         placed,
                         Brushes.Black);
 
@@ -851,13 +859,28 @@ namespace PlastiCAD
                         wheelCenter.Y - direction.Y * rimHalfWidth,
                         wheelCenter.Z + direction.Z * rimHalfWidth);
 
-                    AddCylinder(
-                        rimStart,
-                        rimEnd,
-                        rimRadius,
+                    double rimOuterRadius =
+    wheel.RimDiameter / 200.0;
+
+                    double rimHoleRadius =
+                        wheel.HoleDiameter / 200.0;
+
+                    rimHalfWidth =
+                        wheel.Width * 0.42 / 100.0;
+                    SolidColorBrush rimBrush =
+      new SolidColorBrush(
+          Color.FromRgb(
+              250,
+              140,
+              140));
+                    AddRim(
+                        wheelCenter,
+                        direction,
+                        rimOuterRadius,
+                        rimHoleRadius,
+                        rimHalfWidth,
                         placed,
-                        Brushes.Red);
-                    // Kleine rote Nabe
+                        rimBrush);// Kleine rote Nabe
                     double hubRadius =
                         wheel.HoleDiameter / 200.0;
 
@@ -886,12 +909,21 @@ namespace PlastiCAD
                             wheelCenter.Z
                                 + direction.Z * hubHalfWidth);
 
-                    AddCylinder(
-                        hubStart,
-                        hubEnd,
-                        hubRadius,
+                     rimBrush =
+      new SolidColorBrush(
+          Color.FromRgb(
+              255,
+              50,
+              50));
+
+                    AddRim(
+                        wheelCenter,
+                        direction,
+                        rimOuterRadius,
+                        rimHoleRadius,
+                        rimHalfWidth,
                         placed,
-                        Brushes.Red);
+                        rimBrush);
 
                     continue;
                 }
@@ -3207,6 +3239,334 @@ namespace PlastiCAD
                 rayDirection * t;
         }
 
+
+        private void AddTorus(
+    Point3D center,
+    Vector3 direction,
+    double majorRadius,
+    double tubeRadius,
+    PlacedPart placed,
+    Brush brush)
+        {
+            const int majorSegments = 32;
+            const int tubeSegments = 16;
+
+            Vector3D axis =
+                new Vector3D(
+                    direction.X,
+                    -direction.Y,
+                    direction.Z);
+
+            if (axis.Length == 0)
+                return;
+
+            axis.Normalize();
+
+            Vector3D reference =
+                Math.Abs(axis.Y) < 0.9
+                    ? new Vector3D(0, 1, 0)
+                    : new Vector3D(1, 0, 0);
+
+            Vector3D side1 =
+                Vector3D.CrossProduct(
+                    axis,
+                    reference);
+
+            side1.Normalize();
+
+            Vector3D side2 =
+                Vector3D.CrossProduct(
+                    axis,
+                    side1);
+
+            side2.Normalize();
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+            for (int majorIndex = 0;
+                 majorIndex < majorSegments;
+                 majorIndex++)
+            {
+                double majorAngle =
+                    2.0 * Math.PI
+                    * majorIndex
+                    / majorSegments;
+
+                Vector3D radialDirection =
+                    side1 * Math.Cos(majorAngle) +
+                    side2 * Math.Sin(majorAngle);
+
+                Point3D ringCenter =
+                    center +
+                    radialDirection * majorRadius;
+
+                for (int tubeIndex = 0;
+                     tubeIndex < tubeSegments;
+                     tubeIndex++)
+                {
+                    double tubeAngle =
+                        2.0 * Math.PI
+                        * tubeIndex
+                        / tubeSegments;
+
+                    Vector3D offset =
+                        radialDirection
+                            * (Math.Cos(tubeAngle) * tubeRadius)
+                        + axis
+                            * (Math.Sin(tubeAngle) * tubeRadius);
+
+                    mesh.Positions.Add(
+                        ringCenter + offset);
+                }
+            }
+
+            for (int majorIndex = 0;
+                 majorIndex < majorSegments;
+                 majorIndex++)
+            {
+                int nextMajor =
+                    (majorIndex + 1)
+                    % majorSegments;
+
+                for (int tubeIndex = 0;
+                     tubeIndex < tubeSegments;
+                     tubeIndex++)
+                {
+                    int nextTube =
+                        (tubeIndex + 1)
+                        % tubeSegments;
+
+                    int a =
+                        majorIndex * tubeSegments
+                        + tubeIndex;
+
+                    int b =
+                        nextMajor * tubeSegments
+                        + tubeIndex;
+
+                    int c =
+                        majorIndex * tubeSegments
+                        + nextTube;
+
+                    int d =
+                        nextMajor * tubeSegments
+                        + nextTube;
+
+                    mesh.TriangleIndices.Add(a);
+                    mesh.TriangleIndices.Add(b);
+                    mesh.TriangleIndices.Add(c);
+
+                    mesh.TriangleIndices.Add(c);
+                    mesh.TriangleIndices.Add(b);
+                    mesh.TriangleIndices.Add(d);
+                }
+            }
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(brush);
+
+            GeometryModel3D model =
+                new GeometryModel3D
+                {
+                    Geometry = mesh,
+                    Material = material,
+                    BackMaterial = material
+                };
+
+            worldPartMap[model] = placed;
+
+            WorldViewport.Children.Add(
+                new ModelVisual3D
+                {
+                    Content = model
+                });
+        }
+
+
+
+        private void AddRim(
+    Point3D center,
+    Vector3 direction,
+    double outerRadius,
+    double holeRadius,
+    double halfWidth,
+    PlacedPart placed,
+    Brush brush)
+        {
+            const int segments = 48;
+
+            Vector3D axis =
+                new Vector3D(
+                    direction.X,
+                    -direction.Y,
+                    direction.Z);
+
+            if (axis.Length == 0)
+                return;
+
+            if (holeRadius <= 0 ||
+                outerRadius <= holeRadius ||
+                halfWidth <= 0)
+            {
+                return;
+            }
+
+            axis.Normalize();
+
+            Vector3D reference =
+                Math.Abs(axis.Y) < 0.9
+                    ? new Vector3D(0, 1, 0)
+                    : new Vector3D(1, 0, 0);
+
+            Vector3D side1 =
+                Vector3D.CrossProduct(
+                    axis,
+                    reference);
+
+            side1.Normalize();
+
+            Vector3D side2 =
+                Vector3D.CrossProduct(
+                    axis,
+                    side1);
+
+            side2.Normalize();
+
+            /*
+             * Felgenprofil:
+             *
+             * X = Position entlang der Radachse
+             * Y = Abstand von der Radachse
+             *
+             * Das Profil wird anschließend einmal
+             * vollständig um die Radachse gedreht.
+             */
+            Point[] profile =
+            {
+        // Innere Seite an der Bohrung
+        new Point(-halfWidth * 0.55, holeRadius),
+
+        // Vorderer Nabenkörper
+        new Point(-halfWidth, holeRadius * 1.30),
+
+        // Felgenschüssel nach außen
+        new Point(-halfWidth * 0.75, outerRadius * 0.72),
+
+        // Vorderer Felgenrand
+        new Point(-halfWidth * 0.55, outerRadius),
+
+        // Äußerer Felgenkörper
+        new Point( halfWidth * 0.55, outerRadius),
+
+        // Hintere Felgenschüssel
+        new Point( halfWidth * 0.75, outerRadius * 0.72),
+
+        // Hinterer Nabenkörper
+        new Point( halfWidth, holeRadius * 1.30),
+
+        // Innere Seite der Bohrung
+        new Point( halfWidth * 0.55, holeRadius)
+    };
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+            int profileCount =
+                profile.Length;
+
+            // Punkte erzeugen
+            for (int segment = 0;
+                 segment < segments;
+                 segment++)
+            {
+                double angle =
+                    2.0 * Math.PI
+                    * segment
+                    / segments;
+
+                Vector3D radialDirection =
+                    side1 * Math.Cos(angle) +
+                    side2 * Math.Sin(angle);
+
+                foreach (Point profilePoint in profile)
+                {
+                    double axialPosition =
+                        profilePoint.X;
+
+                    double radialPosition =
+                        profilePoint.Y;
+
+                    Point3D point =
+                        center
+                        + axis * axialPosition
+                        + radialDirection * radialPosition;
+
+                    mesh.Positions.Add(point);
+                }
+            }
+
+            // Flächen zwischen den Profilringen erzeugen
+            for (int segment = 0;
+                 segment < segments;
+                 segment++)
+            {
+                int nextSegment =
+                    (segment + 1) % segments;
+
+                for (int profileIndex = 0;
+                     profileIndex < profileCount;
+                     profileIndex++)
+                {
+                    int nextProfile =
+                        (profileIndex + 1)
+                        % profileCount;
+
+                    int a =
+                        segment * profileCount
+                        + profileIndex;
+
+                    int b =
+                        nextSegment * profileCount
+                        + profileIndex;
+
+                    int c =
+                        segment * profileCount
+                        + nextProfile;
+
+                    int d =
+                        nextSegment * profileCount
+                        + nextProfile;
+
+                    mesh.TriangleIndices.Add(a);
+                    mesh.TriangleIndices.Add(b);
+                    mesh.TriangleIndices.Add(c);
+
+                    mesh.TriangleIndices.Add(c);
+                    mesh.TriangleIndices.Add(b);
+                    mesh.TriangleIndices.Add(d);
+                }
+            }
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(brush);
+
+            GeometryModel3D model =
+                new GeometryModel3D
+                {
+                    Geometry = mesh,
+                    Material = material,
+                    BackMaterial = material
+                };
+
+            worldPartMap[model] = placed;
+
+            WorldViewport.Children.Add(
+                new ModelVisual3D
+                {
+                    Content = model
+                });
+        }
 
     }
 }

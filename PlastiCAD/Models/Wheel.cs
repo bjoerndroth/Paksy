@@ -22,8 +22,8 @@ namespace PlastiCAD.Models
             public double Width { get; set; }
 
             public double BoreDepth { get; set; }
-
-            public Wheel()
+            public double TireThickness { get; set; } = 7.0;
+        public Wheel()
             {
                 Id = "W001";
                 Name = "Rad";
