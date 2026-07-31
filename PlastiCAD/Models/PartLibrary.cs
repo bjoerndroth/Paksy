@@ -75,6 +75,7 @@ namespace PlastiCAD.Models
 
         private static void AddWheels()
         {
+            Parts.Add(new Wheel());
         }
 
         private static void AddPlates()
