@@ -928,6 +928,15 @@ namespace PlastiCAD
                     continue;
                 }
 
+                if (placed.Part is EndCap endCap)
+                {
+                    DrawEndCap3D(
+                        placed,
+                        endCap);
+
+                    continue;
+                }
+
                 if (!(placed.Part is StructuralPart part))
                     continue;
 
@@ -1010,9 +1019,17 @@ namespace PlastiCAD
 
         private Brush GetWorldPartBrush(PlacedPart placed)
         {
+
+            SolidColorBrush PartBrush =
+    new SolidColorBrush(
+        Color.FromRgb(
+            35,
+            140,
+            195));
+
             return selectedParts.Contains(placed)
                 ? Brushes.LimeGreen
-                : Brushes.SteelBlue;
+                : PartBrush;
         }
 
         private void FitWorldCamera()
@@ -3568,6 +3585,186 @@ namespace PlastiCAD
                 });
         }
 
+        private void AddEndCap(
+    Point3D center,
+    Vector3 direction,
+    PlacedPart placed)
+        {
+            Vector3D axis =
+                new Vector3D(
+                    direction.X,
+                    -direction.Y,
+                    direction.Z);
+
+            axis.Normalize();
+
+            // Maße (Meter)
+            double flangeRadius = 0.060;
+            double flangeLength = 0.010;
+
+            // Kegelansatz genauso groß wie der gelbe Kreis
+            double coneRadius = flangeRadius;
+            double coneLength = 0.035;
+
+            Point3D flangeStart =
+                center;
+
+            Point3D flangeEnd =
+                center + axis * flangeLength;
+
+            AddCylinder(
+                flangeStart,
+                flangeEnd,
+                flangeRadius,
+                placed,
+                Brushes.Gold);
+
+            AddCone(
+                flangeEnd,
+                flangeEnd + axis * coneLength,
+                coneRadius,
+                placed,
+                Brushes.Gold);
+        }
+
+        private void AddCone(
+    Point3D start,
+    Point3D tip,
+    double radius,
+    PlacedPart placed,
+    Brush brush)
+        {
+            const int segments = 32;
+
+            Vector3D axis = tip - start;
+
+            if (axis.Length == 0)
+                return;
+
+            axis.Normalize();
+
+            Vector3D reference =
+                Math.Abs(axis.Y) < 0.9
+                ? new Vector3D(0, 1, 0)
+                : new Vector3D(1, 0, 0);
+
+            Vector3D side1 =
+                Vector3D.CrossProduct(axis, reference);
+
+            side1.Normalize();
+
+            Vector3D side2 =
+                Vector3D.CrossProduct(axis, side1);
+
+            side2.Normalize();
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+            for (int i = 0; i < segments; i++)
+            {
+                double angle =
+                    2.0 * Math.PI * i / segments;
+
+                Vector3D offset =
+                    side1 * Math.Cos(angle) * radius +
+                    side2 * Math.Sin(angle) * radius;
+
+                mesh.Positions.Add(start + offset);
+            }
+
+            int tipIndex =
+                mesh.Positions.Count;
+
+            mesh.Positions.Add(tip);
+
+            for (int i = 0; i < segments; i++)
+            {
+                int next =
+                    (i + 1) % segments;
+
+                mesh.TriangleIndices.Add(i);
+                mesh.TriangleIndices.Add(next);
+                mesh.TriangleIndices.Add(tipIndex);
+            }
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(brush);
+
+            GeometryModel3D model =
+                new GeometryModel3D
+                {
+                    Geometry = mesh,
+                    Material = material,
+                    BackMaterial = material
+                };
+
+            worldPartMap[model] = placed;
+
+            WorldViewport.Children.Add(
+                new ModelVisual3D
+                {
+                    Content = model
+                });
+        }
+
+        private void DrawEndCap3D(
+    PlacedPart placed,
+    EndCap endCap)
+        {
+            double wx =
+                (placed.Transform.Position.X / Scale
+                + Grider.CellSize / 2.0) / 100.0;
+
+            double wy =
+                -(placed.Transform.Position.Y / Scale
+                + Grider.CellSize / 2.0) / 100.0;
+
+            double wz =
+                placed.Transform.Position.Z / 100.0;
+
+            Point3D cellCenter =
+                new Point3D(
+                    wx,
+                    wy,
+                    wz);
+
+            Face capFace =
+                FaceHelper.RotateFace(
+                    Face.Right,
+                    placed.Rotation);
+
+            Vector3 direction =
+                GetDirectionFromFace(capFace);
+
+            direction =
+                placed.Transform.ApplyRotation(direction);
+
+            double halfLength =
+                endCap.Length / 200.0;
+
+            double armEndDistance =
+                (Grider.CellSize / 2.0) / 100.0;
+
+            double centerDistance =
+                armEndDistance;// + halfLength;
+
+            Point3D capCenter =
+                new Point3D(
+                    cellCenter.X
+                        + direction.X * centerDistance,
+
+                    cellCenter.Y
+                        - direction.Y * centerDistance,
+
+                    cellCenter.Z
+                        + direction.Z * centerDistance);
+
+            AddEndCap(
+                    capCenter,
+                    direction,
+                    placed);
+        }
     }
 }
 

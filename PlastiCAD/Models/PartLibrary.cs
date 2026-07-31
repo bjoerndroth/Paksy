@@ -27,6 +27,7 @@ namespace PlastiCAD.Models
             AddJoints();
             AddWheels();
             AddPlates();
+            AddEndCaps();
         }
 
 
@@ -34,7 +35,10 @@ namespace PlastiCAD.Models
         {
             Parts.Add(new Pipe());
         }
-
+        private static void AddEndCaps()
+        {
+            Parts.Add(new EndCap());
+        }
 
         private static void AddElbows()
         {
