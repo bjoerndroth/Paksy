@@ -524,13 +524,19 @@ namespace PlastiCAD
                     wheelFace,
                     placed.Transform.Rotation);
 
-            Brush brush =
-                selectedParts.Contains(placed)
+            bool isSelected =
+    selectedParts.Contains(placed);
+
+            Brush outlineBrush =
+                isSelected
                     ? Brushes.LimeGreen
-                    : Brushes.DarkSlateGray;
+                    : Brushes.Black;
 
             double wheelDiameter =
                 wheel.OuterDiameter * Scale;
+
+            double rimDiameter =
+                wheel.RimDiameter * Scale;
 
             double wheelWidth =
                 wheel.Width * Scale;
@@ -576,48 +582,81 @@ namespace PlastiCAD
                         wheelCenter,
                         wheelDiameter,
                         wheel.HoleDiameter * Scale,
-                        brush);
+                        outlineBrush);
 
                     return;
             }
-
-            Rectangle wheelShape = new Rectangle
-            {
-                Fill = brush,
-                Stroke = Brushes.Black,
-                StrokeThickness = 1
-            };
 
             bool horizontalAxis =
                 wheelFace == Face.Left ||
                 wheelFace == Face.Right;
 
+            // Schwarzer, abgerundeter Gummireifen
+            Rectangle tireShape = new Rectangle
+            {
+                Fill = Brushes.Black,
+                Stroke = outlineBrush,
+                StrokeThickness = isSelected ? 2.0 : 1.0,
+                RadiusX = halfWidth,
+                RadiusY = halfWidth
+            };
+
             if (horizontalAxis)
             {
-                // Radachse verläuft links/rechts:
-                // Rad erscheint als schmales, hohes Rechteck.
-                wheelShape.Width = wheelWidth;
-                wheelShape.Height = wheelDiameter;
+                tireShape.Width = wheelWidth;
+                tireShape.Height = wheelDiameter;
             }
             else
             {
-                // Radachse verläuft oben/unten:
-                // Rad erscheint als breites, schmales Rechteck.
-                wheelShape.Width = wheelDiameter;
-                wheelShape.Height = wheelWidth;
+                tireShape.Width = wheelDiameter;
+                tireShape.Height = wheelWidth;
             }
 
             Canvas.SetLeft(
-                wheelShape,
-                wheelCenter.X - wheelShape.Width / 2.0);
+                tireShape,
+                wheelCenter.X - tireShape.Width / 2.0);
 
             Canvas.SetTop(
-                wheelShape,
-                wheelCenter.Y - wheelShape.Height / 2.0);
+                tireShape,
+                wheelCenter.Y - tireShape.Height / 2.0);
 
-            BuildArea.Children.Add(wheelShape);
+            BuildArea.Children.Add(tireShape);
 
-            // Kleine Nabe als Strich in Achsrichtung
+            // Rote Felge innerhalb des Reifens
+            double rimWidth =
+                wheelWidth * 0.60;
+
+            Rectangle rimShape = new Rectangle
+            {
+                Fill = Brushes.Red,
+                Stroke = Brushes.DarkRed,
+                StrokeThickness = 1.0,
+                RadiusX = rimWidth / 3.0,
+                RadiusY = rimWidth / 3.0
+            };
+
+            if (horizontalAxis)
+            {
+                rimShape.Width = rimWidth;
+                rimShape.Height = rimDiameter;
+            }
+            else
+            {
+                rimShape.Width = rimDiameter;
+                rimShape.Height = rimWidth;
+            }
+
+            Canvas.SetLeft(
+                rimShape,
+                wheelCenter.X - rimShape.Width / 2.0);
+
+            Canvas.SetTop(
+                rimShape,
+                wheelCenter.Y - rimShape.Height / 2.0);
+
+            BuildArea.Children.Add(rimShape);
+
+            // Bohrung beziehungsweise Achse
             double hubDiameter =
                 wheel.HoleDiameter * Scale;
 
@@ -625,18 +664,20 @@ namespace PlastiCAD
             {
                 Fill = Brushes.LightGray,
                 Stroke = Brushes.Black,
-                StrokeThickness = 1
+                StrokeThickness = 1.0,
+                RadiusX = 2.0,
+                RadiusY = 2.0
             };
 
             if (horizontalAxis)
             {
-                hubShape.Width = wheelWidth + 4.0;
+                hubShape.Width = wheelWidth + 2.0;
                 hubShape.Height = hubDiameter;
             }
             else
             {
                 hubShape.Width = hubDiameter;
-                hubShape.Height = wheelWidth + 4.0;
+                hubShape.Height = wheelWidth + 2.0;
             }
 
             Canvas.SetLeft(
@@ -648,6 +689,7 @@ namespace PlastiCAD
                 wheelCenter.Y - hubShape.Height / 2.0);
 
             BuildArea.Children.Add(hubShape);
+            
         }
 
         private void DrawWheelFromFront(
@@ -699,9 +741,6 @@ namespace PlastiCAD
         {
             worldPartMap.Clear();
 
-          
-
-
             while (WorldViewport.Children.Count > 1)
                 WorldViewport.Children.RemoveAt(1);
 
@@ -720,7 +759,11 @@ namespace PlastiCAD
                     double wz =
                         placed.Transform.Position.Z / 100.0;
 
-                    Point3D cellCenter = new Point3D(wx, wy, wz);
+                    Point3D cellCenter =
+                        new Point3D(
+                            wx,
+                            wy,
+                            wz);
 
                     // Das Rad zeigt zunächst nach rechts.
                     // placed.Rotation wählt wie bei einem einarmigen Teil
@@ -749,74 +792,106 @@ namespace PlastiCAD
                     double wheelCenterDistance =
                         armEndDistance - halfWidth;
 
-                    Point3D wheelCenter = new Point3D(
-                        cellCenter.X
-                            + direction.X * wheelCenterDistance,
+                    Point3D wheelCenter =
+                        new Point3D(
+                            cellCenter.X
+                                + direction.X * wheelCenterDistance,
 
-                        cellCenter.Y
-                            - direction.Y * wheelCenterDistance,
+                            cellCenter.Y
+                                - direction.Y * wheelCenterDistance,
 
-                        cellCenter.Z
-                            + direction.Z * wheelCenterDistance);
+                            cellCenter.Z
+                                + direction.Z * wheelCenterDistance);
 
-                    Point3D start = new Point3D(
-                        wheelCenter.X
-                            - direction.X * halfWidth,
+                    Point3D start =
+                        new Point3D(
+                            wheelCenter.X
+                                - direction.X * halfWidth,
 
-                        wheelCenter.Y
-                            + direction.Y * halfWidth,
+                            wheelCenter.Y
+                                + direction.Y * halfWidth,
 
-                        wheelCenter.Z
-                            - direction.Z * halfWidth);
+                            wheelCenter.Z
+                                - direction.Z * halfWidth);
 
-                    Point3D end = new Point3D(
-                        wheelCenter.X
-                            + direction.X * halfWidth,
+                    Point3D end =
+                        new Point3D(
+                            wheelCenter.X
+                                + direction.X * halfWidth,
 
-                        wheelCenter.Y
-                            - direction.Y * halfWidth,
+                            wheelCenter.Y
+                                - direction.Y * halfWidth,
 
-                        wheelCenter.Z
-                            + direction.Z * halfWidth);
+                            wheelCenter.Z
+                                + direction.Z * halfWidth);
 
+                    // Schwarzer Reifen
                     AddCylinder(
                         start,
                         end,
                         wheelRadius,
-                        placed);
+                        placed,
+                        Brushes.Black);
 
-                    // Kleine Nabe statt der bisherigen großen Felge.
+
+                    // Rote Felge
+                    double rimRadius =
+                        wheel.RimDiameter / 200.0;
+
+                    double rimHalfWidth =
+                        wheel.Width * 0.35 / 100.0;
+
+                    Point3D rimStart = new Point3D(
+                        wheelCenter.X - direction.X * rimHalfWidth,
+                        wheelCenter.Y + direction.Y * rimHalfWidth,
+                        wheelCenter.Z - direction.Z * rimHalfWidth);
+
+                    Point3D rimEnd = new Point3D(
+                        wheelCenter.X + direction.X * rimHalfWidth,
+                        wheelCenter.Y - direction.Y * rimHalfWidth,
+                        wheelCenter.Z + direction.Z * rimHalfWidth);
+
+                    AddCylinder(
+                        rimStart,
+                        rimEnd,
+                        rimRadius,
+                        placed,
+                        Brushes.Red);
+                    // Kleine rote Nabe
                     double hubRadius =
                         wheel.HoleDiameter / 200.0;
 
                     double hubHalfWidth =
                         (wheel.Width + 2.0) / 200.0;
 
-                    Point3D hubStart = new Point3D(
-                        wheelCenter.X
-                            - direction.X * hubHalfWidth,
+                    Point3D hubStart =
+                        new Point3D(
+                            wheelCenter.X
+                                - direction.X * hubHalfWidth,
 
-                        wheelCenter.Y
-                            + direction.Y * hubHalfWidth,
+                            wheelCenter.Y
+                                + direction.Y * hubHalfWidth,
 
-                        wheelCenter.Z
-                            - direction.Z * hubHalfWidth);
+                            wheelCenter.Z
+                                - direction.Z * hubHalfWidth);
 
-                    Point3D hubEnd = new Point3D(
-                        wheelCenter.X
-                            + direction.X * hubHalfWidth,
+                    Point3D hubEnd =
+                        new Point3D(
+                            wheelCenter.X
+                                + direction.X * hubHalfWidth,
 
-                        wheelCenter.Y
-                            - direction.Y * hubHalfWidth,
+                            wheelCenter.Y
+                                - direction.Y * hubHalfWidth,
 
-                        wheelCenter.Z
-                            + direction.Z * hubHalfWidth);
+                            wheelCenter.Z
+                                + direction.Z * hubHalfWidth);
 
                     AddCylinder(
                         hubStart,
                         hubEnd,
                         hubRadius,
-                        placed);
+                        placed,
+                        Brushes.Red);
 
                     continue;
                 }
@@ -835,11 +910,17 @@ namespace PlastiCAD
                 double z =
                     placed.Transform.Position.Z / 100.0;
 
-              
-                Point3D center = new Point3D(x, y, z);
+                Point3D center =
+                    new Point3D(
+                        x,
+                        y,
+                        z);
 
-                double radius = part.OuterDiameter / 200.0;
-                double armLength = (part.Length / 2.0) / 100.0;
+                double radius =
+                    part.OuterDiameter / 200.0;
+
+                double armLength =
+                    (part.Length / 2.0) / 100.0;
 
                 // Kugel im Mittelpunkt für Winkel, T-Stück, Kreuz usw.
                 if (part.DrawCenter)
@@ -853,11 +934,10 @@ namespace PlastiCAD
                 // Ein Rohrarm pro Socket
                 foreach (Socket socket in placed.Sockets)
                 {
-                    
                     Face rotatedFace =
-    FaceHelper.RotateFace(
-        socket.Face,
-        placed.Rotation);
+                        FaceHelper.RotateFace(
+                            socket.Face,
+                            placed.Rotation);
 
                     Vector3 direction =
                         GetDirectionFromFace(rotatedFace);
@@ -866,10 +946,16 @@ namespace PlastiCAD
                     direction =
                         placed.Transform.ApplyRotation(direction);
 
-                    Point3D end = new Point3D(
-                        center.X + direction.X * armLength,
-                        center.Y - direction.Y * armLength,
-                        center.Z + direction.Z * armLength);
+                    Point3D end =
+                        new Point3D(
+                            center.X
+                                + direction.X * armLength,
+
+                            center.Y
+                                - direction.Y * armLength,
+
+                            center.Z
+                                + direction.Z * armLength);
 
                     AddCylinder(
                         center,
@@ -877,14 +963,18 @@ namespace PlastiCAD
                         radius,
                         placed);
                 }
+
                 if (!worldCameraInitialized &&
-    assembly.PlacedParts.Count > 0)
+                    assembly.PlacedParts.Count > 0)
                 {
                     FitWorldCamera();
                     worldCameraInitialized = true;
                 }
             }
         }
+
+
+
 
         private Brush GetWorldPartBrush(PlacedPart placed)
         {
@@ -1103,7 +1193,7 @@ namespace PlastiCAD
     PlacedPart placed,
     Brush brush = null)
         {
-            const int segments = 16;
+            const int segments = 24;
 
             Vector3D axis = end - start;
 
@@ -1114,16 +1204,20 @@ namespace PlastiCAD
 
             Vector3D reference =
                 Math.Abs(axis.Y) < 0.9
-                ? new Vector3D(0, 1, 0)
-                : new Vector3D(1, 0, 0);
+                    ? new Vector3D(0, 1, 0)
+                    : new Vector3D(1, 0, 0);
 
             Vector3D side1 =
-                Vector3D.CrossProduct(axis, reference);
+                Vector3D.CrossProduct(
+                    axis,
+                    reference);
 
             side1.Normalize();
 
             Vector3D side2 =
-                Vector3D.CrossProduct(axis, side1);
+                Vector3D.CrossProduct(
+                    axis,
+                    side1);
 
             side2.Normalize();
 
@@ -1133,7 +1227,7 @@ namespace PlastiCAD
             for (int i = 0; i < segments; i++)
             {
                 double angle =
-                    2 * Math.PI * i / segments;
+                    2.0 * Math.PI * i / segments;
 
                 Vector3D offset =
                     side1 * (Math.Cos(angle) * radius) +
@@ -1145,7 +1239,8 @@ namespace PlastiCAD
 
             for (int i = 0; i < segments; i++)
             {
-                int next = (i + 1) % segments;
+                int next =
+                    (i + 1) % segments;
 
                 int a = i * 2;
                 int b = next * 2;
@@ -1162,7 +1257,7 @@ namespace PlastiCAD
             }
 
             Brush cylinderBrush =
-    brush ?? GetWorldPartBrush(placed);
+                brush ?? GetWorldPartBrush(placed);
 
             DiffuseMaterial material =
                 new DiffuseMaterial(cylinderBrush);
@@ -1174,6 +1269,7 @@ namespace PlastiCAD
                     Material = material,
                     BackMaterial = material
                 };
+
             worldPartMap[model] = placed;
 
             WorldViewport.Children.Add(
@@ -1182,7 +1278,6 @@ namespace PlastiCAD
                     Content = model
                 });
         }
-
 
         private void DisconnectPart(PlacedPart part)
         {
