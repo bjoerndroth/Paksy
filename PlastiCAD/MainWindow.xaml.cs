@@ -490,7 +490,28 @@ namespace PlastiCAD
 
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
+                if (placed.Part is Wheel wheel)
+                {
+                    double wx =
+                        (placed.Transform.Position.X / Scale
+                        + Grider.CellSize / 2.0) / 100.0;
 
+                    double wy =
+                        -(placed.Transform.Position.Y / Scale
+                        + Grider.CellSize / 2.0) / 100.0;
+
+                    double wz =
+                        placed.Transform.Position.Z / 100.0;
+
+                    Point3D wcenter = new Point3D(wx, wy, wz);
+
+                    AddSphere(
+                        wcenter,
+                        wheel.OuterDiameter / 200.0,
+                        placed);
+
+                    continue;
+                }
 
                 if (!(placed.Part is StructuralPart part))
                     continue;
