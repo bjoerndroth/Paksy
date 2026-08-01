@@ -17,6 +17,7 @@ namespace PlastiCAD.Models
 
     public class PlacedPartData
     {
+
         public string PartName { get; set; }
 
         public double X { get; set; }
@@ -24,6 +25,8 @@ namespace PlastiCAD.Models
         public double Z { get; set; }
 
         public int Rotation { get; set; }
+
+        public int PlateOrientation { get; set; }
 
         public double RotationX { get; set; }
         public double RotationY { get; set; }

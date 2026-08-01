@@ -31,7 +31,6 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
-
         private static readonly Brush PaksyRed =
     new SolidColorBrush(
         Color.FromRgb(
@@ -2073,7 +2072,8 @@ namespace PlastiCAD
                 PlacedPart copy = new PlacedPart
                 {
                     Part = part.Part,
-                    Rotation = part.Rotation
+                    Rotation = part.Rotation,
+                    PlateOrientation = part.PlateOrientation
                 };
 
                 copy.Transform.Position = new Vector3(
@@ -2144,7 +2144,8 @@ namespace PlastiCAD
                 PlacedPart pasted = new PlacedPart
                 {
                     Part = source.Part,
-                    Rotation = source.Rotation
+                    Rotation = source.Rotation,
+                    PlateOrientation = source.PlateOrientation
                 };
 
                 pasted.Transform.Position = new Vector3(
@@ -2275,6 +2276,8 @@ namespace PlastiCAD
                     Z = placed.Transform.Position.Z,
 
                     Rotation = placed.Rotation,
+                    
+                    PlateOrientation = placed.PlateOrientation,
 
                     RotationX = placed.Transform.Rotation.X,
                     RotationY = placed.Transform.Rotation.Y,
@@ -2334,7 +2337,8 @@ namespace PlastiCAD
                 PlacedPart placed = new PlacedPart
                 {
                     Part = part,
-                    Rotation = data.Rotation
+                    Rotation = data.Rotation,
+                    PlateOrientation = data.PlateOrientation
                 };
 
                 placed.Transform.Position = new Vector3(
@@ -2432,9 +2436,9 @@ namespace PlastiCAD
                 PlacedPart placed = new PlacedPart
                 {
                     Part = part,
-                    Rotation = data.Rotation
+                    Rotation = data.Rotation,
+                    PlateOrientation = data.PlateOrientation
                 };
-
                 placed.Transform.Position = new Vector3(
                     data.X,
                     data.Y,
