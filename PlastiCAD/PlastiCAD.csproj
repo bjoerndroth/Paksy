@@ -94,6 +94,7 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Models\WindowPlate.cs" />
     <Compile Include="Models\EndCap.cs" />
     <Compile Include="Models\Corner.cs" />
     <Compile Include="Models\Stand.cs" />

@@ -28,8 +28,12 @@ namespace PlastiCAD.Models
             AddWheels();
             AddPlates();
             AddEndCaps();
+            AddWindows();
         }
-
+        private static void AddWindows()
+        {
+            Parts.Add(new WindowPlate());
+        }
 
         private static void AddPipes()
         {

@@ -943,6 +943,15 @@ namespace PlastiCAD
                     continue;
                 }
 
+                if (placed.Part is WindowPlate windowPlate)
+                {
+                    DrawWindow3D(
+                        placed,
+                        windowPlate);
+
+                    continue;
+                }
+
                 if (placed.Part is Plate plate)
                 {
                     DrawPlate3D(
@@ -951,7 +960,6 @@ namespace PlastiCAD
 
                     continue;
                 }
-
                 if (!(placed.Part is StructuralPart part))
                     continue;
 
@@ -1029,7 +1037,154 @@ namespace PlastiCAD
             }
         }
 
+        private void DrawWindow3D(
+    PlacedPart placed,
+    WindowPlate windowPlate)
+        {
+            double x =
+                (placed.Transform.Position.X / Scale
+                + Grider.CellSize / 2.0) / 100.0;
 
+            double y =
+                -(placed.Transform.Position.Y / Scale
+                + Grider.CellSize / 2.0) / 100.0;
+
+            double z =
+                placed.Transform.Position.Z / 100.0;
+
+            double halfGrid =
+                (Grider.CellSize / 2.0) / 100.0;
+
+            double width =
+                windowPlate.Width / 100.0;
+
+            double height =
+                windowPlate.Height / 100.0;
+
+            double thickness =
+                windowPlate.Thickness / 100.0;
+
+            double barWidth =
+                windowPlate.CenterBarWidth / 100.0;
+
+            // Der Mittelstrich ist minimal dicker als das Plexiglas,
+            // damit er nicht in der Scheibe verschwindet.
+            double barThickness =
+                thickness + 0.002;
+
+            Brush glassBrush =
+                selectedParts.Contains(placed)
+                    ? new SolidColorBrush(
+                        Color.FromArgb(
+                            110,
+                            180,
+                            255,
+                            210))
+                    : new SolidColorBrush(
+                        Color.FromArgb(
+                            45,
+                            180,
+                            230,
+                            255));
+
+            Brush centerBarBrush =
+                new SolidColorBrush(
+                    Color.FromArgb(
+                        90,
+                        190,
+                        210,
+                        220));
+
+            Point3D center;
+
+            switch (placed.PlateOrientation)
+            {
+                // XY-Ebene
+                case 0:
+                    center = new Point3D(
+                        x + halfGrid,
+                        y - halfGrid,
+                        z);
+
+                    // Plexiglasscheibe
+                    AddBox(
+                        center,
+                        width,
+                        height,
+                        thickness,
+                        placed,
+                        glassBrush);
+
+                    // Dünner Strich von oben nach unten
+                    AddBox(
+                        center,
+                        barWidth,
+                        height,
+                        barThickness,
+                        placed,
+                        centerBarBrush);
+
+                    break;
+
+                // XZ-Ebene
+                case 1:
+                    center = new Point3D(
+                        x + halfGrid,
+                        y,
+                        z + halfGrid);
+
+                    // Plexiglasscheibe
+                    AddBox(
+                        center,
+                        width,
+                        thickness,
+                        height,
+                        placed,
+                        glassBrush);
+
+                    // Senkrechter Mittelstrich entlang Z
+                    AddBox(
+                        center,
+                        barWidth,
+                        barThickness,
+                        height,
+                        placed,
+                        centerBarBrush);
+
+                    break;
+
+                // YZ-Ebene
+                case 2:
+                    center = new Point3D(
+                        x,
+                        y - halfGrid,
+                        z + halfGrid);
+
+                    // Plexiglasscheibe
+                    AddBox(
+                        center,
+                        thickness,
+                        width,
+                        height,
+                        placed,
+                        glassBrush);
+
+                    // Senkrechter Mittelstrich entlang Z
+                    AddBox(
+                        center,
+                        barThickness,
+                        barWidth,
+                        height,
+                        placed,
+                        centerBarBrush);
+
+                    break;
+
+                default:
+                    placed.PlateOrientation = 0;
+                    return;
+            }
+        }
 
 
         private Brush GetWorldPartBrush(PlacedPart placed)
