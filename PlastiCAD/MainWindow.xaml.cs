@@ -31,6 +31,14 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+
+        Brush lineBrush =
+    new SolidColorBrush(
+        Color.FromArgb(
+            8,
+            160,
+            160,
+            160));
         private static readonly Brush PaksyRed =
     new SolidColorBrush(
         Color.FromRgb(
@@ -743,6 +751,7 @@ namespace PlastiCAD
             BuildArea.Children.Add(holeShape);
         }
 
+        
         private void RedrawWorld()
         {
             worldPartMap.Clear();
@@ -750,6 +759,7 @@ namespace PlastiCAD
             while (WorldViewport.Children.Count > 1)
                 WorldViewport.Children.RemoveAt(1);
 
+            
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
                 if (placed.Part is Wheel wheel)
@@ -839,13 +849,19 @@ namespace PlastiCAD
                         (wheel.OuterDiameter - wheel.TireThickness)
                         / 2.0 / 100.0;
 
+                    Brush tireBrush =
+    selectedParts.Contains(placed)
+        ? new SolidColorBrush(
+            Color.FromRgb(70, 70, 70))
+        : Brushes.Black;
+
                     AddTorus(
                         wheelCenter,
                         direction,
                         majorRadius,
                         tubeRadius,
                         placed,
-                        Brushes.Black);
+                        tireBrush);
 
 
                     // Rote Felge
@@ -873,12 +889,15 @@ namespace PlastiCAD
 
                     rimHalfWidth =
                         wheel.Width * 0.42 / 100.0;
-                    SolidColorBrush rimBrush =
-      new SolidColorBrush(
-          Color.FromRgb(
-              250,
-              140,
-              140));
+                    
+                    Brush rimBrush = PaksyRed;
+
+                    if (selectedParts.Contains(placed))
+                    {
+                        rimBrush = HighlightBrush(rimBrush);
+                    }
+
+
                     AddRim(
                         wheelCenter,
                         direction,
@@ -887,6 +906,9 @@ namespace PlastiCAD
                         rimHalfWidth,
                         placed,
                         rimBrush);// Kleine rote Nabe
+
+
+
                     double hubRadius =
                         wheel.HoleDiameter / 200.0;
 
@@ -915,13 +937,7 @@ namespace PlastiCAD
                             wheelCenter.Z
                                 + direction.Z * hubHalfWidth);
 
-                     rimBrush =
-      new SolidColorBrush(
-          Color.FromRgb(
-              255,
-              50,
-              50));
-
+           
                     AddRim(
                         wheelCenter,
                         direction,
@@ -3795,19 +3811,26 @@ namespace PlastiCAD
             Point3D flangeEnd =
                 center + axis * flangeLength;
 
+            Brush capBrush = Brushes.Gold;
+
+            if (selectedParts.Contains(placed))
+            {
+                capBrush = HighlightBrush(capBrush);
+            }
+
             AddCylinder(
                 flangeStart,
                 flangeEnd,
                 flangeRadius,
                 placed,
-                Brushes.Gold);
+                capBrush);
 
             AddCone(
                 flangeEnd,
                 flangeEnd + axis * coneLength,
                 coneRadius,
                 placed,
-                Brushes.Gold);
+                capBrush);
         }
 
         private void AddCone(
@@ -4046,13 +4069,20 @@ namespace PlastiCAD
                         y - halfGrid,
                         z);
 
+                    Brush plateBrush = PaksyRed;
+
+                    if (selectedParts.Contains(placed))
+                    {
+                        plateBrush = HighlightBrush(plateBrush);
+                    }
+
                     AddBox(
                         center,
                         width,
                         height,
                         thickness,
                         placed,
-                        PaksyRed);
+                        plateBrush);
                     break;
 
                 // XZ-Ebene:
@@ -4093,6 +4123,24 @@ namespace PlastiCAD
                     placed.PlateOrientation = 0;
                     return;
             }
+        }
+
+
+        private Brush HighlightBrush(
+    Brush brush)
+        {
+            if (brush is SolidColorBrush solid)
+            {
+                Color c = solid.Color;
+
+                return new SolidColorBrush(
+                    Color.FromRgb(
+                        (byte)Math.Min(255, c.R + 60),
+                        (byte)Math.Min(255, c.G + 60),
+                        (byte)Math.Min(255, c.B + 60)));
+            }
+
+            return brush;
         }
     }
 }
