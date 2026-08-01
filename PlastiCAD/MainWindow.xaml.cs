@@ -151,19 +151,28 @@ namespace PlastiCAD
                 if (!sameX || !sameY || !sameZ)
                     continue;
 
-                bool movingIsWheel =
-                    movingPart is Wheel;
+                bool movingIsOverlayPart =
+                    movingPart is Wheel ||
+                    movingPart is EndCap ||
+                    movingPart is Plate;
 
-                bool existingIsWheel =
-                    placed.Part is Wheel;
+                bool existingIsOverlayPart =
+                    placed.Part is Wheel ||
+                    placed.Part is EndCap ||
+                    placed.Part is Plate;
 
-                // Rad + normales Bauteil darf dieselbe Zelle verwenden.
-                if (movingIsWheel != existingIsWheel)
+                // Zusatzteil und Grundbauteil dürfen
+                // dieselbe Rasterposition verwenden.
+                if (movingIsOverlayPart != existingIsOverlayPart)
                     continue;
 
-                // Zwei normale Bauteile oder zwei Räder:
-                // Position ist belegt.
-                return true;
+                // Zwei Grundbauteile dürfen dieselbe
+                // Rasterposition nicht belegen.
+                if (!movingIsOverlayPart)
+                    return true;
+
+                // Zusatzteile blockieren einander zunächst ebenfalls nicht.
+                continue;
             }
 
             return false;
@@ -493,16 +502,48 @@ namespace PlastiCAD
         private void RedrawScene()
         {
             BuildArea.Children.Clear();
+
             DrawGrid();
 
+            // Zuerst Flächenteile zeichnen,
+            // damit Rohre und andere Bauteile darüberliegen.
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
+                if (placed.Part is WindowPlate windowPlate)
+                {
+                    DrawWindow2D(
+                        placed,
+                        windowPlate);
+
+                    continue;
+                }
+
+                if (placed.Part is Plate plate)
+                {
+                    DrawPlate2D(
+                        placed,
+                        plate);
+                }
+            }
+
+            // Danach die übrigen Bauteile zeichnen.
+            foreach (PlacedPart placed in assembly.PlacedParts)
+            {
+                if (placed.Part is WindowPlate ||
+                    placed.Part is Plate)
+                {
+                    continue;
+                }
 
                 if (placed.Part is Wheel wheel)
                 {
-                    DrawWheel(placed, wheel);
+                    DrawWheel(
+                        placed,
+                        wheel);
+
                     continue;
                 }
+
                 if (placed.Part is StructuralPart structuralPart)
                 {
                     DrawStructuralPart(
@@ -513,7 +554,294 @@ namespace PlastiCAD
 
             RedrawWorld();
         }
+        private void DrawPlate2D(
+    PlacedPart placed,
+    Plate plate)
+        {
+            bool isCurrentLayer =
+                Math.Abs(
+                    placed.Transform.Position.Z - currentPlanZ)
+                < 0.001;
 
+            if (!isCurrentLayer)
+                return;
+
+            double halfGrid =
+                Grider.CellSize * Scale / 2.0;
+
+            Vector3 cellCenter =
+                GetCellCenter(placed);
+
+            double plateWidth =
+                plate.Width * Scale;
+
+            double plateHeight =
+                plate.Height * Scale;
+
+            double plateThickness =
+                Math.Max(
+                    2.0,
+                    plate.Thickness * Scale);
+
+            Brush plateBrush =
+                PaksyRed;
+
+            if (selectedParts.Contains(placed))
+            {
+                plateBrush =
+                    HighlightBrush(plateBrush);
+            }
+
+            Rectangle plateShape =
+                new Rectangle
+                {
+                    Fill = plateBrush,
+                    Stroke = selectedParts.Contains(placed)
+                        ? Brushes.White
+                        : Brushes.DarkRed,
+
+                    StrokeThickness =
+                        selectedParts.Contains(placed)
+                            ? 2.0
+                            : 1.0
+                };
+
+            double centerX;
+            double centerY;
+
+            switch (placed.PlateOrientation)
+            {
+                // Platte liegt waagerecht in der XY-Ebene.
+                // In der Draufsicht sieht man die ganze Fläche.
+                case 0:
+                    centerX =
+                        cellCenter.X + halfGrid;
+
+                    centerY =
+                        cellCenter.Y + halfGrid;
+
+                    plateShape.Width =
+                        plateWidth;
+
+                    plateShape.Height =
+                        plateHeight;
+
+                    break;
+
+                // Platte liegt in der XZ-Ebene.
+                // In der Draufsicht erscheint sie als waagerechter Streifen.
+                case 1:
+                    centerX =
+                        cellCenter.X + halfGrid;
+
+                    centerY =
+                        cellCenter.Y;
+
+                    plateShape.Width =
+                        plateWidth;
+
+                    plateShape.Height =
+                        plateThickness;
+
+                    break;
+
+                // Platte liegt in der YZ-Ebene.
+                // In der Draufsicht erscheint sie als senkrechter Streifen.
+                case 2:
+                    centerX =
+                        cellCenter.X;
+
+                    centerY =
+                        cellCenter.Y + halfGrid;
+
+                    plateShape.Width =
+                        plateThickness;
+
+                    plateShape.Height =
+                        plateHeight;
+
+                    break;
+
+                default:
+                    return;
+            }
+
+            Canvas.SetLeft(
+                plateShape,
+                centerX - plateShape.Width / 2.0);
+
+            Canvas.SetTop(
+                plateShape,
+                centerY - plateShape.Height / 2.0);
+
+            BuildArea.Children.Add(
+                plateShape);
+        }
+
+        private void DrawWindow2D(
+    PlacedPart placed,
+    WindowPlate windowPlate)
+        {
+            bool isCurrentLayer =
+                Math.Abs(
+                    placed.Transform.Position.Z - currentPlanZ)
+                < 0.001;
+
+            if (!isCurrentLayer)
+                return;
+
+            double halfGrid =
+                Grider.CellSize * Scale / 2.0;
+
+            Vector3 cellCenter =
+                GetCellCenter(placed);
+
+            double windowWidth =
+                windowPlate.Width * Scale;
+
+            double windowHeight =
+                windowPlate.Height * Scale;
+
+            double windowThickness =
+                Math.Max(
+                    2.0,
+                    windowPlate.Thickness * Scale);
+
+            bool isSelected =
+                selectedParts.Contains(placed);
+
+            Brush glassBrush =
+                isSelected
+                    ? new SolidColorBrush(
+                        Color.FromArgb(
+                            120,
+                            210,
+                            250,
+                            255))
+                    : new SolidColorBrush(
+                        Color.FromArgb(
+                            55,
+                            170,
+                            225,
+                            255));
+
+            Rectangle glassShape =
+                new Rectangle
+                {
+                    Fill = glassBrush,
+
+                    Stroke = isSelected
+                        ? Brushes.White
+                        : Brushes.SteelBlue,
+
+                    StrokeThickness =
+                        isSelected
+                            ? 2.0
+                            : 1.0
+                };
+
+            double centerX;
+            double centerY;
+
+            switch (placed.PlateOrientation)
+            {
+                // Fensterfläche von oben sichtbar
+                case 0:
+                    centerX =
+                        cellCenter.X + halfGrid;
+
+                    centerY =
+                        cellCenter.Y + halfGrid;
+
+                    glassShape.Width =
+                        windowWidth;
+
+                    glassShape.Height =
+                        windowHeight;
+
+                    break;
+
+                // Fenster steht in XZ-Richtung
+                case 1:
+                    centerX =
+                        cellCenter.X + halfGrid;
+
+                    centerY =
+                        cellCenter.Y;
+
+                    glassShape.Width =
+                        windowWidth;
+
+                    glassShape.Height =
+                        windowThickness;
+
+                    break;
+
+                // Fenster steht in YZ-Richtung
+                case 2:
+                    centerX =
+                        cellCenter.X;
+
+                    centerY =
+                        cellCenter.Y + halfGrid;
+
+                    glassShape.Width =
+                        windowThickness;
+
+                    glassShape.Height =
+                        windowHeight;
+
+                    break;
+
+                default:
+                    return;
+            }
+
+            Canvas.SetLeft(
+                glassShape,
+                centerX - glassShape.Width / 2.0);
+
+            Canvas.SetTop(
+                glassShape,
+                centerY - glassShape.Height / 2.0);
+
+            BuildArea.Children.Add(
+                glassShape);
+
+            // Mittelstrich nur zeichnen, wenn die Fensterfläche
+            // in der Draufsicht vollständig sichtbar ist.
+            if (placed.PlateOrientation == 0)
+            {
+                double barWidth =
+                    Math.Max(
+                        1.0,
+                        windowPlate.CenterBarWidth * Scale);
+
+                Rectangle centerBar =
+                    new Rectangle
+                    {
+                        Width = barWidth,
+                        Height = windowHeight,
+                        Fill = new SolidColorBrush(
+                            Color.FromArgb(
+                                180,
+                                120,
+                                155,
+                                170))
+                    };
+
+                Canvas.SetLeft(
+                    centerBar,
+                    centerX - centerBar.Width / 2.0);
+
+                Canvas.SetTop(
+                    centerBar,
+                    centerY - centerBar.Height / 2.0);
+
+                BuildArea.Children.Add(
+                    centerBar);
+            }
+        }
         private void DrawWheel(
     PlacedPart placed,
     Wheel wheel)
@@ -3337,8 +3665,7 @@ namespace PlastiCAD
 
                 foreach (PlacedPart placed in selectedParts)
                 {
-                    placed.Rotation =
-                        (placed.Rotation + 90) % 360;
+                    placed.Transform.RotateZ90();
                 }
 
                 int connectionCount = ConnectSelectedParts();
