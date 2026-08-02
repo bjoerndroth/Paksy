@@ -543,7 +543,14 @@ namespace PlastiCAD
 
                     continue;
                 }
+                if (placed.Part is EndCap endCap)
+                {
+                    DrawEndCap2D(
+                        placed,
+                        endCap);
 
+                    continue;
+                }
                 if (placed.Part is StructuralPart structuralPart)
                 {
                     DrawStructuralPart(
@@ -553,6 +560,214 @@ namespace PlastiCAD
             }
 
             RedrawWorld();
+        }
+
+        private void DrawEndCap2D(
+    PlacedPart placed,
+    EndCap endCap)
+        {
+            bool isCurrentLayer =
+                Math.Abs(
+                    placed.Transform.Position.Z - currentPlanZ)
+                < 0.001;
+
+            if (!isCurrentLayer)
+                return;
+
+            Vector3 cellCenter =
+                GetCellCenter(placed);
+
+            Face capFace =
+                FaceHelper.RotateFace(
+                    Face.Right,
+                    placed.Rotation);
+
+            capFace =
+                FaceHelper.RotateFace3D(
+                    capFace,
+                    placed.Transform.Rotation);
+
+            bool isSelected =
+                selectedParts.Contains(placed);
+
+            Brush capBrush =
+                isSelected
+                    ? HighlightBrush(Brushes.Gold)
+                    : Brushes.Gold;
+
+            double capDiameter =
+                endCap.OuterDiameter * Scale;
+
+            double capLength =
+                endCap.Length * Scale;
+
+            double armEndDistance =
+                Grider.CellSize * Scale / 2.0;
+
+            Vector3 capCenter =
+                new Vector3(
+                    cellCenter.X,
+                    cellCenter.Y,
+                    cellCenter.Z);
+
+            switch (capFace)
+            {
+                case Face.Right:
+                    capCenter.X +=
+                        armEndDistance + capLength / 2.0;
+
+                    DrawEndCapSide2D(
+                        capCenter,
+                        capLength,
+                        capDiameter,
+                        true,
+                        capBrush,
+                        isSelected);
+
+                    break;
+
+                case Face.Left:
+                    capCenter.X -=
+                        armEndDistance + capLength / 2.0;
+
+                    DrawEndCapSide2D(
+                        capCenter,
+                        capLength,
+                        capDiameter,
+                        true,
+                        capBrush,
+                        isSelected);
+
+                    break;
+
+                case Face.Top:
+                    capCenter.Y -=
+                        armEndDistance + capLength / 2.0;
+
+                    DrawEndCapSide2D(
+                        capCenter,
+                        capLength,
+                        capDiameter,
+                        false,
+                        capBrush,
+                        isSelected);
+
+                    break;
+
+                case Face.Bottom:
+                    capCenter.Y +=
+                        armEndDistance + capLength / 2.0;
+
+                    DrawEndCapSide2D(
+                        capCenter,
+                        capLength,
+                        capDiameter,
+                        false,
+                        capBrush,
+                        isSelected);
+
+                    break;
+
+                case Face.Front:
+                case Face.Back:
+                    DrawEndCapFront2D(
+                        cellCenter,
+                        capDiameter,
+                        capBrush,
+                        isSelected);
+
+                    break;
+            }
+        }
+
+        private void DrawEndCapSide2D(
+    Vector3 center,
+    double length,
+    double diameter,
+    bool horizontalAxis,
+    Brush brush,
+    bool isSelected)
+        {
+            Rectangle capShape =
+                new Rectangle
+                {
+                    Fill = brush,
+                    Stroke = isSelected
+                        ? Brushes.White
+                        : Brushes.Goldenrod,
+
+                    StrokeThickness =
+                        isSelected
+                            ? 2.0
+                            : 1.0,
+
+                    RadiusX = 3.0,
+                    RadiusY = 3.0
+                };
+
+            if (horizontalAxis)
+            {
+                capShape.Width =
+                    length;
+
+                capShape.Height =
+                    diameter;
+            }
+            else
+            {
+                capShape.Width =
+                    diameter;
+
+                capShape.Height =
+                    length;
+            }
+
+            Canvas.SetLeft(
+                capShape,
+                center.X - capShape.Width / 2.0);
+
+            Canvas.SetTop(
+                capShape,
+                center.Y - capShape.Height / 2.0);
+
+            BuildArea.Children.Add(
+                capShape);
+        }
+
+        private void DrawEndCapFront2D(
+    Vector3 center,
+    double diameter,
+    Brush brush,
+    bool isSelected)
+        {
+            Ellipse capShape =
+                new Ellipse
+                {
+                    Width = diameter,
+                    Height = diameter,
+
+                    Fill = brush,
+
+                    Stroke = isSelected
+                        ? Brushes.White
+                        : Brushes.Goldenrod,
+
+                    StrokeThickness =
+                        isSelected
+                            ? 2.0
+                            : 1.0
+                };
+
+            Canvas.SetLeft(
+                capShape,
+                center.X - diameter / 2.0);
+
+            Canvas.SetTop(
+                capShape,
+                center.Y - diameter / 2.0);
+
+            BuildArea.Children.Add(
+                capShape);
         }
         private void DrawPlate2D(
     PlacedPart placed,
@@ -1289,10 +1504,7 @@ namespace PlastiCAD
 
                 if (placed.Part is WindowPlate windowPlate)
                 {
-                    DrawWindow3D(
-                        placed,
-                        windowPlate);
-
+                    
                     continue;
                 }
 
@@ -1372,11 +1584,23 @@ namespace PlastiCAD
                         placed);
                 }
 
+                // Transparente Fenster immer zuletzt zeichnen
+               
+
                 if (!worldCameraInitialized &&
                     assembly.PlacedParts.Count > 0)
                 {
                     FitWorldCamera();
                     worldCameraInitialized = true;
+                }
+            }
+            foreach (PlacedPart placed2 in assembly.PlacedParts)
+            {
+                if (placed2.Part is WindowPlate windowPlatew)
+                {
+                    DrawWindow3D(
+                        placed2,
+                        windowPlatew);
                 }
             }
         }
@@ -2580,6 +2804,16 @@ namespace PlastiCAD
                     part.Transform.Position.Y,
                     part.Transform.Position.Z);
 
+                copy.Transform.Rotation = new Vector3(
+                    part.Transform.Rotation.X,
+                    part.Transform.Rotation.Y,
+                    part.Transform.Rotation.Z);
+
+                copy.Transform.Scale = new Vector3(
+                    part.Transform.Scale.X,
+                    part.Transform.Scale.Y,
+                    part.Transform.Scale.Z);
+
                 copy.Sockets = part.Part.CreateSockets();
 
                 copiedParts.Add(copy);
@@ -2646,6 +2880,26 @@ namespace PlastiCAD
                     Rotation = source.Rotation,
                     PlateOrientation = source.PlateOrientation
                 };
+
+                pasted.Transform.Position = new Vector3(
+                    source.Transform.Position.X + offsetX,
+                    source.Transform.Position.Y + offsetY,
+                    source.Transform.Position.Z);
+
+                pasted.Transform.Rotation = new Vector3(
+                    source.Transform.Rotation.X,
+                    source.Transform.Rotation.Y,
+                    source.Transform.Rotation.Z);
+
+                pasted.Transform.Scale = new Vector3(
+                    source.Transform.Scale.X,
+                    source.Transform.Scale.Y,
+                    source.Transform.Scale.Z);
+
+                pasted.Sockets = source.Part.CreateSockets();
+
+                assembly.PlacedParts.Add(pasted);
+                selectedParts.Add(pasted);
 
                 pasted.Transform.Position = new Vector3(
                     source.Transform.Position.X + offsetX,
