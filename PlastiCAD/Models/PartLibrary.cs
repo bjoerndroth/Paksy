@@ -30,8 +30,15 @@ namespace PlastiCAD.Models
             AddEndCaps();
             AddWindows();
             AddCubes();
-            
+            AddBallConnector();
         }
+
+        
+        private static void AddBallConnector()
+        {
+            Parts.Add(new BallConnector());
+        }
+
         private static void AddWindows()
         {
             Parts.Add(new WindowPlate());

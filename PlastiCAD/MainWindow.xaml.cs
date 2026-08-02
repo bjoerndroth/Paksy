@@ -559,7 +559,14 @@ namespace PlastiCAD
 
                     continue;
                 }
+                if (placed.Part is BallConnector ball)
+                {
+                    DrawBallConnector2D(
+                        placed,
+                        ball);
 
+                    continue;
+                }
                 if (placed.Part is StructuralPart structuralPart)
                 {
                     DrawStructuralPart(
@@ -569,6 +576,106 @@ namespace PlastiCAD
             }
 
             RedrawWorld();
+        }
+
+        private void DrawBallConnector2D(
+    PlacedPart placed,
+    BallConnector ball)
+        {
+            bool isCurrentLayer =
+                Math.Abs(
+                    placed.Transform.Position.Z - currentPlanZ)
+                < 0.001;
+
+            bool isSelected =
+                selectedParts.Contains(placed);
+
+            Vector3 center =
+                GetCellCenter(placed);
+
+            double diameter =
+                ball.Diameter * Scale;
+
+            double holeDiameter =
+                ball.HoleDiameter * Scale;
+
+            Brush ballBrush;
+
+            if (isSelected)
+            {
+                ballBrush =
+                    HighlightBrush(
+                        GetWorldPartBrush(placed));
+            }
+            else if (isCurrentLayer)
+            {
+                ballBrush =
+                    GetWorldPartBrush(placed);
+            }
+            else
+            {
+                ballBrush =
+                    new SolidColorBrush(
+                        Color.FromArgb(
+                            45,
+                            35,
+                            140,
+                            195));
+            }
+
+            Ellipse body =
+                new Ellipse
+                {
+                    Width = diameter,
+                    Height = diameter,
+                    Fill = ballBrush,
+                    Stroke = isSelected
+                        ? Brushes.White
+                        : Brushes.DarkBlue,
+                    StrokeThickness = isSelected
+                        ? 2.0
+                        : 1.0
+                };
+
+            Canvas.SetLeft(
+                body,
+                center.X - diameter / 2.0);
+
+            Canvas.SetTop(
+                body,
+                center.Y - diameter / 2.0);
+
+            BuildArea.Children.Add(body);
+
+            Brush holeBrush =
+                isCurrentLayer
+                    ? Brushes.Black
+                    : new SolidColorBrush(
+                        Color.FromArgb(
+                            50,
+                            0,
+                            0,
+                            0));
+
+            Ellipse hole =
+                new Ellipse
+                {
+                    Width = holeDiameter,
+                    Height = holeDiameter,
+                    Fill = holeBrush,
+                    Stroke = Brushes.DarkSlateGray,
+                    StrokeThickness = 1.0
+                };
+
+            Canvas.SetLeft(
+                hole,
+                center.X - holeDiameter / 2.0);
+
+            Canvas.SetTop(
+                hole,
+                center.Y - holeDiameter / 2.0);
+
+            BuildArea.Children.Add(hole);
         }
         private void DrawCube2D(
     PlacedPart placed,
@@ -1624,8 +1731,18 @@ namespace PlastiCAD
 
                     continue;
                 }
+                
 
+                if (placed.Part is BallConnector ball)
+                {
+                    DrawBallConnector3D(
+                        placed,
+                        ball);
 
+                    continue;
+                }
+
+                
 
                 if (!(placed.Part is StructuralPart part))
                     continue;
@@ -1717,8 +1834,151 @@ namespace PlastiCAD
                 worldCameraInitialized = true;
             }
         }
+        private void DrawBallConnector3D(
+    PlacedPart placed,
+    BallConnector ball)
+        {
+            double x =
+                (placed.Transform.Position.X / Scale
+                + Grider.CellSize / 2.0) / 100.0;
 
+            double y =
+                -(placed.Transform.Position.Y / Scale
+                + Grider.CellSize / 2.0) / 100.0;
 
+            double z =
+                placed.Transform.Position.Z / 100.0;
+
+            Point3D center =
+                new Point3D(
+                    x,
+                    y,
+                    z);
+
+            double ballRadius =
+                ball.Diameter / 200.0;
+
+            double holeRadius =
+                ball.HoleDiameter / 200.0;
+
+            Brush ballBrush =
+                GetWorldPartBrush(placed);
+
+            // Blaue Grundkugel
+            AddSphereWithBrush(
+                center,
+                ballRadius,
+                placed,
+                ballBrush);
+
+            // Sechs Sacklochöffnungen
+            AddBallHole(
+                center,
+                new Vector3D(-1, 0, 0),
+                ballRadius,
+                holeRadius,
+                placed);
+
+            AddBallHole(
+                center,
+                new Vector3D(1, 0, 0),
+                ballRadius,
+                holeRadius,
+                placed);
+
+            AddBallHole(
+                center,
+                new Vector3D(0, -1, 0),
+                ballRadius,
+                holeRadius,
+                placed);
+
+            AddBallHole(
+                center,
+                new Vector3D(0, 1, 0),
+                ballRadius,
+                holeRadius,
+                placed);
+
+            AddBallHole(
+                center,
+                new Vector3D(0, 0, -1),
+                ballRadius,
+                holeRadius,
+                placed);
+
+            AddBallHole(
+                center,
+                new Vector3D(0, 0, 1),
+                ballRadius,
+                holeRadius,
+                placed);
+        }
+        private void AddBallHole(
+    Point3D ballCenter,
+    Vector3D outwardDirection,
+    double ballRadius,
+    double holeRadius,
+    PlacedPart placed)
+        {
+            if (outwardDirection.Length == 0)
+                return;
+
+            outwardDirection.Normalize();
+
+            // Minimal außerhalb der Kugeloberfläche,
+            // damit die Fläche nicht flimmert.
+            double surfaceOffset =
+                0.0003;
+
+            Point3D holeCenter =
+                ballCenter
+                + outwardDirection
+                * (ballRadius + surfaceOffset);
+
+            Brush holeEdgeBrush =
+                selectedParts.Contains(placed)
+                    ? new SolidColorBrush(
+                        Color.FromRgb(
+                            90,
+                            110,
+                            120))
+                    : new SolidColorBrush(
+                        Color.FromRgb(
+                            20,
+                            40,
+                            50));
+
+            Brush holeInsideBrush =
+                selectedParts.Contains(placed)
+                    ? new SolidColorBrush(
+                        Color.FromRgb(
+                            45,
+                            55,
+                            60))
+                    : Brushes.Black;
+
+            // Äußerer Lochrand
+            AddDisc3D(
+                holeCenter,
+                outwardDirection,
+                holeRadius,
+                placed,
+                holeEdgeBrush);
+
+            // Dunkler Innenbereich erzeugt den Eindruck
+            // eines etwa 10 mm tiefen Sackloches.
+            Point3D innerCenter =
+                holeCenter
+                + outwardDirection * 0.0002;
+
+            AddDisc3D(
+                innerCenter,
+                outwardDirection,
+                holeRadius * 0.72,
+                placed,
+                holeInsideBrush);
+        }
         private void DrawCube3D(
     PlacedPart placed,
     Cube cube)
