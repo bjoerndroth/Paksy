@@ -551,6 +551,15 @@ namespace PlastiCAD
 
                     continue;
                 }
+                if (placed.Part is Cube cube)
+                {
+                    DrawCube2D(
+                        placed,
+                        cube);
+
+                    continue;
+                }
+
                 if (placed.Part is StructuralPart structuralPart)
                 {
                     DrawStructuralPart(
@@ -561,7 +570,77 @@ namespace PlastiCAD
 
             RedrawWorld();
         }
+        private void DrawCube2D(
+    PlacedPart placed,
+    Cube cube)
+        {
+            bool isCurrentLayer =
+                Math.Abs(
+                    placed.Transform.Position.Z - currentPlanZ)
+                < 0.001;
 
+            if (!isCurrentLayer)
+                return;
+
+            Vector3 center =
+                GetCellCenter(placed);
+
+            double size =
+                cube.Size * Scale;
+
+            double holeDiameter =
+                cube.HoleDiameter * Scale;
+
+            Brush cubeBrush =
+                selectedParts.Contains(placed)
+                    ? HighlightBrush(
+                        GetWorldPartBrush(placed))
+                    : GetWorldPartBrush(placed);
+
+            Rectangle body =
+                new Rectangle
+                {
+                    Width = size,
+                    Height = size,
+                    RadiusX =
+                        cube.CornerRadius * Scale,
+                    RadiusY =
+                        cube.CornerRadius * Scale,
+                    Fill = cubeBrush,
+                    Stroke = Brushes.DarkBlue,
+                    StrokeThickness = 1.0
+                };
+
+            Canvas.SetLeft(
+                body,
+                center.X - size / 2.0);
+
+            Canvas.SetTop(
+                body,
+                center.Y - size / 2.0);
+
+            BuildArea.Children.Add(body);
+
+            Ellipse hole =
+                new Ellipse
+                {
+                    Width = holeDiameter,
+                    Height = holeDiameter,
+                    Fill = Brushes.Black,
+                    Stroke = Brushes.DarkSlateGray,
+                    StrokeThickness = 1.0
+                };
+
+            Canvas.SetLeft(
+                hole,
+                center.X - holeDiameter / 2.0);
+
+            Canvas.SetTop(
+                hole,
+                center.Y - holeDiameter / 2.0);
+
+            BuildArea.Children.Add(hole);
+        }
         private void DrawEndCap2D(
     PlacedPart placed,
     EndCap endCap)
@@ -1516,6 +1595,15 @@ namespace PlastiCAD
 
                     continue;
                 }
+
+                if (placed.Part is Cube cube)
+                {
+                    DrawCube3D(
+                        placed,
+                        cube);
+
+                    continue;
+                }
                 if (!(placed.Part is StructuralPart part))
                     continue;
 
@@ -1605,6 +1693,523 @@ namespace PlastiCAD
             }
         }
 
+
+        private void DrawCube3D(
+    PlacedPart placed,
+    Cube cube)
+        {
+            double x =
+                (placed.Transform.Position.X / Scale
+                + Grider.CellSize / 2.0) / 100.0;
+
+            double y =
+                -(placed.Transform.Position.Y / Scale
+                + Grider.CellSize / 2.0) / 100.0;
+
+            double z =
+                placed.Transform.Position.Z / 100.0;
+
+            Point3D center =
+                new Point3D(
+                    x,
+                    y,
+                    z);
+
+            double size =
+                cube.Size / 100.0;
+
+            double cornerRadius =
+                cube.CornerRadius / 100.0;
+
+            double holeRadius =
+                cube.HoleDiameter / 200.0;
+
+            Brush cubeBrush =
+                GetWorldPartBrush(placed);
+
+            AddRoundedCube(
+                center,
+                size,
+                cornerRadius,
+                placed,
+                cubeBrush);
+
+            AddCubeHole(
+                center,
+                new Vector3D(-1, 0, 0),
+                size,
+                holeRadius,
+                placed);
+
+            AddCubeHole(
+                center,
+                new Vector3D(1, 0, 0),
+                size,
+                holeRadius,
+                placed);
+
+            AddCubeHole(
+                center,
+                new Vector3D(0, -1, 0),
+                size,
+                holeRadius,
+                placed);
+
+            AddCubeHole(
+                center,
+                new Vector3D(0, 1, 0),
+                size,
+                holeRadius,
+                placed);
+
+            AddCubeHole(
+                center,
+                new Vector3D(0, 0, -1),
+                size,
+                holeRadius,
+                placed);
+
+            AddCubeHole(
+                center,
+                new Vector3D(0, 0, 1),
+                size,
+                holeRadius,
+                placed);
+        }
+
+        private void AddRoundedCube(
+    Point3D center,
+    double size,
+    double cornerRadius,
+    PlacedPart placed,
+    Brush brush)
+        {
+            double innerSize =
+                size - 2.0 * cornerRadius;
+
+            if (innerSize <= 0)
+                return;
+
+            double halfInner =
+                innerSize / 2.0;
+
+            /*
+             * Drei überlappende Quader bilden
+             * die geraden Flächen des Würfels.
+             */
+
+            AddBox(
+                center,
+                size,
+                innerSize,
+                innerSize,
+                placed,
+                brush);
+
+            AddBox(
+                center,
+                innerSize,
+                size,
+                innerSize,
+                placed,
+                brush);
+
+            AddBox(
+                center,
+                innerSize,
+                innerSize,
+                size,
+                placed,
+                brush);
+
+            /*
+             * Kanten parallel zur X-Achse
+             */
+
+            foreach (double ySign in new[] { -1.0, 1.0 })
+            {
+                foreach (double zSign in new[] { -1.0, 1.0 })
+                {
+                    Point3D start =
+                        new Point3D(
+                            center.X - halfInner,
+                            center.Y + ySign * halfInner,
+                            center.Z + zSign * halfInner);
+
+                    Point3D end =
+                        new Point3D(
+                            center.X + halfInner,
+                            center.Y + ySign * halfInner,
+                            center.Z + zSign * halfInner);
+
+                    AddCylinder(
+                        start,
+                        end,
+                        cornerRadius,
+                        placed,
+                        brush);
+                }
+            }
+
+            /*
+             * Kanten parallel zur Y-Achse
+             */
+
+            foreach (double xSign in new[] { -1.0, 1.0 })
+            {
+                foreach (double zSign in new[] { -1.0, 1.0 })
+                {
+                    Point3D start =
+                        new Point3D(
+                            center.X + xSign * halfInner,
+                            center.Y - halfInner,
+                            center.Z + zSign * halfInner);
+
+                    Point3D end =
+                        new Point3D(
+                            center.X + xSign * halfInner,
+                            center.Y + halfInner,
+                            center.Z + zSign * halfInner);
+
+                    AddCylinder(
+                        start,
+                        end,
+                        cornerRadius,
+                        placed,
+                        brush);
+                }
+            }
+
+            /*
+             * Kanten parallel zur Z-Achse
+             */
+
+            foreach (double xSign in new[] { -1.0, 1.0 })
+            {
+                foreach (double ySign in new[] { -1.0, 1.0 })
+                {
+                    Point3D start =
+                        new Point3D(
+                            center.X + xSign * halfInner,
+                            center.Y + ySign * halfInner,
+                            center.Z - halfInner);
+
+                    Point3D end =
+                        new Point3D(
+                            center.X + xSign * halfInner,
+                            center.Y + ySign * halfInner,
+                            center.Z + halfInner);
+
+                    AddCylinder(
+                        start,
+                        end,
+                        cornerRadius,
+                        placed,
+                        brush);
+                }
+            }
+
+            /*
+             * Acht abgerundete Ecken
+             */
+
+            foreach (double xSign in new[] { -1.0, 1.0 })
+            {
+                foreach (double ySign in new[] { -1.0, 1.0 })
+                {
+                    foreach (double zSign in new[] { -1.0, 1.0 })
+                    {
+                        Point3D cornerCenter =
+                            new Point3D(
+                                center.X + xSign * halfInner,
+                                center.Y + ySign * halfInner,
+                                center.Z + zSign * halfInner);
+
+                        AddSphereWithBrush(
+                            cornerCenter,
+                            cornerRadius,
+                            placed,
+                            brush);
+                    }
+                }
+            }
+        }
+
+        private void AddSphereWithBrush(
+    Point3D center,
+    double radius,
+    PlacedPart placed,
+    Brush brush)
+        {
+            const int latitudeSegments = 12;
+            const int longitudeSegments = 20;
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+            for (int latitude = 0;
+                 latitude <= latitudeSegments;
+                 latitude++)
+            {
+                double theta =
+                    Math.PI
+                    * latitude
+                    / latitudeSegments;
+
+                double sinTheta =
+                    Math.Sin(theta);
+
+                double cosTheta =
+                    Math.Cos(theta);
+
+                for (int longitude = 0;
+                     longitude <= longitudeSegments;
+                     longitude++)
+                {
+                    double phi =
+                        2.0
+                        * Math.PI
+                        * longitude
+                        / longitudeSegments;
+
+                    double x =
+                        center.X
+                        + radius
+                        * sinTheta
+                        * Math.Cos(phi);
+
+                    double y =
+                        center.Y
+                        + radius
+                        * cosTheta;
+
+                    double z =
+                        center.Z
+                        + radius
+                        * sinTheta
+                        * Math.Sin(phi);
+
+                    mesh.Positions.Add(
+                        new Point3D(
+                            x,
+                            y,
+                            z));
+                }
+            }
+
+            for (int latitude = 0;
+                 latitude < latitudeSegments;
+                 latitude++)
+            {
+                for (int longitude = 0;
+                     longitude < longitudeSegments;
+                     longitude++)
+                {
+                    int first =
+                        latitude
+                        * (longitudeSegments + 1)
+                        + longitude;
+
+                    int second =
+                        first
+                        + longitudeSegments
+                        + 1;
+
+                    mesh.TriangleIndices.Add(first);
+                    mesh.TriangleIndices.Add(second);
+                    mesh.TriangleIndices.Add(first + 1);
+
+                    mesh.TriangleIndices.Add(second);
+                    mesh.TriangleIndices.Add(second + 1);
+                    mesh.TriangleIndices.Add(first + 1);
+                }
+            }
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(brush);
+
+            GeometryModel3D model =
+                new GeometryModel3D
+                {
+                    Geometry = mesh,
+                    Material = material,
+                    BackMaterial = material
+                };
+
+            worldPartMap[model] = placed;
+
+            WorldViewport.Children.Add(
+                new ModelVisual3D
+                {
+                    Content = model
+                });
+        }
+
+        private void AddCubeHole(
+    Point3D cubeCenter,
+    Vector3D outwardDirection,
+    double cubeSize,
+    double holeRadius,
+    PlacedPart placed)
+        {
+            if (outwardDirection.Length == 0)
+                return;
+
+            outwardDirection.Normalize();
+
+            double halfSize =
+                cubeSize / 2.0;
+
+            // Leicht außerhalb der Oberfläche,
+            // damit keine flimmernden Flächen entstehen.
+            double surfaceOffset =
+                0.0003;
+
+            Point3D holeCenter =
+                cubeCenter
+                + outwardDirection
+                * (halfSize + surfaceOffset);
+
+            Brush outerHoleBrush =
+                selectedParts.Contains(placed)
+                    ? new SolidColorBrush(
+                        Color.FromRgb(
+                            80,
+                            100,
+                            105))
+                    : new SolidColorBrush(
+                        Color.FromRgb(
+                            20,
+                            35,
+                            45));
+
+            Brush innerHoleBrush =
+                selectedParts.Contains(placed)
+                    ? new SolidColorBrush(
+                        Color.FromRgb(
+                            45,
+                            55,
+                            60))
+                    : Brushes.Black;
+
+            AddDisc3D(
+                holeCenter,
+                outwardDirection,
+                holeRadius,
+                placed,
+                outerHoleBrush);
+
+            // Kleiner dunkler Innenbereich erzeugt
+            // den Eindruck eines tiefen Sackloches.
+            Point3D innerCenter =
+                holeCenter
+                + outwardDirection * 0.0002;
+
+            AddDisc3D(
+                innerCenter,
+                outwardDirection,
+                holeRadius * 0.72,
+                placed,
+                innerHoleBrush);
+        }
+
+        private void AddDisc3D(
+    Point3D center,
+    Vector3D normal,
+    double radius,
+    PlacedPart placed,
+    Brush brush)
+        {
+            const int segments = 32;
+
+            if (normal.Length == 0)
+                return;
+
+            normal.Normalize();
+
+            Vector3D reference =
+                Math.Abs(normal.Y) < 0.9
+                    ? new Vector3D(0, 1, 0)
+                    : new Vector3D(1, 0, 0);
+
+            Vector3D side1 =
+                Vector3D.CrossProduct(
+                    normal,
+                    reference);
+
+            side1.Normalize();
+
+            Vector3D side2 =
+                Vector3D.CrossProduct(
+                    normal,
+                    side1);
+
+            side2.Normalize();
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+            int centerIndex =
+                mesh.Positions.Count;
+
+            mesh.Positions.Add(center);
+
+            for (int index = 0;
+                 index < segments;
+                 index++)
+            {
+                double angle =
+                    2.0
+                    * Math.PI
+                    * index
+                    / segments;
+
+                Vector3D offset =
+                    side1
+                    * (Math.Cos(angle) * radius)
+                    + side2
+                    * (Math.Sin(angle) * radius);
+
+                mesh.Positions.Add(
+                    center + offset);
+            }
+
+            for (int index = 0;
+                 index < segments;
+                 index++)
+            {
+                int next =
+                    (index + 1) % segments;
+
+                mesh.TriangleIndices.Add(
+                    centerIndex);
+
+                mesh.TriangleIndices.Add(
+                    index + 1);
+
+                mesh.TriangleIndices.Add(
+                    next + 1);
+            }
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(brush);
+
+            GeometryModel3D model =
+                new GeometryModel3D
+                {
+                    Geometry = mesh,
+                    Material = material,
+                    BackMaterial = material
+                };
+
+            worldPartMap[model] = placed;
+
+            WorldViewport.Children.Add(
+                new ModelVisual3D
+                {
+                    Content = model
+                });
+        }
         private void DrawWindow3D(
     PlacedPart placed,
     WindowPlate windowPlate)

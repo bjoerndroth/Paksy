@@ -29,10 +29,17 @@ namespace PlastiCAD.Models
             AddPlates();
             AddEndCaps();
             AddWindows();
+            AddCubes();
+            
         }
         private static void AddWindows()
         {
             Parts.Add(new WindowPlate());
+        }
+
+        private static void AddCubes()
+        {
+            Parts.Add(new Cube());
         }
 
         private static void AddPipes()
