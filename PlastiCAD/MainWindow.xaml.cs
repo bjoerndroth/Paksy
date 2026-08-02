@@ -575,12 +575,36 @@ namespace PlastiCAD
     Cube cube)
         {
             bool isCurrentLayer =
-                Math.Abs(
-                    placed.Transform.Position.Z - currentPlanZ)
-                < 0.001;
+    Math.Abs(
+        placed.Transform.Position.Z - currentPlanZ)
+    < 0.001;
 
-            if (!isCurrentLayer)
-                return;
+            bool isSelected =
+                selectedParts.Contains(placed);
+
+            Brush cubeBrush;
+
+            if (isSelected)
+            {
+                cubeBrush =
+                    HighlightBrush(
+                        GetWorldPartBrush(placed));
+            }
+            else if (isCurrentLayer)
+            {
+                cubeBrush =
+                    GetWorldPartBrush(placed);
+            }
+            else
+            {
+                cubeBrush =
+                    new SolidColorBrush(
+                        Color.FromArgb(
+                            45,
+                            35,
+                            140,
+                            195));
+            }
 
             Vector3 center =
                 GetCellCenter(placed);
@@ -591,11 +615,7 @@ namespace PlastiCAD
             double holeDiameter =
                 cube.HoleDiameter * Scale;
 
-            Brush cubeBrush =
-                selectedParts.Contains(placed)
-                    ? HighlightBrush(
-                        GetWorldPartBrush(placed))
-                    : GetWorldPartBrush(placed);
+            
 
             Rectangle body =
                 new Rectangle
@@ -1604,6 +1624,9 @@ namespace PlastiCAD
 
                     continue;
                 }
+
+
+
                 if (!(placed.Part is StructuralPart part))
                     continue;
 
@@ -1675,12 +1698,7 @@ namespace PlastiCAD
                 // Transparente Fenster immer zuletzt zeichnen
                
 
-                if (!worldCameraInitialized &&
-                    assembly.PlacedParts.Count > 0)
-                {
-                    FitWorldCamera();
-                    worldCameraInitialized = true;
-                }
+                
             }
             foreach (PlacedPart placed2 in assembly.PlacedParts)
             {
@@ -1690,6 +1708,13 @@ namespace PlastiCAD
                         placed2,
                         windowPlatew);
                 }
+            }
+
+            if (!worldCameraInitialized &&
+                    assembly.PlacedParts.Count > 0)
+            {
+                FitWorldCamera();
+                worldCameraInitialized = true;
             }
         }
 
