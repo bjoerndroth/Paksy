@@ -31,7 +31,18 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
-
+        Brush currentYZBrush =
+    new SolidColorBrush(
+        Color.FromArgb(
+            150,
+            255,
+            190,
+            40));
+        private bool showMoveGrid = false;
+        private ModelVisual3D dragGridVisual;
+        private double? dragGridPlaneY;
+        private PlacedPart dragGridReferencePart;
+        
         Brush lineBrush =
     new SolidColorBrush(
         Color.FromArgb(
@@ -1826,6 +1837,15 @@ namespace PlastiCAD
                         windowPlatew);
                 }
             }
+            if ((isWorldPartDragging || showMoveGrid) &&
+    dragGridPlaneY.HasValue &&
+    dragGridReferencePart != null)
+            {
+                ShowDragGrid(
+                    dragGridPlaneY.Value,
+                    dragGridReferencePart);
+            }
+
 
             if (!worldCameraInitialized &&
                     assembly.PlacedParts.Count > 0)
@@ -4206,7 +4226,22 @@ namespace PlastiCAD
             {
                 placed.Transform.Position.Y += deltaY;
             }
+            if (selectedParts.Count > 0)
+            {
+                PlacedPart referencePart =
+                    selectedParts[0];
 
+                dragGridReferencePart =
+                    referencePart;
+
+                dragGridPlaneY =
+                    -(
+                        referencePart.Transform.Position.Y / Scale
+                        + Grider.CellSize / 2.0
+                     ) / 100.0;
+
+                showMoveGrid = true;
+            }
             int connectionCount =
                 ConnectSelectedParts();
 
@@ -4569,6 +4604,9 @@ namespace PlastiCAD
 
                         isWorldPartDragging = true;
 
+                        dragGridPlaneY = planeY;
+                        dragGridReferencePart = referencePart;
+                        
                         Mouse.Capture((IInputElement)sender);
                     }
 
@@ -4603,8 +4641,8 @@ namespace PlastiCAD
             {
                 if (isWorldPartDragging)
                 {
-                    isWorldPartDragging = false;
-                    Mouse.Capture(null);
+                   isWorldPartDragging = false;
+                   Mouse.Capture(null);
 
                     if (worldPartWasDragged)
                     {
@@ -5613,6 +5651,280 @@ namespace PlastiCAD
 
             return brush;
         }
+        
+        private void ShowDragGrid(
+    double planeY,
+    PlacedPart referencePart)
+        {
+            dragGridVisual = null;
+            dragGridPlaneY = planeY;
+
+            double cellSize =
+                Grider.CellSize / 100.0;
+
+            double referenceX =
+                (referencePart.Transform.Position.X / Scale
+                + Grider.CellSize / 2.0) / 100.0;
+
+            double referenceZ =
+                referencePart.Transform.Position.Z / 100.0;
+
+            const int cellRadius = 6;
+
+            double minX =
+                referenceX - cellRadius * cellSize;
+
+            double maxX =
+                referenceX + cellRadius * cellSize;
+
+            double minZ =
+                referenceZ - cellRadius * cellSize;
+
+            double maxZ =
+                referenceZ + cellRadius * cellSize;
+
+            Brush gridBrush =
+                new SolidColorBrush(
+                    Color.FromArgb(
+                        28,
+                        120,
+                        150,
+                        180));
+
+            Brush mainGridBrush =
+                new SolidColorBrush(
+                    Color.FromArgb(
+                        55,
+                        90,
+                        120,
+                        150));
+
+            double lineRadius =
+                0.0006;
+
+            Model3DGroup group =
+                new Model3DGroup();
+
+            for (int index = -cellRadius;
+     index <= cellRadius;
+     index++)
+            {
+                double x =
+                    referenceX + index * cellSize;
+
+                bool isCurrentYZRow =
+                    index == 0;
+
+                Brush brush =
+                    isCurrentYZRow
+                        ? currentYZBrush
+                        : gridBrush;
+
+                double currentLineRadius =
+                    isCurrentYZRow
+                        ? lineRadius * 2.5
+                        : lineRadius;
+
+                GeometryModel3D line =
+                    CreateLine3DModel(
+                        new Point3D(
+                            x,
+                            planeY,
+                            minZ),
+
+                        new Point3D(
+                            x,
+                            planeY,
+                            maxZ),
+
+                        currentLineRadius,
+                        brush);
+
+                if (line != null)
+                {
+                    group.Children.Add(line);
+                }
+            }
+
+            Brush currentXBrush =
+    new SolidColorBrush(
+        Color.FromArgb(
+            150,
+            255,
+            190,
+            40));
+
+            for (int index = -cellRadius;
+                 index <= cellRadius;
+                 index++)
+            {
+                double z =
+                    referenceZ + index * cellSize;
+
+                bool isCurrentXLine =
+                    index == 0;
+
+                Brush brush =
+                    isCurrentXLine
+                        ? currentXBrush
+                        : gridBrush;
+
+                double currentLineRadius =
+                    isCurrentXLine
+                        ? lineRadius * 2.5
+                        : lineRadius;
+
+                GeometryModel3D line =
+                    CreateLine3DModel(
+                        new Point3D(
+                            minX,
+                            planeY,
+                            z),
+
+                        new Point3D(
+                            maxX,
+                            planeY,
+                            z),
+
+                        currentLineRadius,
+                        brush);
+
+                if (line != null)
+                {
+                    group.Children.Add(line);
+                }
+            }
+
+            dragGridVisual =
+                new ModelVisual3D
+                {
+                    Content = group
+                };
+
+            WorldViewport.Children.Add(
+                dragGridVisual);
+        }
+        private void HideDragGrid()
+        {
+            if (dragGridVisual != null)
+            {
+                WorldViewport.Children.Remove(
+                    dragGridVisual);
+
+                dragGridVisual = null;
+            }
+
+            dragGridPlaneY = null;
+            dragGridReferencePart = null;
+            showMoveGrid = false;
+        }
+        private GeometryModel3D CreateLine3DModel(
+    Point3D start,
+    Point3D end,
+    double radius,
+    Brush brush)
+{
+    const int segments = 6;
+
+    Vector3D axis =
+        end - start;
+
+    if (axis.Length == 0)
+        return null;
+
+    axis.Normalize();
+
+    Vector3D reference =
+        Math.Abs(axis.Y) < 0.9
+            ? new Vector3D(0, 1, 0)
+            : new Vector3D(1, 0, 0);
+
+    Vector3D side1 =
+        Vector3D.CrossProduct(
+            axis,
+            reference);
+
+    if (side1.Length == 0)
+        return null;
+
+    side1.Normalize();
+
+    Vector3D side2 =
+        Vector3D.CrossProduct(
+            axis,
+            side1);
+
+    side2.Normalize();
+
+    MeshGeometry3D mesh =
+        new MeshGeometry3D();
+
+    for (int index = 0;
+         index < segments;
+         index++)
+    {
+        double angle =
+            2.0 * Math.PI
+            * index
+            / segments;
+
+        Vector3D offset =
+            side1
+                * (Math.Cos(angle) * radius)
+            + side2
+                * (Math.Sin(angle) * radius);
+
+        mesh.Positions.Add(
+            start + offset);
+
+        mesh.Positions.Add(
+            end + offset);
+    }
+
+    for (int index = 0;
+         index < segments;
+         index++)
+    {
+        int next =
+            (index + 1) % segments;
+
+        int a =
+            index * 2;
+
+        int b =
+            next * 2;
+
+        int c =
+            a + 1;
+
+        int d =
+            b + 1;
+
+        mesh.TriangleIndices.Add(a);
+        mesh.TriangleIndices.Add(b);
+        mesh.TriangleIndices.Add(c);
+
+        mesh.TriangleIndices.Add(c);
+        mesh.TriangleIndices.Add(b);
+        mesh.TriangleIndices.Add(d);
+    }
+
+    DiffuseMaterial material =
+        new DiffuseMaterial(brush);
+
+    return new GeometryModel3D
+    {
+        Geometry = mesh,
+        Material = material,
+        BackMaterial = material
+    };
+}
+
+
+
+
+
+
     }
 }
 
