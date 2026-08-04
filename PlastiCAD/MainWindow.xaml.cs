@@ -4346,11 +4346,21 @@ namespace PlastiCAD
                     worldPartDragStartPoint.Value;
 
                 // World-Koordinaten wieder auf Paksy-Koordinaten abbilden.
+
+                // World-Koordinaten wieder auf Paksy-Koordinaten abbilden.
+                const double PartDragSensitivity = 0.6;
+
                 double rawDeltaX =
-                    worldDelta.X * 100.0 * Scale;
+                    worldDelta.X
+                    * 100.0
+                    * Scale
+                    * PartDragSensitivity;
 
                 double rawDeltaZ =
-                    worldDelta.Z * 100.0;
+                    worldDelta.Z
+                    * 100.0
+                    * PartDragSensitivity;
+                
 
                 double gridX =
                     Grider.CellSize * Scale;
@@ -5793,6 +5803,40 @@ namespace PlastiCAD
                 {
                     group.Children.Add(line);
                 }
+            }
+
+            Brush yBrush =
+    new SolidColorBrush(
+        Color.FromArgb(
+            180,
+            255,
+            190,
+            40));
+
+            double minY =
+                planeY - cellRadius * cellSize;
+
+            double maxY =
+                planeY + cellRadius * cellSize;
+
+            GeometryModel3D yLine =
+                CreateLine3DModel(
+                    new Point3D(
+                        referenceX,
+                        minY,
+                        referenceZ),
+
+                    new Point3D(
+                        referenceX,
+                        maxY,
+                        referenceZ),
+
+                    lineRadius * 2.5,
+                    yBrush);
+
+            if (yLine != null)
+            {
+                group.Children.Add(yLine);
             }
 
             dragGridVisual =
