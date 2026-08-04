@@ -31,6 +31,7 @@ namespace PlastiCAD.Models
             AddWindows();
             AddCubes();
             AddBallConnector();
+            AddBigPlates();
         }
 
         
@@ -38,7 +39,10 @@ namespace PlastiCAD.Models
         {
             Parts.Add(new BallConnector());
         }
-
+        private static void AddBigPlates()
+        {
+            Parts.Add(new BigPlate());
+        }
         private static void AddWindows()
         {
             Parts.Add(new WindowPlate());

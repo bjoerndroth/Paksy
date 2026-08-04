@@ -529,6 +529,16 @@ namespace PlastiCAD
                     continue;
                 }
 
+                if (placed.Part is BigPlate bigPlate)
+                {
+                    DrawBigPlate2D(
+                        placed,
+                        bigPlate);
+
+                    continue;
+                }
+
+
                 if (placed.Part is Plate plate)
                 {
                     DrawPlate2D(
@@ -541,6 +551,7 @@ namespace PlastiCAD
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
                 if (placed.Part is WindowPlate ||
+                    placed.Part is BigPlate ||
                     placed.Part is Plate)
                 {
                     continue;
@@ -589,6 +600,479 @@ namespace PlastiCAD
             RedrawWorld();
         }
 
+        private void DrawBigPlate2D(
+    PlacedPart placed,
+    BigPlate plate)
+        {
+            bool isCurrentLayer =
+                Math.Abs(
+                    placed.Transform.Position.Z - currentPlanZ)
+                < 0.001;
+
+            double halfGrid =
+                Grider.CellSize * Scale / 2.0;
+
+            Vector3 cellCenter =
+                GetCellCenter(placed);
+
+            bool isSelected =
+                selectedParts.Contains(placed);
+
+            Brush plateBrush;
+
+            if (isSelected)
+            {
+                plateBrush =
+                    HighlightBrush(PaksyRed);
+            }
+            else if (isCurrentLayer)
+            {
+                plateBrush =
+                    PaksyRed;
+            }
+            else
+            {
+                plateBrush =
+                    new SolidColorBrush(
+                        Color.FromArgb(
+                            45,
+                            235,
+                            45,
+                            45));
+            }
+
+            double outerSize =
+                plate.OuterSize * Scale;
+
+            double innerSize =
+                plate.InnerSize * Scale;
+
+            double totalThickness =
+                Math.Max(
+                    3.0,
+                    plate.TotalThickness * Scale);
+
+            double centerX;
+            double centerY;
+
+            Rectangle outerShape =
+                new Rectangle
+                {
+                    Fill = plateBrush,
+                    Stroke = isSelected
+                        ? Brushes.White
+                        : Brushes.DarkRed,
+                    StrokeThickness = isSelected
+                        ? 2.0
+                        : 1.0
+                };
+
+            switch (placed.PlateOrientation)
+            {
+                // Ganze 28 × 28-mm-Fläche sichtbar
+                case 0:
+                    centerX =
+                        cellCenter.X + halfGrid;
+
+                    centerY =
+                        cellCenter.Y + halfGrid;
+
+                    outerShape.Width =
+                        outerSize;
+
+                    outerShape.Height =
+                        outerSize;
+
+                    break;
+
+                // Seitenansicht in XZ
+                case 1:
+                    centerX =
+                        cellCenter.X + halfGrid;
+
+                    centerY =
+                        cellCenter.Y;
+
+                    outerShape.Width =
+                        outerSize;
+
+                    outerShape.Height =
+                        totalThickness;
+
+                    break;
+
+                // Seitenansicht in YZ
+                case 2:
+                    centerX =
+                        cellCenter.X;
+
+                    centerY =
+                        cellCenter.Y + halfGrid;
+
+                    outerShape.Width =
+                        totalThickness;
+
+                    outerShape.Height =
+                        outerSize;
+
+                    break;
+
+                default:
+                    return;
+            }
+
+            Canvas.SetLeft(
+                outerShape,
+                centerX - outerShape.Width / 2.0);
+
+            Canvas.SetTop(
+                outerShape,
+                centerY - outerShape.Height / 2.0);
+
+            BuildArea.Children.Add(
+                outerShape);
+
+            // In der vollständigen Draufsicht zusätzlich
+            // die kleinere Rückseite andeuten.
+            if (placed.PlateOrientation == 0)
+            {
+                Rectangle innerShape =
+                    new Rectangle
+                    {
+                        Width = innerSize,
+                        Height = innerSize,
+
+                        Fill = Brushes.Transparent,
+
+                        Stroke = new SolidColorBrush(
+                            Color.FromArgb(
+                                130,
+                                120,
+                                20,
+                                20)),
+
+                        StrokeThickness = 1.0,
+
+                        StrokeDashArray =
+                            new DoubleCollection
+                            {
+                        3.0,
+                        2.0
+                            }
+                    };
+
+                Canvas.SetLeft(
+                    innerShape,
+                    centerX - innerSize / 2.0);
+
+                Canvas.SetTop(
+                    innerShape,
+                    centerY - innerSize / 2.0);
+
+                BuildArea.Children.Add(
+                    innerShape);
+            }
+        }
+
+        private void DrawBigPlate3D(
+    PlacedPart placed,
+    BigPlate plate)
+        {
+
+            int plane =
+    placed.PlateOrientation % 3;
+
+            bool isFlipped =
+                placed.PlateOrientation >= 3;
+
+            // +1 = große Fläche auf der bisherigen Vorderseite
+            // -1 = große Fläche auf der Rückseite
+            double sideSign =
+                isFlipped ? -1.0 : 1.0;
+            double x =
+                (placed.Transform.Position.X / Scale
+                + Grider.CellSize / 2.0) / 100.0;
+
+            double y =
+                -(placed.Transform.Position.Y / Scale
+                + Grider.CellSize / 2.0) / 100.0;
+
+            double z =
+                placed.Transform.Position.Z / 100.0;
+
+            double halfGrid =
+                (Grider.CellSize / 2.0) / 100.0;
+
+            Point3D center;
+
+            double surfaceOffset =
+    1.0 / 100.0;
+
+
+   
+
+            switch (plane)
+            {
+                case 0:
+                    // XY-Ebene, Vorderseite zeigt nach +Z
+                    center = new Point3D(
+                        x + halfGrid,
+                        y - halfGrid,
+                        z + sideSign * surfaceOffset);
+                    break;
+
+                case 1:
+                    // XZ-Ebene, Vorderseite zeigt nach -Y
+                    center = new Point3D(
+                        x + halfGrid,
+                        y - sideSign * surfaceOffset,
+                        z + halfGrid);
+                    break;
+
+                case 2:
+                    // YZ-Ebene, Vorderseite zeigt nach +X
+                    center = new Point3D(
+                        x + sideSign * surfaceOffset,
+                        y - halfGrid,
+                        z + halfGrid);
+                    break;
+
+                default:
+                    return;
+            }
+            Brush plateBrush = PaksyRed;
+
+            if (selectedParts.Contains(placed))
+            {
+                plateBrush =
+                    HighlightBrush(plateBrush);
+            }
+
+            double outerSize =
+                plate.OuterSize / 100.0;
+
+            double innerSize =
+                plate.InnerSize / 100.0;
+
+            double plateThickness =
+                plate.PlateThickness / 100.0;
+
+            double totalThickness =
+                plate.TotalThickness / 100.0;
+
+            double ribLength =
+                plate.RibLength / 100.0;
+
+            double ribHeight =
+                plate.RibHeight / 100.0;
+
+            double ribThickness =
+                plate.RibThickness / 100.0;
+
+            /*
+             * Bei 15 mm freiem Abstand und 1 mm Stegdicke
+             * liegen die Mittelpunkte der Stege jeweils 8 mm
+             * von der Mitte entfernt:
+             *
+             * 15 / 2 + 1 / 2 = 8 mm
+             */
+            double ribOffset =
+                (
+                    plate.RibClearDistance / 2.0
+                    + plate.RibThickness / 2.0
+                ) / 100.0;
+
+            /*
+             * Gesamtdicke = 10 mm.
+             * Die beiden Platten sind jeweils 1 mm dick.
+             *
+             * Mittelpunkt der Platten:
+             * 10 / 2 - 1 / 2 = 4,5 mm
+             */
+            double plateCenterOffset =
+                (
+                    plate.TotalThickness / 2.0
+                    - plate.PlateThickness / 2.0
+                ) / 100.0;
+
+            switch (plane)
+            {
+                // ------------------------------------------------------------
+                // XY-Ebene
+                // Dicke verläuft entlang Z
+                // ------------------------------------------------------------
+                case 0:
+                    {
+                        Point3D outerCenter =
+                            new Point3D(
+                                center.X,
+                                center.Y,
+                                center.Z + sideSign * plateCenterOffset);
+
+                        Point3D innerCenter =
+                            new Point3D(
+                                center.X,
+                                center.Y,
+                                center.Z - sideSign * plateCenterOffset);
+
+                        AddBox(
+                            outerCenter,
+                            outerSize,
+                            outerSize,
+                            plateThickness,
+                            placed,
+                            plateBrush);
+
+                        AddBox(
+                            innerCenter,
+                            innerSize,
+                            innerSize,
+                            plateThickness,
+                            placed,
+                            plateBrush);
+
+                        AddBox(
+                            new Point3D(
+                                center.X - ribOffset,
+                                center.Y,
+                                center.Z),
+                            ribThickness,
+                            ribLength,
+                            ribHeight,
+                            placed,
+                            plateBrush);
+
+                        AddBox(
+                            new Point3D(
+                                center.X + ribOffset,
+                                center.Y,
+                                center.Z),
+                            ribThickness,
+                            ribLength,
+                            ribHeight,
+                            placed,
+                            plateBrush);
+
+                        break;
+                    }
+                // ------------------------------------------------------------
+                // XZ-Ebene
+                // Dicke verläuft entlang Y
+                // ------------------------------------------------------------
+                case 1:
+                    {
+                        Point3D outerCenter =
+                            new Point3D(
+                                center.X,
+                                center.Y - sideSign * plateCenterOffset,
+                                center.Z);
+
+                        Point3D innerCenter =
+                            new Point3D(
+                                center.X,
+                                center.Y + sideSign * plateCenterOffset,
+                                center.Z);
+
+                        AddBox(
+                            outerCenter,
+                            outerSize,
+                            plateThickness,
+                            outerSize,
+                            placed,
+                            plateBrush);
+
+                        AddBox(
+                            innerCenter,
+                            innerSize,
+                            plateThickness,
+                            innerSize,
+                            placed,
+                            plateBrush);
+
+                        AddBox(
+                            new Point3D(
+                                center.X - ribOffset,
+                                center.Y,
+                                center.Z),
+                            ribThickness,
+                            ribHeight,
+                            ribLength,
+                            placed,
+                            plateBrush);
+
+                        AddBox(
+                            new Point3D(
+                                center.X + ribOffset,
+                                center.Y,
+                                center.Z),
+                            ribThickness,
+                            ribHeight,
+                            ribLength,
+                            placed,
+                            plateBrush);
+
+                        break;
+                    }
+                // ------------------------------------------------------------
+                // YZ-Ebene
+                // Dicke verläuft entlang X
+                // ------------------------------------------------------------
+                case 2:
+                    {
+                        Point3D outerCenter =
+                            new Point3D(
+                                center.X + sideSign * plateCenterOffset,
+                                center.Y,
+                                center.Z);
+
+                        Point3D innerCenter =
+                            new Point3D(
+                                center.X - sideSign * plateCenterOffset,
+                                center.Y,
+                                center.Z);
+
+                        AddBox(
+                            outerCenter,
+                            plateThickness,
+                            outerSize,
+                            outerSize,
+                            placed,
+                            plateBrush);
+
+                        AddBox(
+                            innerCenter,
+                            plateThickness,
+                            innerSize,
+                            innerSize,
+                            placed,
+                            plateBrush);
+
+                        AddBox(
+                            new Point3D(
+                                center.X,
+                                center.Y - ribOffset,
+                                center.Z),
+                            ribHeight,
+                            ribThickness,
+                            ribLength,
+                            placed,
+                            plateBrush);
+
+                        AddBox(
+                            new Point3D(
+                                center.X,
+                                center.Y + ribOffset,
+                                center.Z),
+                            ribHeight,
+                            ribThickness,
+                            ribLength,
+                            placed,
+                            plateBrush);
+
+                        break;
+                    }
+            }
+        }
         private void DrawBallConnector2D(
     PlacedPart placed,
     BallConnector ball)
@@ -1722,6 +2206,15 @@ namespace PlastiCAD
                 if (placed.Part is WindowPlate windowPlate)
                 {
                     
+                    continue;
+                }
+
+                if (placed.Part is BigPlate bigPlate)
+                {
+                    DrawBigPlate3D(
+                        placed,
+                        bigPlate);
+
                     continue;
                 }
 
@@ -3866,6 +4359,15 @@ namespace PlastiCAD
             foreach (PlacedPart part in selectedParts)
             {
 
+                if (part.Part is BigPlate)
+                {
+                    // Drei Ebenen × zwei Seiten
+                    part.PlateOrientation =
+                        (part.PlateOrientation + 1) % 6;
+
+                    continue;
+                }
+
                 if (part.Part is Plate)
                 {
                     part.PlateOrientation =
@@ -4546,6 +5048,12 @@ namespace PlastiCAD
     object sender,
     MouseButtonEventArgs e)
         {
+
+            if (showMoveGrid)
+            {
+                HideDragGrid();
+                showMoveGrid = false;
+            }
             bool ctrlPressed =
     Keyboard.Modifiers.HasFlag(
         ModifierKeys.Control);
@@ -4652,7 +5160,8 @@ namespace PlastiCAD
                 if (isWorldPartDragging)
                 {
                    isWorldPartDragging = false;
-                   Mouse.Capture(null);
+                    HideDragGrid();
+                    Mouse.Capture(null);
 
                     if (worldPartWasDragged)
                     {
