@@ -5301,75 +5301,23 @@ namespace PlastiCAD
 
             if (e.Key == Key.X)
             {
-                SaveUndoState();
-
-                foreach (PlacedPart placed in selectedParts)
-                {
-                    DisconnectPart(placed);
-                }
-
-                foreach (PlacedPart placed in selectedParts)
-                {
-                    placed.Transform.RotateX90();
-                }
-
-                int connectionCount = ConnectSelectedParts();
-
-                StatusText.Text = connectionCount > 0
-                    ? $"{connectionCount} Verbindung(en)"
-                    : $"{selectedParts.Count} Bauteil(e) um X gedreht";
-
-                RedrawScene();
-
+                RotateSelection3D('X');
                 e.Handled = true;
+                return;
             }
-            else if (e.Key == Key.Y)
+
+            if (e.Key == Key.Y)
             {
-                SaveUndoState();
-
-                foreach (PlacedPart placed in selectedParts)
-                {
-                    DisconnectPart(placed);
-                }
-
-                foreach (PlacedPart placed in selectedParts)
-                {
-                    placed.Transform.RotateY90();
-                }
-
-                int connectionCount = ConnectSelectedParts();
-
-                StatusText.Text = connectionCount > 0
-                    ? $"{connectionCount} Verbindung(en)"
-                    : $"{selectedParts.Count} Bauteil(e) um Y gedreht";
-
-                RedrawScene();
-
+                RotateSelection3D('Y');
                 e.Handled = true;
+                return;
             }
-            else if (e.Key == Key.Z)
+
+            if (e.Key == Key.Z)
             {
-                SaveUndoState();
-
-                foreach (PlacedPart placed in selectedParts)
-                {
-                    DisconnectPart(placed);
-                }
-
-                foreach (PlacedPart placed in selectedParts)
-                {
-                    placed.Transform.RotateZ90();
-                }
-
-                int connectionCount = ConnectSelectedParts();
-
-                StatusText.Text = connectionCount > 0
-                    ? $"{connectionCount} Verbindung(en)"
-                    : $"{selectedParts.Count} Bauteil(e) um Z gedreht";
-
-                RedrawScene();
-
+                RotateSelection3D('Z');
                 e.Handled = true;
+                return;
             }
             else if (e.Key == Key.Up)
             {
@@ -5397,6 +5345,118 @@ namespace PlastiCAD
 
                 e.Handled = true;
             }
+        }
+
+        private void RotateSelection3D(char axis)
+        {
+            if (selectedParts.Count == 0)
+                return;
+
+            SaveUndoState();
+
+            foreach (PlacedPart placed in selectedParts)
+            {
+                DisconnectPart(placed);
+            }
+
+            // Positionen in einheitliche Paksy-Millimeter umrechnen.
+            double centerX =
+                selectedParts.Average(
+                    part => part.Transform.Position.X / Scale);
+
+            double centerY =
+                selectedParts.Average(
+                    part => part.Transform.Position.Y / Scale);
+
+            double centerZ =
+                selectedParts.Average(
+                    part => part.Transform.Position.Z);
+
+            foreach (PlacedPart placed in selectedParts)
+            {
+                Vector3 relativePosition =
+                    new Vector3(
+                        placed.Transform.Position.X / Scale - centerX,
+                        placed.Transform.Position.Y / Scale - centerY,
+                        placed.Transform.Position.Z - centerZ);
+
+                Vector3 rotatedPosition;
+
+                switch (axis)
+                {
+                    case 'X':
+                        rotatedPosition =
+                            relativePosition.RotateX90();
+
+                        if (placed.Part is Plate)
+                        {
+                            RotatePlateOrientationWorld(
+                                placed,
+                                'X');
+                        }
+                        else
+                        {
+                            placed.Transform.RotateWorldX90();
+                        }
+
+                        break;
+
+                    case 'Y':
+                        rotatedPosition =
+                            relativePosition.RotateY90();
+
+                        if (placed.Part is Plate)
+                        {
+                            RotatePlateOrientationWorld(
+                                placed,
+                                'Y');
+                        }
+                        else
+                        {
+                            placed.Transform.RotateWorldY90();
+                        }
+
+                        break;
+
+                    case 'Z':
+                        rotatedPosition =
+                            relativePosition.RotateZ90();
+
+                        if (placed.Part is Plate)
+                        {
+                            RotatePlateOrientationWorld(
+                                placed,
+                                'Z');
+                        }
+                        else
+                        {
+                            placed.Transform.RotateWorldZ90();
+                        }
+
+                        break;
+
+                    default:
+                        return;
+                }
+                placed.Transform.Position.X =
+                    (centerX + rotatedPosition.X) * Scale;
+
+                placed.Transform.Position.Y =
+                    (centerY + rotatedPosition.Y) * Scale;
+
+                placed.Transform.Position.Z =
+                    centerZ + rotatedPosition.Z;
+            }
+
+            int connectionCount =
+                ConnectSelectedParts();
+
+            StatusText.Text =
+                connectionCount > 0
+                    ? $"{connectionCount} Verbindung(en)"
+                    : $"{selectedParts.Count} Bauteil(e) um {axis} gedreht";
+
+            RedrawScene();
         }
 
         private Point3D? GetMousePointOnWorldPlane(
@@ -6542,9 +6602,130 @@ namespace PlastiCAD
                 new Thickness(2.0);
         }
 
+        private void RotatePlateOrientationWorld(
+            PlacedPart placed,
+            char axis)
+        {
+            if (!(placed.Part is Plate))
+                return;
 
+            bool supportsFrontAndBack =
+                placed.Part is BigPlate;
 
+            int plane =
+                placed.PlateOrientation % 3;
 
+            bool isFlipped =
+                supportsFrontAndBack &&
+                placed.PlateOrientation >= 3;
+
+            /*
+             * Normalenrichtung der sichtbaren Vorderseite:
+             *
+             * 0 = XY  -> +Z
+             * 1 = XZ  -> -Y
+             * 2 = YZ  -> +X
+             *
+             * Bei BigPlate 3–5 jeweils umgekehrt.
+             */
+            Vector3 normal;
+
+            switch (plane)
+            {
+                case 0:
+                    normal = new Vector3(0, 0, 1);
+                    break;
+
+                case 1:
+                    normal = new Vector3(0, -1, 0);
+                    break;
+
+                case 2:
+                    normal = new Vector3(1, 0, 0);
+                    break;
+
+                default:
+                    return;
+            }
+
+            if (isFlipped)
+            {
+                normal = new Vector3(
+                    -normal.X,
+                    -normal.Y,
+                    -normal.Z);
+            }
+
+            switch (axis)
+            {
+                case 'X':
+                    normal = normal.RotateX90();
+                    break;
+
+                case 'Y':
+                    normal = normal.RotateY90();
+                    break;
+
+                case 'Z':
+                    normal = normal.RotateZ90();
+                    break;
+
+                default:
+                    return;
+            }
+
+            placed.PlateOrientation =
+                GetPlateOrientationFromNormal(
+                    normal,
+                    supportsFrontAndBack);
+        }
+
+        private int GetPlateOrientationFromNormal(
+    Vector3 normal,
+    bool supportsFrontAndBack)
+        {
+            const double tolerance = 0.001;
+
+            // XY-Ebene
+            if (Math.Abs(normal.Z) > 1.0 - tolerance)
+            {
+                if (supportsFrontAndBack &&
+                    normal.Z < 0)
+                {
+                    return 3;
+                }
+
+                return 0;
+            }
+
+            // XZ-Ebene
+            // Standard-Vorderseite zeigt nach -Y.
+            if (Math.Abs(normal.Y) > 1.0 - tolerance)
+            {
+                if (supportsFrontAndBack &&
+                    normal.Y > 0)
+                {
+                    return 4;
+                }
+
+                return 1;
+            }
+
+            // YZ-Ebene
+            // Standard-Vorderseite zeigt nach +X.
+            if (Math.Abs(normal.X) > 1.0 - tolerance)
+            {
+                if (supportsFrontAndBack &&
+                    normal.X < 0)
+                {
+                    return 5;
+                }
+
+                return 2;
+            }
+
+            return 0;
+        }
 
 
 
