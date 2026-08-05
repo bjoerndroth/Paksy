@@ -31,6 +31,8 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+
+        private Button selectedPartToolButton;
         Brush currentYZBrush =
     new SolidColorBrush(
         Color.FromArgb(
@@ -118,10 +120,10 @@ namespace PlastiCAD
 
             PartLibrary.Initialize();
 
-            foreach (Part part in PartLibrary.Parts)
-            {
-                PartsList.Items.Add(part.Name);
-            }
+            // foreach (Part part in PartLibrary.Parts)
+            // {
+            //PartsList.Items.Add(part.Name);
+            //}
 
             Loaded += MainWindow_Loaded;
             KeyDown += MainWindow_KeyDown;
@@ -192,17 +194,7 @@ namespace PlastiCAD
         {
             RedrawScene();
         }
-        private void PartsList_SelectionChanged(
-         object sender,
-         SelectionChangedEventArgs e)
-        {
-            if (PartsList.SelectedIndex < 0)
-                return;
-
-            selectedPart = PartLibrary.Parts[PartsList.SelectedIndex];
-
-            StatusText.Text = "Ausgewählt: " + selectedPart.Name;
-        }
+        
 
         private void BuildArea_MouseMove(object sender, MouseEventArgs e)
         {
@@ -3694,7 +3686,7 @@ namespace PlastiCAD
             if (e.Key == Key.Escape)
             {
                 selectedPart = null;
-                PartsList.SelectedIndex = -1;
+              //  PartsList.SelectedIndex = -1;
 
                 selectedParts.Clear();
 
@@ -6472,6 +6464,88 @@ namespace PlastiCAD
         BackMaterial = material
     };
 }
+
+        private void PartToolButton_Click(
+    object sender,
+    RoutedEventArgs e)
+        {
+            if (!(sender is Button button))
+                return;
+
+            string partName =
+                button.Tag as string;
+
+            if (string.IsNullOrWhiteSpace(partName))
+                return;
+
+            Part part =
+                PartLibrary.Parts.FirstOrDefault(
+                    item => item.Name == partName);
+
+            if (part == null)
+            {
+                StatusText.Text =
+                    $"Bauteil nicht gefunden: {partName}";
+
+                return;
+            }
+
+            selectedPart = part;
+
+            StatusText.Text =
+                "Ausgewählt: " + selectedPart.Name;
+
+            UpdatePartToolSelection(button);
+        }
+
+        private void UpdatePartToolSelection(
+    Button selectedButton)
+        {
+            if (selectedPartToolButton != null)
+            {
+                selectedPartToolButton.Background =
+                    new SolidColorBrush(
+                        Color.FromRgb(
+                            244,
+                            244,
+                            244));
+
+                selectedPartToolButton.BorderBrush =
+                    new SolidColorBrush(
+                        Color.FromRgb(
+                            181,
+                            181,
+                            181));
+
+                selectedPartToolButton.BorderThickness =
+                    new Thickness(1.0);
+            }
+
+            selectedPartToolButton =
+                selectedButton;
+
+            selectedPartToolButton.Background =
+                new SolidColorBrush(
+                    Color.FromRgb(
+                        204,
+                        232,
+                        245));
+
+            selectedPartToolButton.BorderBrush =
+                new SolidColorBrush(
+                    Color.FromRgb(
+                        0,
+                        120,
+                        180));
+
+            selectedPartToolButton.BorderThickness =
+                new Thickness(2.0);
+        }
+
+
+
+
+
 
 
 

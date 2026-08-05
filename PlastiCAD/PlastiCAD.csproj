@@ -166,11 +166,34 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="111\" />
-    <Folder Include="Assets\" />
     <Folder Include="Rendering\" />
     <Folder Include="Resources\" />
     <Folder Include="Services\" />
     <Folder Include="UI\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\parts\Corner.png" />
+    <Resource Include="Assets\parts\Elbow.png" />
+    <Resource Include="Assets\parts\Pipe.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\parts\Cross.png" />
+    <Resource Include="Assets\parts\Edge.png" />
+    <Resource Include="Assets\parts\SpaceCross.png" />
+    <Resource Include="Assets\parts\Stand.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\parts\Tee.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\parts\Ball.png" />
+    <Resource Include="Assets\parts\BigPlate.png" />
+    <Resource Include="Assets\parts\BigWheel.png" />
+    <Resource Include="Assets\parts\Cube.png" />
+    <Resource Include="Assets\parts\EndCap.png" />
+    <Resource Include="Assets\parts\Plate.png" />
+    <Resource Include="Assets\parts\Wheel.png" />
+    <Resource Include="Assets\parts\Window.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\System.ValueTuple.4.6.2\build\net471\System.ValueTuple.targets" Condition="Exists('..\packages\System.ValueTuple.4.6.2\build\net471\System.ValueTuple.targets')" />

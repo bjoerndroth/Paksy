@@ -7,25 +7,271 @@
         xmlns:local="clr-namespace:PlastiCAD"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
+
+    <Window.Resources>
+
+        <Style x:Key="PartToolButtonStyle"
+               TargetType="Button">
+
+            <Setter Property="Width" Value="94"/>
+            <Setter Property="Height" Value="76"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="Background" Value="#FFF4F4F4"/>
+            <Setter Property="BorderBrush" Value="#FFB5B5B5"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+
+                        <Border x:Name="ButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="2">
+
+                            <ContentPresenter
+                                Margin="{TemplateBinding Padding}"
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder"
+                                        Property="Background"
+                                        Value="#FFE7F2FA"/>
+                                <Setter TargetName="ButtonBorder"
+                                        Property="BorderBrush"
+                                        Value="#FF1683B5"/>
+                            </Trigger>
+
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder"
+                                        Property="Background"
+                                        Value="#FFCCE8F5"/>
+                            </Trigger>
+
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonBorder"
+                                        Property="Opacity"
+                                        Value="0.40"/>
+                            </Trigger>
+
+                        </ControlTemplate.Triggers>
+
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+
+        </Style>
+
+    </Window.Resources>
+
     <Grid>
-   
 
-   
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="220"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
 
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="30"/>
-                </Grid.RowDefinitions>
 
-                <!-- Linke Teileliste -->
-        <ListBox x:Name="PartsList"
-         Grid.Column="0"
-         Margin="5"
-         SelectionChanged="PartsList_SelectionChanged"/>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="205"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="30"/>
+        </Grid.RowDefinitions>
+        <!-- Grafischer Werkzeugkasten -->
+        <Border Grid.Column="0"
+                Grid.Row="0"
+                BorderBrush="#FFAAAAAA"
+                BorderThickness="1"
+                Background="#FFF7F7F7">
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+
+                <StackPanel Margin="2">
+
+                    <TextBlock Text="Grundbauteile"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Margin="2,3,2,4"
+                               Foreground="#FF333333"/>
+
+                    <UniformGrid Columns="2">
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+                                Tag="Rohr 27,5 mm"
+                                ToolTip="Rohr"
+                                Click="PartToolButton_Click">
+                            <Image Source="/Assets/Parts/Pipe.png"
+                                   Stretch="Uniform"
+                                   Margin="1"/>
+                        </Button>
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+                                Tag="90° Winkel"
+                                ToolTip="90° Winkel"
+                                Click="PartToolButton_Click">
+                            <Image Source="/Assets/Parts/Elbow.png"
+                                   Stretch="Uniform"
+                                   Margin="1"/>
+                        </Button>
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+                                Tag="T-Stück"
+                                ToolTip="T-Stück"
+                                Click="PartToolButton_Click">
+                            <Image Source="/Assets/Parts/Tee.png"
+                                   Stretch="Uniform"
+                                   Margin="1"/>
+                        </Button>
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+                                Tag="Kreuz"
+                                ToolTip="Kreuz"
+                                Click="PartToolButton_Click">
+                            <Image Source="/Assets/Parts/Cross.png"
+                                   Stretch="Uniform"
+                                   Margin="1"/>
+                        </Button>
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+                                Tag="Corner"
+                                ToolTip="Corner"
+                                Click="PartToolButton_Click">
+                            <Image Source="/Assets/Parts/Corner.png"
+                                   Stretch="Uniform"
+                                   Margin="1"/>
+                        </Button>
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+                                Tag="Edge"
+                                ToolTip="Edge"
+                                Click="PartToolButton_Click">
+                            <Image Source="/Assets/Parts/Edge.png"
+                                   Stretch="Uniform"
+                                   Margin="1"/>
+                        </Button>
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+                                Tag="Stand"
+                                ToolTip="Stand"
+                                Click="PartToolButton_Click">
+                            <Image Source="/Assets/Parts/Stand.png"
+                                   Stretch="Uniform"
+                                   Margin="1"/>
+                        </Button>
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+                                Tag="SpaceCross"
+                                ToolTip="SpaceCross"
+                                Click="PartToolButton_Click">
+                            <Image Source="/Assets/Parts/SpaceCross.png"
+                                   Stretch="Uniform"
+                                   Margin="1"/>
+                        </Button>
+
+                    </UniformGrid>
+
+                    <Separator Margin="2,5"/>
+
+                    <TextBlock Text="Weitere Bauteile"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Margin="2,0,2,4"
+                               Foreground="#FF333333"/>
+
+                    <UniformGrid Columns="2">
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+                                Tag="Würfel"
+                                ToolTip="Würfel"
+                                Click="PartToolButton_Click">
+                            <Image Source="/Assets/Parts/Cube.png"
+                                   Stretch="Uniform"
+                                   Margin="1"/>
+                        </Button>
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+                                Tag="Kugel"
+                                ToolTip="Kugel"
+                                Click="PartToolButton_Click">
+                            <Image Source="/Assets/Parts/Ball.png"
+                                   Stretch="Uniform"
+                                   Margin="1"/>
+                        </Button>
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+                                Tag="Platte"
+                                ToolTip="Platte"
+                                Click="PartToolButton_Click">
+                            <Image Source="/Assets/Parts/Plate.png"
+                                   Stretch="Uniform"
+                                   Margin="1"/>
+                        </Button>
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+                                Tag="Große Platte"
+                                ToolTip="BigPlate"
+                                Click="PartToolButton_Click">
+                            <Image Source="/Assets/Parts/BigPlate.png"
+                                   Stretch="Uniform"
+                                   Margin="1"/>
+                        </Button>
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+                                Tag="Fenster"
+                                ToolTip="Fenster"
+                                Click="PartToolButton_Click">
+                            <Image Source="/Assets/Parts/Window.png"
+                                   Stretch="Uniform"
+                                   Margin="1"/>
+                        </Button>
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+                                Tag="BigWindow"
+                                ToolTip="BigWindow"
+                                Click="PartToolButton_Click"
+                                IsEnabled="False">
+                            <Image Source="/Assets/Parts/BigWindow.png"
+                                   Stretch="Uniform"
+                                   Margin="1"/>
+                        </Button>
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+                                Tag="Rad"
+                                ToolTip="Rad"
+                                Click="PartToolButton_Click">
+                            <Image Source="/Assets/Parts/Wheel.png"
+                                   Stretch="Uniform"
+                                   Margin="1"/>
+                        </Button>
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+                                Tag="BigRad"
+                                ToolTip="Big Rad"
+                                Click="PartToolButton_Click"
+                                IsEnabled="False">
+                            <Image Source="/Assets/Parts/BigWheel.png"
+                                   Stretch="Uniform"
+                                   Margin="1"/>
+                        </Button>
+
+                    </UniformGrid>
+
+                </StackPanel>
+
+            </ScrollViewer>
+
+        </Border>
 
         <!-- Baufläche -->
         <TabControl Grid.Column="1"
@@ -94,10 +340,13 @@
         </TabControl>
 
         <!-- Statusleiste -->
-                <StatusBar Grid.Row="1"
+        <StatusBar Grid.Row="1"
                    Grid.ColumnSpan="2">
             <TextBlock x:Name="StatusText" Text="Bereit"/>
         </StatusBar>
 
     </Grid>
+
+
+
 </Window>
