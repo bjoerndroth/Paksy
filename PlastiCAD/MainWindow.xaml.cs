@@ -5215,6 +5215,34 @@ namespace PlastiCAD
      object sender,
      KeyEventArgs e)
         {
+            if (e.Key == Key.Escape)
+            {
+                selectedPart = null;
+
+                selectedParts.Clear();
+
+                if (selectedPartToolButton != null)
+                {
+                    selectedPartToolButton.Background =
+                        new SolidColorBrush(Color.FromRgb(244, 244, 244));
+
+                    selectedPartToolButton.BorderBrush =
+                        new SolidColorBrush(Color.FromRgb(181, 181, 181));
+
+                    selectedPartToolButton.BorderThickness =
+                        new Thickness(1);
+
+                    selectedPartToolButton = null;
+                }
+
+                StatusText.Text = "Bereit";
+
+                RedrawScene();
+
+                e.Handled = true;
+                return;
+            }
+
 
             double moveStep = Grider.CellSize * Scale;
 
