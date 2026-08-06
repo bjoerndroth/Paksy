@@ -31,7 +31,7 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
-
+        private bool selectRectangleAcrossAllLayers = false;
         private Button selectedPartToolButton;
         Brush currentYZBrush =
     new SolidColorBrush(
@@ -320,31 +320,53 @@ namespace PlastiCAD
             {
                 isSelecting = false;
 
-                BuildArea.Children.Remove(selectionRectangle);
+                BuildArea.Children.Remove(
+                    selectionRectangle);
+
+                Rect selection =
+                    new Rect(
+                        Canvas.GetLeft(
+                            selectionRectangle),
+
+                        Canvas.GetTop(
+                            selectionRectangle),
+
+                        selectionRectangle.Width,
+                        selectionRectangle.Height);
 
                 selectedParts.Clear();
 
-                Rect selection = new Rect(
-                    Canvas.GetLeft(selectionRectangle),
-                    Canvas.GetTop(selectionRectangle),
-                    selectionRectangle.Width,
-                    selectionRectangle.Height);
-
                 foreach (PlacedPart part in assembly.PlacedParts)
                 {
-                    if (Math.Abs(part.Transform.Position.Z - currentPlanZ) >= 0.001)
+                    bool isOnCurrentLayer =
+                        Math.Abs(
+                            part.Transform.Position.Z
+                            - currentPlanZ)
+                        < 0.001;
+
+                    if (!selectRectangleAcrossAllLayers &&
+                        !isOnCurrentLayer)
                     {
                         continue;
                     }
-                    Rect partRect = new Rect(
-                        part.Transform.Position.X,
-                        part.Transform.Position.Y,
-                        Grider.CellSize * Scale,
-                        Grider.CellSize * Scale);
+
+                    Rect partRect =
+                        new Rect(
+                            part.Transform.Position.X,
+                            part.Transform.Position.Y,
+                            Grider.CellSize * Scale,
+                            Grider.CellSize * Scale);
 
                     if (selection.Contains(partRect))
+                    {
                         selectedParts.Add(part);
+                    }
                 }
+
+                selectRectangleAcrossAllLayers = false;
+
+                StatusText.Text =
+                    $"{selectedParts.Count} Bauteil(e) ausgewählt";
 
                 RedrawScene();
 
@@ -380,24 +402,42 @@ namespace PlastiCAD
             // Prüfen, ob ein vorhandenes Teil angeklickt wurde
             PlacedPart clickedPart = GetPartAt(p);
 
-            if (clickedPart == null && selectedPart == null)
+            if (clickedPart == null &&
+     selectedPart == null)
             {
                 isSelecting = true;
 
+                selectRectangleAcrossAllLayers =
+                    (Keyboard.Modifiers & ModifierKeys.Control)
+                    == ModifierKeys.Control;
+
                 selectionStart = p;
 
-                selectionRectangle = new Rectangle
-                {
-                    Stroke = Brushes.DodgerBlue,
-                    StrokeThickness = 1,
-                    Fill = new SolidColorBrush(
-                        Color.FromArgb(40, 30, 144, 255))
-                };
+                selectionRectangle =
+                    new Rectangle
+                    {
+                        Stroke = Brushes.DodgerBlue,
+                        StrokeThickness = 1,
 
-                Canvas.SetLeft(selectionRectangle, p.X);
-                Canvas.SetTop(selectionRectangle, p.Y);
+                        Fill =
+                            new SolidColorBrush(
+                                Color.FromArgb(
+                                    40,
+                                    30,
+                                    144,
+                                    255))
+                    };
 
-                BuildArea.Children.Add(selectionRectangle);
+                Canvas.SetLeft(
+                    selectionRectangle,
+                    p.X);
+
+                Canvas.SetTop(
+                    selectionRectangle,
+                    p.Y);
+
+                BuildArea.Children.Add(
+                    selectionRectangle);
 
                 return;
             }
@@ -4223,39 +4263,52 @@ namespace PlastiCAD
             if (copiedParts.Count == 0)
                 return;
 
-            double grid = Grider.CellSize * Scale;
+            double grid =
+                Grider.CellSize * Scale;
 
-            double minX = copiedParts.Min(
-                part => part.Transform.Position.X);
+            double minX =
+                copiedParts.Min(
+                    part => part.Transform.Position.X);
 
-            double minY = copiedParts.Min(
-                part => part.Transform.Position.Y);
+            double minY =
+                copiedParts.Min(
+                    part => part.Transform.Position.Y);
 
             double targetX =
-                Math.Floor(lastMousePosition.X / grid) * grid;
+                Math.Floor(
+                    lastMousePosition.X / grid)
+                * grid;
 
             double targetY =
-                Math.Floor(lastMousePosition.Y / grid) * grid;
+                Math.Floor(
+                    lastMousePosition.Y / grid)
+                * grid;
 
-            double offsetX = targetX - minX;
-            double offsetY = targetY - minY;
+            double offsetX =
+                targetX - minX;
 
+            double offsetY =
+                targetY - minY;
+
+            // Erst prüfen, ob alle Zielpositionen frei sind.
             foreach (PlacedPart source in copiedParts)
             {
                 double newX =
-                    source.Transform.Position.X + offsetX;
+                    source.Transform.Position.X
+                    + offsetX;
 
                 double newY =
-                    source.Transform.Position.Y + offsetY;
+                    source.Transform.Position.Y
+                    + offsetY;
 
                 double newZ =
                     source.Transform.Position.Z;
 
                 if (IsPositionOccupied(
-     newX,
-     newY,
-     newZ,
-     source.Part))
+                    newX,
+                    newY,
+                    newZ,
+                    source.Part))
                 {
                     StatusText.Text =
                         "Einfügen nicht möglich: Position ist belegt";
@@ -4263,59 +4316,70 @@ namespace PlastiCAD
                     return;
                 }
             }
+
             SaveUndoState();
 
             selectedParts.Clear();
 
             foreach (PlacedPart source in copiedParts)
             {
-                PlacedPart pasted = new PlacedPart
-                {
-                    Part = source.Part,
-                    Rotation = source.Rotation,
-                    PlateOrientation = source.PlateOrientation
-                };
+                PlacedPart pasted =
+                    new PlacedPart
+                    {
+                        Part = source.Part,
 
-                pasted.Transform.Position = new Vector3(
-                    source.Transform.Position.X + offsetX,
-                    source.Transform.Position.Y + offsetY,
-                    source.Transform.Position.Z);
+                        // Alte 2D-Rotation
+                        Rotation = source.Rotation,
 
-                pasted.Transform.Rotation = new Vector3(
-                    source.Transform.Rotation.X,
-                    source.Transform.Rotation.Y,
-                    source.Transform.Rotation.Z);
+                        // Platten-, Fenster- und BigPlate-Ausrichtung
+                        PlateOrientation =
+                            source.PlateOrientation
+                    };
 
-                pasted.Transform.Scale = new Vector3(
-                    source.Transform.Scale.X,
-                    source.Transform.Scale.Y,
-                    source.Transform.Scale.Z);
+                // Position mit Einfügeversatz
+                pasted.Transform.Position =
+                    new Vector3(
+                        source.Transform.Position.X
+                            + offsetX,
 
-                pasted.Sockets = source.Part.CreateSockets();
+                        source.Transform.Position.Y
+                            + offsetY,
 
-                assembly.PlacedParts.Add(pasted);
-                selectedParts.Add(pasted);
+                        source.Transform.Position.Z);
 
-                pasted.Transform.Position = new Vector3(
-                    source.Transform.Position.X + offsetX,
-                    source.Transform.Position.Y + offsetY,
-                    source.Transform.Position.Z);
+                // Echte 3D-Rotation vollständig kopieren
+                pasted.Transform.Rotation =
+                    new Vector3(
+                        source.Transform.Rotation.X,
+                        source.Transform.Rotation.Y,
+                        source.Transform.Rotation.Z);
 
-                pasted.Sockets = source.Part.CreateSockets();
+                // Skalierung vollständig kopieren
+                pasted.Transform.Scale =
+                    new Vector3(
+                        source.Transform.Scale.X,
+                        source.Transform.Scale.Y,
+                        source.Transform.Scale.Z);
 
+                pasted.Sockets =
+                    source.Part.CreateSockets();
+
+                // Wichtig: jeweils nur einmal hinzufügen
                 assembly.PlacedParts.Add(pasted);
                 selectedParts.Add(pasted);
             }
 
-            int connectionCount = ConnectSelectedParts();
+            int connectionCount =
+                ConnectSelectedParts();
 
-            StatusText.Text = connectionCount > 0
-                ? $"{selectedParts.Count} Bauteil(e) eingefügt, {connectionCount} Verbindung(en)"
-                : $"{selectedParts.Count} Bauteil(e) eingefügt";
+            StatusText.Text =
+                connectionCount > 0
+                    ? $"{selectedParts.Count} Bauteil(e) eingefügt, " +
+                      $"{connectionCount} Verbindung(en)"
+                    : $"{selectedParts.Count} Bauteil(e) eingefügt";
 
             RedrawScene();
         }
-
         private void RotateSelection(int angle)
         {
             if (selectedParts.Count == 0)
@@ -5245,6 +5309,32 @@ namespace PlastiCAD
 
 
             double moveStep = Grider.CellSize * Scale;
+
+            bool controlPressed =
+    (Keyboard.Modifiers & ModifierKeys.Control)
+    == ModifierKeys.Control;
+
+            if (controlPressed &&
+                e.Key == Key.A)
+            {
+                selectedParts.Clear();
+
+                foreach (PlacedPart placed in assembly.PlacedParts)
+                {
+                    selectedParts.Add(placed);
+                }
+
+                currentSnaps.Clear();
+
+                StatusText.Text =
+                    $"{selectedParts.Count} Bauteil(e) ausgewählt";
+
+                RedrawScene();
+
+                e.Handled = true;
+                return;
+            }
+
 
             if (e.Key == Key.A ||
                 e.Key == Key.D ||
