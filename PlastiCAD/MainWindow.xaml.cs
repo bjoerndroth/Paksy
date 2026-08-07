@@ -350,10 +350,13 @@ namespace PlastiCAD
                         continue;
                     }
 
+                    Point planPosition =
+     GetPartPlanPosition(part);
+
                     Rect partRect =
                         new Rect(
-                            part.Transform.Position.X,
-                            part.Transform.Position.Y,
+                            planPosition.X,
+                            planPosition.Y,
                             Grider.CellSize * Scale,
                             Grider.CellSize * Scale);
 
@@ -385,25 +388,27 @@ namespace PlastiCAD
 
             RedrawScene();
         }
-        private void BuildArea_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        private void BuildArea_MouseLeftButtonDown(
+     object sender,
+     MouseButtonEventArgs e)
         {
-            Point p = e.GetPosition(BuildArea);
+            Point p =
+                e.GetPosition(BuildArea);
 
-            double grid = Grider.CellSize * Scale;
-
-            double targetX =
-    Math.Floor(p.X / grid) * grid;
-
-            double targetY =
-                Math.Floor(p.Y / grid) * grid;
-
+            double grid =
+                Grider.CellSize * Scale;
 
             lastMousePosition = p;
-            // Prüfen, ob ein vorhandenes Teil angeklickt wurde
-            PlacedPart clickedPart = GetPartAt(p);
+
+            // ------------------------------------------------------------
+            // PRÜFEN, OB EIN VORHANDENES TEIL ANGEKLICKT WURDE
+            // ------------------------------------------------------------
+
+            PlacedPart clickedPart =
+                GetPartAt(p);
 
             if (clickedPart == null &&
-     selectedPart == null)
+                selectedPart == null)
             {
                 isSelecting = true;
 
@@ -442,32 +447,43 @@ namespace PlastiCAD
                 return;
             }
 
+            // ------------------------------------------------------------
+            // VORHANDENES TEIL AUSWÄHLEN / ZIEHEN
+            // ------------------------------------------------------------
+
             if (clickedPart != null)
             {
                 bool controlPressed =
-                    (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+                    (Keyboard.Modifiers & ModifierKeys.Control)
+                    == ModifierKeys.Control;
 
                 if (controlPressed)
                 {
-                    // Strg+Klick: nur Auswahl ändern
                     if (selectedParts.Contains(clickedPart))
-                        selectedParts.Remove(clickedPart);
+                    {
+                        selectedParts.Remove(
+                            clickedPart);
+                    }
                     else
-                        selectedParts.Add(clickedPart);
+                    {
+                        selectedParts.Add(
+                            clickedPart);
+                    }
 
                     StatusText.Text =
                         $"{selectedParts.Count} Bauteil(e) ausgewählt";
 
                     RedrawScene();
+
                     return;
                 }
 
-                // Wenn das angeklickte Teil nicht ausgewählt ist,
-                // wird daraus wieder eine Einzelauswahl.
                 if (!selectedParts.Contains(clickedPart))
                 {
                     selectedParts.Clear();
-                    selectedParts.Add(clickedPart);
+
+                    selectedParts.Add(
+                        clickedPart);
                 }
 
                 SaveUndoState();
@@ -478,67 +494,140 @@ namespace PlastiCAD
                 }
 
                 dragStartMousePosition = p;
+
                 dragStartPositions.Clear();
 
                 foreach (PlacedPart part in selectedParts)
                 {
-                    dragStartPositions[part] = new Vector3(
-                        part.Transform.Position.X,
-                        part.Transform.Position.Y,
-                        part.Transform.Position.Z);
+                    dragStartPositions[part] =
+                        new Vector3(
+                            part.Transform.Position.X,
+                            part.Transform.Position.Y,
+                            part.Transform.Position.Z);
                 }
 
                 isDragging = true;
-                BuildArea.CaptureMouse();
 
+                BuildArea.CaptureMouse();
 
                 StatusText.Text =
                     $"{selectedParts.Count} Bauteil(e) werden verschoben";
 
                 RedrawScene();
+
                 return;
             }
-            // Wenn kein Teil getroffen wurde und kein Bibliotheksteil ausgewählt ist
-            // Kein vorhandenes Teil getroffen.
-            // Prüfen, ob ein Bibliotheksteil ausgewählt ist.
+
+            // ------------------------------------------------------------
+            // KEIN TEIL GETROFFEN UND KEIN WERKZEUG AKTIV
+            // ------------------------------------------------------------
+
             if (selectedPart == null)
             {
                 selectedParts.Clear();
+
                 RedrawScene();
+
                 return;
             }
 
-            PlacedPart placed = new PlacedPart
+            // ------------------------------------------------------------
+            // NEUES BAUTEIL ERZEUGEN
+            // ------------------------------------------------------------
+
+            PlacedPart placed =
+                new PlacedPart
+                {
+                    Part = selectedPart
+                };
+
+            double placedX;
+            double placedY;
+
+            // ------------------------------------------------------------
+            // PLATTEN
+            //
+            // Platten werden sichtbar um ein halbes Raster verschoben
+            // dargestellt.
+            //
+            // Deshalb Mausposition zuerst um diesen Offset korrigieren
+            // und DANACH auf das normale Raster runden.
+            // ------------------------------------------------------------
+
+            if (selectedPart is Plate)
             {
-                Part = selectedPart
-            };
+                Vector3 offset =
+                    GetPlateGridOffset(placed);
 
+                double offsetX =
+                    offset.X * Scale;
 
-            placed.Transform.Position = new Vector3(
-                Math.Floor(p.X / grid) * grid,
-                Math.Floor(p.Y / grid) * grid,
-                currentPlanZ);
+                double offsetY =
+                    offset.Y * Scale;
 
-            placed.Sockets = selectedPart.CreateSockets();
+                placedX =
+                    Math.Floor(
+                        (p.X - offsetX) / grid)
+                    * grid;
+
+                placedY =
+                    Math.Floor(
+                        (p.Y - offsetY) / grid)
+                    * grid;
+            }
+
+            // ------------------------------------------------------------
+            // NORMALE GRUNDBAUTEILE
+            // ------------------------------------------------------------
+
+            else
+            {
+                placedX =
+                    Math.Floor(
+                        p.X / grid)
+                    * grid;
+
+                placedY =
+                    Math.Floor(
+                        p.Y / grid)
+                    * grid;
+            }
+
+            placed.Transform.Position =
+                new Vector3(
+                    placedX,
+                    placedY,
+                    currentPlanZ);
+
+            placed.Sockets =
+                selectedPart.CreateSockets();
+
+            // ------------------------------------------------------------
+            // EINFÜGEN
+            // ------------------------------------------------------------
 
             SaveUndoState();
 
-            assembly.PlacedParts.Add(placed);
-
-
+            assembly.PlacedParts.Add(
+                placed);
 
             selectedParts.Clear();
-            selectedParts.Add(placed);
+
+            selectedParts.Add(
+                placed);
 
             RefreshSnaps(true);
 
-            int connectionCount = ConnectCurrentSnaps();
+            int connectionCount =
+                ConnectCurrentSnaps();
 
-            StatusText.Text = connectionCount > 0
-                ? $"{connectionCount} Verbindung(en)"
-                : "Bauteil gesetzt";
+            StatusText.Text =
+                connectionCount > 0
+                    ? $"{connectionCount} Verbindung(en)"
+                    : "Bauteil gesetzt";
 
-            Keyboard.Focus(BuildArea);
+            Keyboard.Focus(
+                BuildArea);
 
             RedrawScene();
         }
@@ -3384,22 +3473,27 @@ namespace PlastiCAD
         }
         private PlacedPart GetPartAt(Point p)
         {
-            double size = Grider.CellSize * Scale;
+            double size =
+                Grider.CellSize * Scale;
 
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
                 bool isCurrentLayer =
                     Math.Abs(
-                        placed.Transform.Position.Z - currentPlanZ)
+                        placed.Transform.Position.Z
+                        - currentPlanZ)
                     < 0.001;
 
                 if (!isCurrentLayer)
                     continue;
 
-                if (p.X >= placed.Transform.Position.X &&
-                    p.X <= placed.Transform.Position.X + size &&
-                    p.Y >= placed.Transform.Position.Y &&
-                    p.Y <= placed.Transform.Position.Y + size)
+                Point planPosition =
+                    GetPartPlanPosition(placed);
+
+                if (p.X >= planPosition.X &&
+                    p.X <= planPosition.X + size &&
+                    p.Y >= planPosition.Y &&
+                    p.Y <= planPosition.Y + size)
                 {
                     return placed;
                 }
@@ -6982,6 +7076,31 @@ namespace PlastiCAD
 
             return 0;
         }
+
+        private Point GetPartPlanPosition(
+    PlacedPart placed)
+        {
+            double x =
+                placed.Transform.Position.X;
+
+            double y =
+                placed.Transform.Position.Y;
+
+            // Platten liegen im Plan zwischen den Rasterpunkten.
+            if (placed.Part is Plate)
+            {
+                Vector3 offset =
+                    GetPlateGridOffset(placed);
+
+                x += offset.X * Scale;
+                y += offset.Y * Scale;
+            }
+
+            return new Point(
+                x,
+                y);
+        }
+
 
 
 
