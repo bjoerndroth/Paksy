@@ -5477,26 +5477,67 @@ namespace PlastiCAD
                 DisconnectPart(placed);
             }
 
-            // Positionen in einheitliche Paksy-Millimeter umrechnen.
-            double centerX =
-                selectedParts.Average(
-                    part => part.Transform.Position.X / Scale);
+            // ------------------------------------------------------------
+            // TATSÄCHLICHE MITTELPUNKTE DER BAUTEILE ERMITTELN
+            // Bei Platten kommt der halbe Rasterversatz hinzu.
+            // ------------------------------------------------------------
 
-            double centerY =
-                selectedParts.Average(
-                    part => part.Transform.Position.Y / Scale);
-
-            double centerZ =
-                selectedParts.Average(
-                    part => part.Transform.Position.Z);
+            Dictionary<PlacedPart, Vector3> actualPositions =
+                new Dictionary<PlacedPart, Vector3>();
 
             foreach (PlacedPart placed in selectedParts)
             {
+                Vector3 position =
+                    new Vector3(
+                        placed.Transform.Position.X / Scale,
+                        placed.Transform.Position.Y / Scale,
+                        placed.Transform.Position.Z);
+
+                if (placed.Part is Plate)
+                {
+                    Vector3 plateOffset =
+                        GetPlateGridOffset(placed);
+
+                    position.X += plateOffset.X;
+                    position.Y += plateOffset.Y;
+                    position.Z += plateOffset.Z;
+                }
+
+                actualPositions[placed] =
+                    position;
+            }
+
+            // ------------------------------------------------------------
+            // GEMEINSAMEN DREHPUNKT BERECHNEN
+            // Jetzt anhand der tatsächlichen Bauteilmittelpunkte.
+            // ------------------------------------------------------------
+
+            double centerX =
+                actualPositions.Values.Average(
+                    position => position.X);
+
+            double centerY =
+                actualPositions.Values.Average(
+                    position => position.Y);
+
+            double centerZ =
+                actualPositions.Values.Average(
+                    position => position.Z);
+
+            // ------------------------------------------------------------
+            // ALLE BAUTEILE DREHEN
+            // ------------------------------------------------------------
+
+            foreach (PlacedPart placed in selectedParts)
+            {
+                Vector3 actualPosition =
+                    actualPositions[placed];
+
                 Vector3 relativePosition =
                     new Vector3(
-                        placed.Transform.Position.X / Scale - centerX,
-                        placed.Transform.Position.Y / Scale - centerY,
-                        placed.Transform.Position.Z - centerZ);
+                        actualPosition.X - centerX,
+                        actualPosition.Y - centerY,
+                        actualPosition.Z - centerZ);
 
                 Vector3 rotatedPosition;
 
@@ -5556,14 +5597,51 @@ namespace PlastiCAD
                     default:
                         return;
                 }
-                placed.Transform.Position.X =
-                    (centerX + rotatedPosition.X) * Scale;
 
-                placed.Transform.Position.Y =
-                    (centerY + rotatedPosition.Y) * Scale;
+                // Tatsächlicher Mittelpunkt nach der Drehung
+                double newActualX =
+                    centerX + rotatedPosition.X;
 
-                placed.Transform.Position.Z =
+                double newActualY =
+                    centerY + rotatedPosition.Y;
+
+                double newActualZ =
                     centerZ + rotatedPosition.Z;
+
+                // --------------------------------------------------------
+                // Bei Platten wurde PlateOrientation oben bereits gedreht.
+                //
+                // Deshalb jetzt den NEUEN Plattenversatz bestimmen
+                // und wieder von der tatsächlichen Position abziehen.
+                // --------------------------------------------------------
+
+                if (placed.Part is Plate)
+                {
+                    Vector3 newPlateOffset =
+                        GetPlateGridOffset(placed);
+
+                    placed.Transform.Position.X =
+                        (newActualX - newPlateOffset.X)
+                        * Scale;
+
+                    placed.Transform.Position.Y =
+                        (newActualY - newPlateOffset.Y)
+                        * Scale;
+
+                    placed.Transform.Position.Z =
+                        newActualZ - newPlateOffset.Z;
+                }
+                else
+                {
+                    placed.Transform.Position.X =
+                        newActualX * Scale;
+
+                    placed.Transform.Position.Y =
+                        newActualY * Scale;
+
+                    placed.Transform.Position.Z =
+                        newActualZ;
+                }
             }
 
             int connectionCount =
@@ -5576,7 +5654,6 @@ namespace PlastiCAD
 
             RedrawScene();
         }
-
         private Point3D? GetMousePointOnWorldPlane(
     Point mousePosition,
     double planeY)
@@ -6255,67 +6332,98 @@ namespace PlastiCAD
             double thickness =
                 plate.Thickness / 100.0;
 
+            Brush plateBrush =
+                selectedParts.Contains(placed)
+                    ? HighlightBrush(PaksyRed)
+                    : PaksyRed;
+
+            Point3D baseCenter =
+                new Point3D(
+                    x,
+                    y,
+                    z);
+
             Point3D center;
 
             switch (placed.PlateOrientation)
             {
-                // XY-Ebene:
-                // zwischen vier Rasterpunkten in X- und Y-Richtung
+                // XY-Ebene
                 case 0:
-                    center = new Point3D(
-                        x + halfGrid,
-                        y - halfGrid,
-                        z);
-
-                    Brush plateBrush = PaksyRed;
-
-                    if (selectedParts.Contains(placed))
                     {
-                        plateBrush = HighlightBrush(plateBrush);
+                        Vector3 offset =
+                            new Vector3(
+                                Grider.CellSize / 2.0,
+                                Grider.CellSize / 2.0,
+                                0);
+
+                        center =
+                            new Point3D(
+                                baseCenter.X + offset.X / 100.0,
+                                baseCenter.Y - offset.Y / 100.0,
+                                baseCenter.Z);
+
+                        AddBox(
+                            center,
+                            width,
+                            height,
+                            thickness,
+                            placed,
+                            plateBrush);
+
+                        break;
                     }
 
-                    AddBox(
-                        center,
-                        width,
-                        height,
-                        thickness,
-                        placed,
-                        plateBrush);
-                    break;
-
-                // XZ-Ebene:
-                // zwischen vier Rasterpunkten in X- und Z-Richtung
+                // XZ-Ebene
                 case 1:
-                    center = new Point3D(
-                        x + halfGrid,
-                        y,
-                        z + halfGrid);
+                    {
+                        Vector3 offset =
+                            new Vector3(
+                                Grider.CellSize / 2.0,
+                                0,
+                                Grider.CellSize / 2.0);
 
-                    AddBox(
-                        center,
-                        width,
-                        thickness,
-                        height,
-                        placed,
-                        PaksyRed);
-                    break;
+                        center =
+                            new Point3D(
+                                baseCenter.X + offset.X / 100.0,
+                                baseCenter.Y,
+                                baseCenter.Z + offset.Z / 100.0);
 
-                // YZ-Ebene:
-                // zwischen vier Rasterpunkten in Y- und Z-Richtung
+                        AddBox(
+                            center,
+                            width,
+                            thickness,
+                            height,
+                            placed,
+                            plateBrush);
+
+                        break;
+                    }
+
+                // YZ-Ebene
                 case 2:
-                    center = new Point3D(
-                        x,
-                        y - halfGrid,
-                        z + halfGrid);
+                    {
+                        Vector3 offset =
+                            new Vector3(
+                                0,
+                                Grider.CellSize / 2.0,
+                                Grider.CellSize / 2.0);
 
-                    AddBox(
-                        center,
-                        thickness,
-                        width,
-                        height,
-                        placed,
-                        PaksyRed);
-                    break;
+                        center =
+                            new Point3D(
+                                baseCenter.X,
+                                baseCenter.Y - offset.Y / 100.0,
+                                baseCenter.Z + offset.Z / 100.0);
+
+                        AddBox(
+                            center,
+                            thickness,
+                            width,
+                            height,
+                            placed,
+                            plateBrush);
+
+                        break;
+                    }
 
                 default:
                     placed.PlateOrientation = 0;
@@ -6324,6 +6432,36 @@ namespace PlastiCAD
         }
 
 
+        private Vector3 GetPlateGridOffset(
+    PlacedPart placed)
+        {
+            double half =
+                Grider.CellSize / 2.0;
+
+            switch (placed.PlateOrientation % 3)
+            {
+                case 0:
+                    return new Vector3(
+                        half,
+                        half,
+                        0);
+
+                case 1:
+                    return new Vector3(
+                        half,
+                        0,
+                        half);
+
+                case 2:
+                    return new Vector3(
+                        0,
+                        half,
+                        half);
+
+                default:
+                    return new Vector3();
+            }
+        }
         private Brush HighlightBrush(
     Brush brush)
         {

@@ -9,5 +9,8 @@ namespace PlastiCAD.Core
     public static class Grider
     {
         public const double CellSize = 27.5;
+
+        // Kleinste Position, auf der ein Bauteil einrasten kann
+       
     }
 }
