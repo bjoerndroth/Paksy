@@ -20,6 +20,7 @@ using System.Text.Json;
 using System.Windows.Media.Media3D;
     using System.Windows.Navigation;
     using System.Windows.Shapes;
+using System.Windows.Threading;
 
 
 namespace PlastiCAD
@@ -31,6 +32,26 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+
+        private DispatcherTimer selectionRotationTimer;
+
+        private bool isSelectionRotationAnimating = false;
+
+        private char selectionRotationAxis;
+
+        private int selectionRotationStep;
+
+        private const int SelectionRotationSteps = 45;
+
+        private readonly Dictionary<Model3D, Transform3D>
+            selectionRotationOriginalTransforms =
+                new Dictionary<Model3D, Transform3D>();
+
+        private Point3D selectionRotationPivot;
+
+
+
+
         private bool selectRectangleAcrossAllLayers = false;
         private Button selectedPartToolButton;
         Brush currentYZBrush =
@@ -557,7 +578,7 @@ namespace PlastiCAD
             if (selectedPart is Plate)
             {
                 Vector3 offset =
-                    GetPlateGridOffset(placed);
+                     GetPlateGridOffset(placed);
 
                 double offsetX =
                     offset.X * Scale;
@@ -725,6 +746,9 @@ namespace PlastiCAD
     PlacedPart placed,
     BigPlate plate)
         {
+            int plane =
+                placed.PlateOrientation % 3;    
+
             bool isCurrentLayer =
                 Math.Abs(
                     placed.Transform.Position.Z - currentPlanZ)
@@ -788,7 +812,7 @@ namespace PlastiCAD
                         : 1.0
                 };
 
-            switch (placed.PlateOrientation)
+            switch (plane)
             {
                 // Ganze 28 × 28-mm-Fläche sichtbar
                 case 0:
@@ -855,8 +879,7 @@ namespace PlastiCAD
 
             // In der vollständigen Draufsicht zusätzlich
             // die kleinere Rückseite andeuten.
-            if (placed.PlateOrientation == 0)
-            {
+            if (plane == 0){
                 Rectangle innerShape =
                     new Rectangle
                     {
@@ -5513,21 +5536,21 @@ namespace PlastiCAD
 
             if (e.Key == Key.X)
             {
-                RotateSelection3D('X');
+                AnimateSelectionRotation('X');
                 e.Handled = true;
                 return;
             }
 
             if (e.Key == Key.Y)
             {
-                RotateSelection3D('Y');
+                AnimateSelectionRotation('Y');
                 e.Handled = true;
                 return;
             }
 
             if (e.Key == Key.Z)
             {
-                RotateSelection3D('Z');
+                AnimateSelectionRotation('Z');
                 e.Handled = true;
                 return;
             }
@@ -5586,7 +5609,6 @@ namespace PlastiCAD
                         placed.Transform.Position.X / Scale,
                         placed.Transform.Position.Y / Scale,
                         placed.Transform.Position.Z);
-
                 if (placed.Part is Plate)
                 {
                     Vector3 plateOffset =
@@ -6987,7 +7009,9 @@ namespace PlastiCAD
                     break;
 
                 case 1:
-                    normal = new Vector3(0, -1, 0);
+                    // XZ-Ebene:
+                    // große Vorderseite zeigt in Paksy +Y
+                    normal = new Vector3(0, 1, 0);
                     break;
 
                 case 2:
@@ -7050,10 +7074,13 @@ namespace PlastiCAD
 
             // XZ-Ebene
             // Standard-Vorderseite zeigt nach -Y.
+            // XZ-Ebene
+            // Standard-Vorderseite zeigt in Paksy +Y.
             if (Math.Abs(normal.Y) > 1.0 - tolerance)
             {
+                // -Y bedeutet Rückseite
                 if (supportsFrontAndBack &&
-                    normal.Y > 0)
+                    normal.Y < 0)
                 {
                     return 4;
                 }
@@ -7090,7 +7117,7 @@ namespace PlastiCAD
             if (placed.Part is Plate)
             {
                 Vector3 offset =
-                    GetPlateGridOffset(placed);
+                     GetPlateGridOffset(placed);
 
                 x += offset.X * Scale;
                 y += offset.Y * Scale;
@@ -7100,6 +7127,232 @@ namespace PlastiCAD
                 x,
                 y);
         }
+
+        private void AnimateSelectionRotation(
+     char axis)
+        {
+            if (selectedParts.Count == 0)
+                return;
+
+            if (isSelectionRotationAnimating)
+                return;
+
+            isSelectionRotationAnimating = true;
+
+            selectionRotationAxis = axis;
+            selectionRotationStep = 0;
+
+            selectionRotationOriginalTransforms.Clear();
+
+            // ------------------------------------------------------------
+            // Tatsächliche Positionen bestimmen.
+            // Bei Platten wieder den halben Grid-Offset berücksichtigen.
+            // ------------------------------------------------------------
+
+            List<Vector3> positions =
+                new List<Vector3>();
+
+            foreach (PlacedPart placed in selectedParts)
+            {
+                Vector3 position =
+                    new Vector3(
+                        placed.Transform.Position.X / Scale,
+                        placed.Transform.Position.Y / Scale,
+                        placed.Transform.Position.Z);
+
+                if (placed.Part is Plate)
+                {
+                    Vector3 plateOffset =
+                         GetPlateGridOffset(placed);
+
+                    position.X += plateOffset.X;
+                    position.Y += plateOffset.Y;
+                    position.Z += plateOffset.Z;
+                }
+                positions.Add(position);
+            }
+
+            double centerX =
+                positions.Average(p => p.X);
+
+            double centerY =
+                positions.Average(p => p.Y);
+
+            double centerZ =
+                positions.Average(p => p.Z);
+
+            // Derselbe Welt-Offset wie in RedrawWorld()
+            double halfGrid =
+                Grider.CellSize / 2.0;
+
+            selectionRotationPivot =
+                new Point3D(
+                    (centerX + halfGrid) / 100.0,
+                    -(centerY + halfGrid) / 100.0,
+                    centerZ / 100.0);
+
+            // ------------------------------------------------------------
+            // Aktuelle Transformationszustände aller ausgewählten
+            // 3D-Modelle merken.
+            // ------------------------------------------------------------
+
+            foreach (KeyValuePair<Model3D, PlacedPart> entry
+                     in worldPartMap)
+            {
+                if (!selectedParts.Contains(entry.Value))
+                    continue;
+
+                selectionRotationOriginalTransforms[
+                    entry.Key] =
+                        entry.Key.Transform;
+            }
+
+            selectionRotationTimer =
+                new DispatcherTimer
+                {
+                    // 45 × 7 ms ≈ 315 ms
+                    Interval =
+                        TimeSpan.FromMilliseconds(1)
+                };
+
+            selectionRotationTimer.Tick +=
+                SelectionRotationTimer_Tick;
+
+            selectionRotationTimer.Start();
+        }
+        private void SelectionRotationTimer_Tick(
+    object sender,
+    EventArgs e)
+        {
+            selectionRotationStep++;
+
+            double progress =
+                (double)selectionRotationStep
+                / SelectionRotationSteps;
+
+            // 0 bis 90 Grad
+            double angle =
+                90.0 * progress;
+
+            ApplySelectionRotationPreview(
+                selectionRotationAxis,
+                angle);
+
+            if (selectionRotationStep <
+                SelectionRotationSteps)
+            {
+                return;
+            }
+
+            selectionRotationTimer.Stop();
+
+            selectionRotationTimer.Tick -=
+                SelectionRotationTimer_Tick;
+
+            selectionRotationTimer = null;
+
+            // Preview-Transformationen wieder entfernen.
+            foreach (KeyValuePair<Model3D, Transform3D> entry
+                     in selectionRotationOriginalTransforms)
+            {
+                entry.Key.Transform =
+                    entry.Value;
+            }
+
+            selectionRotationOriginalTransforms.Clear();
+
+            isSelectionRotationAnimating = false;
+
+            // Jetzt erst die echten CAD-Daten exakt um 90° drehen.
+            RotateSelection3D(
+                selectionRotationAxis);
+        }
+
+        private void ApplySelectionRotationPreview(
+    char axis,
+    double angle)
+        {
+            Vector3D worldAxis;
+
+            double worldAngle =
+                angle;
+
+            switch (axis)
+            {
+                case 'X':
+                    worldAxis =
+                        new Vector3D(
+                            1,
+                            0,
+                            0);
+                    break;
+
+                case 'Y':
+                    worldAxis =
+                        new Vector3D(
+                            0,
+                            1,
+                            0);
+                    break;
+
+                case 'Z':
+                    worldAxis =
+                        new Vector3D(
+                            0,
+                            0,
+                            1);
+
+                    // Paksy-Y ist gegenüber World-Y gespiegelt.
+                    // Deshalb Z in der Gegenrichtung drehen.
+                    worldAngle =
+                        -angle;
+
+                    break;
+
+                default:
+                    return;
+            }
+
+            AxisAngleRotation3D rotation =
+                new AxisAngleRotation3D(
+                    worldAxis,
+                    worldAngle);
+
+            RotateTransform3D previewTransform =
+                new RotateTransform3D(
+                    rotation,
+                    selectionRotationPivot);
+
+            foreach (KeyValuePair<Model3D, Transform3D> entry
+                     in selectionRotationOriginalTransforms)
+            {
+                Transform3DGroup group =
+                    new Transform3DGroup();
+
+                if (entry.Value != null)
+                {
+                    group.Children.Add(
+                        entry.Value);
+                }
+
+                group.Children.Add(
+                    previewTransform);
+
+                entry.Key.Transform =
+                    group;
+            }
+        }
+
+
+        
+
+
+
+
+
+
+
+
 
 
 
