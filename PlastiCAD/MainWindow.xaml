@@ -274,7 +274,8 @@
         </Border>
 
         <!-- Baufläche -->
-        <TabControl Grid.Column="1"
+        <TabControl x:Name="MainTabs"
+                    Grid.Column="1"
             Margin="5">
 
             <!-- Paksy Plan -->
@@ -288,7 +289,8 @@
             </TabItem>
 
             <!-- Paksy World -->
-            <TabItem Header="Paksy World">
+            <TabItem  x:Name="WorldTab"
+                      Header="Paksy World">
                 <Border Background="LightGray"
         PreviewMouseWheel="WorldViewport_MouseWheel"
         MouseRightButtonDown="WorldViewport_MouseRightButtonDown"

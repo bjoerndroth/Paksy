@@ -2521,7 +2521,7 @@ namespace PlastiCAD
             Brush ballBrush =
                 GetWorldPartBrush(placed);
 
-            // Blaue Grundkugel
+            // Blaue Grundkugel+0.007
             AddSphereWithBrush(
                 center,
                 ballRadius,
@@ -5534,23 +5534,38 @@ namespace PlastiCAD
             if (selectedParts.Count == 0)
                 return;
 
+
+            bool is3DMode =
+     MainTabs.SelectedItem == WorldTab;
             if (e.Key == Key.X)
             {
-                AnimateSelectionRotation('X');
+                if (is3DMode)
+                    AnimateSelectionRotation('X');
+                else
+                    RotateSelection3D('X');
+
                 e.Handled = true;
                 return;
             }
 
             if (e.Key == Key.Y)
             {
-                AnimateSelectionRotation('Y');
+                if (is3DMode)
+                    AnimateSelectionRotation('Y');
+                else
+                    RotateSelection3D('Y');
+
                 e.Handled = true;
                 return;
             }
 
             if (e.Key == Key.Z)
             {
-                AnimateSelectionRotation('Z');
+                if (is3DMode)
+                    AnimateSelectionRotation('Z');
+                else
+                    RotateSelection3D('Z');
+
                 e.Handled = true;
                 return;
             }
@@ -5609,6 +5624,7 @@ namespace PlastiCAD
                         placed.Transform.Position.X / Scale,
                         placed.Transform.Position.Y / Scale,
                         placed.Transform.Position.Z);
+
                 if (placed.Part is Plate)
                 {
                     Vector3 plateOffset =
@@ -5624,21 +5640,53 @@ namespace PlastiCAD
             }
 
             // ------------------------------------------------------------
-            // GEMEINSAMEN DREHPUNKT BERECHNEN
-            // Jetzt anhand der tatsächlichen Bauteilmittelpunkte.
+            // GEMEINSAMEN DREHPUNKT BESTIMMEN
             // ------------------------------------------------------------
 
-            double centerX =
-                actualPositions.Values.Average(
-                    position => position.X);
+            double centerX;
+            double centerY;
+            double centerZ;
 
-            double centerY =
-                actualPositions.Values.Average(
-                    position => position.Y);
+            bool onlyPlates =
+                selectedParts.All(
+                    p => p.Part is Plate);
 
-            double centerZ =
-                actualPositions.Values.Average(
-                    position => position.Z);
+            if (onlyPlates &&
+                selectedParts.Count % 2 == 1)
+            {
+                // Bei ungerader reiner Plattenauswahl:
+                // stabilen Rasteranker als Pivot verwenden.
+                //
+                // Dafür nehmen wir die "mittlere" Platte der Auswahl.
+                PlacedPart reference =
+                    selectedParts[
+                        selectedParts.Count / 2];
+
+                centerX =
+                    reference.Transform.Position.X / Scale;
+
+                centerY =
+                    reference.Transform.Position.Y / Scale;
+
+                centerZ =
+                    reference.Transform.Position.Z;
+            }
+            else
+            {
+                // Normale gemischte Auswahl:
+                // echter geometrischer Mittelpunkt.
+                centerX =
+                    actualPositions.Values.Average(
+                        position => position.X);
+
+                centerY =
+                    actualPositions.Values.Average(
+                        position => position.Y);
+
+                centerZ =
+                    actualPositions.Values.Average(
+                        position => position.Z);
+            }
 
             // ------------------------------------------------------------
             // ALLE BAUTEILE DREHEN
@@ -5725,10 +5773,8 @@ namespace PlastiCAD
                     centerZ + rotatedPosition.Z;
 
                 // --------------------------------------------------------
-                // Bei Platten wurde PlateOrientation oben bereits gedreht.
-                //
-                // Deshalb jetzt den NEUEN Plattenversatz bestimmen
-                // und wieder von der tatsächlichen Position abziehen.
+                // Platten:
+                // neuen Grid-Offset der neuen Orientierung wieder abziehen.
                 // --------------------------------------------------------
 
                 if (placed.Part is Plate)
@@ -7145,12 +7191,11 @@ namespace PlastiCAD
             selectionRotationOriginalTransforms.Clear();
 
             // ------------------------------------------------------------
-            // Tatsächliche Positionen bestimmen.
-            // Bei Platten wieder den halben Grid-Offset berücksichtigen.
+            // TATSÄCHLICHE MITTELPUNKTE DER BAUTEILE
             // ------------------------------------------------------------
 
-            List<Vector3> positions =
-                new List<Vector3>();
+            Dictionary<PlacedPart, Vector3> actualPositions =
+                new Dictionary<PlacedPart, Vector3>();
 
             foreach (PlacedPart placed in selectedParts)
             {
@@ -7163,25 +7208,64 @@ namespace PlastiCAD
                 if (placed.Part is Plate)
                 {
                     Vector3 plateOffset =
-                         GetPlateGridOffset(placed);
+                        GetPlateGridOffset(placed);
 
                     position.X += plateOffset.X;
                     position.Y += plateOffset.Y;
                     position.Z += plateOffset.Z;
                 }
-                positions.Add(position);
+
+                actualPositions[placed] =
+                    position;
             }
 
-            double centerX =
-                positions.Average(p => p.X);
+            // ------------------------------------------------------------
+            // EXAKT DENSELBEN PIVOT WIE BEI RotateSelection3D BENUTZEN
+            // ------------------------------------------------------------
 
-            double centerY =
-                positions.Average(p => p.Y);
+            double centerX;
+            double centerY;
+            double centerZ;
 
-            double centerZ =
-                positions.Average(p => p.Z);
+            bool onlyPlates =
+                selectedParts.All(
+                    p => p.Part is Plate);
 
-            // Derselbe Welt-Offset wie in RedrawWorld()
+            if (onlyPlates &&
+                selectedParts.Count % 2 == 1)
+            {
+                PlacedPart reference =
+                    selectedParts[
+                        selectedParts.Count / 2];
+
+                centerX =
+                    reference.Transform.Position.X / Scale;
+
+                centerY =
+                    reference.Transform.Position.Y / Scale;
+
+                centerZ =
+                    reference.Transform.Position.Z;
+            }
+            else
+            {
+                centerX =
+                    actualPositions.Values.Average(
+                        position => position.X);
+
+                centerY =
+                    actualPositions.Values.Average(
+                        position => position.Y);
+
+                centerZ =
+                    actualPositions.Values.Average(
+                        position => position.Z);
+            }
+
+            // ------------------------------------------------------------
+            // PAKSY-KOORDINATEN IN WPF-WELTKOORDINATEN UMWANDELN
+            // ------------------------------------------------------------
+
             double halfGrid =
                 Grider.CellSize / 2.0;
 
@@ -7192,8 +7276,7 @@ namespace PlastiCAD
                     centerZ / 100.0);
 
             // ------------------------------------------------------------
-            // Aktuelle Transformationszustände aller ausgewählten
-            // 3D-Modelle merken.
+            // ALLE 3D-MODELLE DER AUSWAHL MERKEN
             // ------------------------------------------------------------
 
             foreach (KeyValuePair<Model3D, PlacedPart> entry
@@ -7207,12 +7290,15 @@ namespace PlastiCAD
                         entry.Key.Transform;
             }
 
+            // ------------------------------------------------------------
+            // ANIMATION STARTEN
+            // ------------------------------------------------------------
+
             selectionRotationTimer =
                 new DispatcherTimer
                 {
-                    // 45 × 7 ms ≈ 315 ms
                     Interval =
-                        TimeSpan.FromMilliseconds(1)
+                        TimeSpan.FromMilliseconds(7)
                 };
 
             selectionRotationTimer.Tick +=
