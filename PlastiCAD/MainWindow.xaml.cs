@@ -7430,7 +7430,36 @@ namespace PlastiCAD
         }
 
 
-        
+        private void MainTabs_SelectionChanged(
+    object sender,
+    SelectionChangedEventArgs e)
+        {
+            if (PlanToolbar == null ||
+                WorldToolbar == null)
+            {
+                return;
+            }
+
+            bool worldIsActive =
+                MainTabs.SelectedItem == WorldTab;
+
+            if (worldIsActive)
+            {
+                PlanToolbar.Visibility =
+                    Visibility.Collapsed;
+
+                WorldToolbar.Visibility =
+                    Visibility.Visible;
+            }
+            else
+            {
+                PlanToolbar.Visibility =
+                    Visibility.Visible;
+
+                WorldToolbar.Visibility =
+                    Visibility.Collapsed;
+            }
+        }
 
 
 

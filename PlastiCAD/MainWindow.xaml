@@ -71,8 +71,73 @@
             </Setter>
 
         </Style>
+        <Style x:Key="ToolbarButtonStyle"
+       TargetType="Button">
 
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Margin" Value="1"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Background" Value="#FFF4F4F4"/>
+            <Setter Property="BorderBrush" Value="#FFB8B8B8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+
+            <Setter Property="Template">
+                <Setter.Value>
+
+                    <ControlTemplate TargetType="Button">
+
+                        <Border x:Name="Border"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="2">
+
+                            <ContentPresenter
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+
+                            <Trigger Property="IsMouseOver"
+                             Value="True">
+
+                                <Setter TargetName="Border"
+                                Property="Background"
+                                Value="#FFDCEEF7"/>
+
+                                <Setter TargetName="Border"
+                                Property="BorderBrush"
+                                Value="#FF1683B5"/>
+
+                            </Trigger>
+
+                            <Trigger Property="IsPressed"
+                             Value="True">
+
+                                <Setter TargetName="Border"
+                                Property="Background"
+                                Value="#FFBFDDEC"/>
+
+                            </Trigger>
+
+                        </ControlTemplate.Triggers>
+
+                    </ControlTemplate>
+
+                </Setter.Value>
+            </Setter>
+
+        </Style>
     </Window.Resources>
+
+
+
 
     <Grid>
 
@@ -84,12 +149,413 @@
         </Grid.ColumnDefinitions>
 
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- Menü -->
+            <RowDefinition Height="Auto"/>
+            <!-- Toolbar -->
             <RowDefinition Height="*"/>
+            <!-- Programm -->
             <RowDefinition Height="30"/>
+            <!-- Status -->
         </Grid.RowDefinitions>
+
+        <!-- Hauptmenü -->
+        <Menu Grid.Row="0"
+              Grid.Column="0"
+              Grid.ColumnSpan="2">
+
+            <MenuItem Header="_Datei">
+                <MenuItem Header="_Neu"
+                          InputGestureText="Strg+N"
+                          Click="MenuNew_Click"/>
+                <MenuItem Header="_Öffnen..."
+                          InputGestureText="Strg+O"
+                          Click="MenuOpen_Click"/>
+                <MenuItem Header="_Speichern"
+                          InputGestureText="Strg+S"
+                          Click="MenuSave_Click"/>
+            </MenuItem>
+
+            <MenuItem Header="_Bearbeiten">
+                <MenuItem Header="_Kopieren"
+                          InputGestureText="Strg+C"
+                          Click="MenuCopy_Click"/>
+                <MenuItem Header="_Einfügen"
+                          InputGestureText="Strg+V"
+                          Click="MenuPaste_Click"/>
+                <Separator/>
+                <MenuItem Header="_Löschen"
+                          InputGestureText="Entf"
+                          Click="MenuDelete_Click"/>
+                <Separator/>
+                <MenuItem Header="_Alles markieren"
+                          InputGestureText="Strg+A"
+                          Click="MenuSelectAll_Click"/>
+                <MenuItem Header="_Nichts markieren"
+                          InputGestureText="Esc"
+                          Click="MenuSelectNone_Click"/>
+            </MenuItem>
+
+            <MenuItem Header="_Transformation">
+                <MenuItem Header="_Links"
+                          InputGestureText="A"
+                          Click="MenuMoveLeft_Click"/>
+                <MenuItem Header="_Rechts"
+                          InputGestureText="D"
+                          Click="MenuMoveRight_Click"/>
+                <MenuItem Header="_Vor"
+                          InputGestureText="W"
+                          Click="MenuMoveForward_Click"/>
+                <MenuItem Header="_Zurück"
+                          InputGestureText="S"
+                          Click="MenuMoveBackward_Click"/>
+                <Separator/>
+                <MenuItem Header="_Hoch"
+                          InputGestureText="Pfeil hoch"
+                          Click="MenuMoveUp_Click"/>
+                <MenuItem Header="_Runter"
+                          InputGestureText="Pfeil runter"
+                          Click="MenuMoveDown_Click"/>
+                <Separator/>
+                <MenuItem Header="Drehen _X"
+                          InputGestureText="X"
+                          Click="MenuRotateX_Click"/>
+                <MenuItem Header="Drehen _Y"
+                          InputGestureText="Y"
+                          Click="MenuRotateY_Click"/>
+                <MenuItem Header="Drehen _Z"
+                          InputGestureText="Z"
+                          Click="MenuRotateZ_Click"/>
+            </MenuItem>
+
+            <MenuItem Header="_Ansicht">
+                <MenuItem Header="_Plan"
+                          Click="MenuPlan_Click"/>
+                <MenuItem Header="_3D"
+                          Click="MenuWorld_Click"/>
+                <Separator/>
+                <MenuItem Header="Zoom _+"
+                          InputGestureText="Strg+Mausrad hoch"
+                          Click="MenuZoomIn_Click"/>
+                <MenuItem Header="Zoom _-"
+                          InputGestureText="Strg+Mausrad runter"
+                          Click="MenuZoomOut_Click"/>
+                <Separator/>
+                <MenuItem Header="Kamera drehen"
+                          InputGestureText="Strg+rechte Maustaste"
+                          Click="MenuCameraRotate_Click"/>
+                <MenuItem Header="Kamera verschieben"
+                          InputGestureText="Strg+linke Maustaste"
+                          Click="MenuCameraPan_Click"/>
+                <Separator/>
+                <MenuItem Header="Ebene _höher"
+                          InputGestureText="Bild hoch"
+                          Click="MenuLayerUp_Click"/>
+                <MenuItem Header="Ebene _tiefer"
+                          InputGestureText="Bild runter"
+                          Click="MenuLayerDown_Click"/>
+            </MenuItem>
+
+        </Menu>
+
+
+        <!-- ============================================================ -->
+        <!-- TOOLBAR                                                      -->
+        <!-- ============================================================ -->
+
+        <Border Grid.Row="1"
+        Grid.Column="0"
+        Grid.ColumnSpan="2"
+        Background="#FFEFEFEF"
+        BorderBrush="#FFB8B8B8"
+        BorderThickness="0,0,0,1"
+        Padding="2">
+
+            <DockPanel>
+
+                <!-- ==================================================== -->
+                <!-- IMMER SICHTBAR                                       -->
+                <!-- ==================================================== -->
+
+                <StackPanel Orientation="Horizontal"
+                    DockPanel.Dock="Left">
+
+                    <!-- Kopieren -->
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                    Click="MenuCopy_Click"
+                    ToolTip="Kopieren (Strg+C)">
+                        <TextBlock Text="⧉"
+                           FontSize="19"/>
+                    </Button>
+
+                    <!-- Einfügen -->
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                    Click="MenuPaste_Click"
+                    ToolTip="Einfügen (Strg+V)">
+                        <TextBlock Text="▣"
+                           FontSize="18"/>
+                    </Button>
+
+                    <!-- Löschen -->
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                    Click="MenuDelete_Click"
+                    ToolTip="Löschen (Entf)">
+                        <TextBlock Text="✕"
+                           FontSize="17"/>
+                    </Button>
+
+                    <Separator Margin="3,2"/>
+
+                    <!-- Alles markieren -->
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                    Click="MenuSelectAll_Click"
+                    ToolTip="Alles markieren (Strg+A)">
+                        <TextBlock Text="▦"
+                           FontSize="18"/>
+                    </Button>
+
+                    <!-- Nichts markieren -->
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                    Click="MenuSelectNone_Click"
+                    ToolTip="Nichts markieren (Esc)">
+                        <TextBlock Text="□"
+                           FontSize="18"/>
+                    </Button>
+
+                    <Separator Margin="3,2"/>
+
+
+                    <!-- LINKS -->
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                    Click="MenuMoveLeft_Click"
+                    ToolTip="Nach links (A)">
+                        <TextBlock Text="←"
+                           FontSize="20"/>
+                    </Button>
+
+                    <!-- RECHTS -->
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                    Click="MenuMoveRight_Click"
+                    ToolTip="Nach rechts (D)">
+                        <TextBlock Text="→"
+                           FontSize="20"/>
+                    </Button>
+
+                    <!-- VOR -->
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                    Click="MenuMoveForward_Click"
+                    ToolTip="Nach vorne (W)">
+                        <TextBlock Text="↑"
+                           FontSize="20"/>
+                    </Button>
+
+                    <!-- ZURÜCK -->
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                    Click="MenuMoveBackward_Click"
+                    ToolTip="Nach hinten (S)">
+                        <TextBlock Text="↓"
+                           FontSize="20"/>
+                    </Button>
+
+                    <!-- HOCH -->
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                    Click="MenuMoveUp_Click"
+                    ToolTip="Bauteil höher (Pfeil hoch)">
+                        <TextBlock Text="⇧"
+                           FontSize="19"/>
+                    </Button>
+
+                    <!-- RUNTER -->
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                    Click="MenuMoveDown_Click"
+                    ToolTip="Bauteil runter (Pfeil runter)">
+                        <TextBlock Text="⇩"
+                           FontSize="19"/>
+                    </Button>
+
+                    <Separator Margin="3,2"/>
+
+
+                    <!-- ROTATION X -->
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+        Click="MenuRotateX_Click"
+        ToolTip="90° um X drehen (X)">
+
+                        <Grid Width="25" Height="25">
+
+                            <Path Data="M 5,14 A 8,8 0 1 1 15,21"
+              Stroke="Black"
+              StrokeThickness="1.7"
+              Fill="Transparent"/>
+
+                            <Path Data="M 12,18 L 16,21 L 11,23"
+              Stroke="Black"
+              StrokeThickness="1.7"
+              Fill="Transparent"/>
+
+                            <TextBlock Text="X"
+                   FontSize="10"
+                   FontWeight="Bold"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"/>
+
+                        </Grid>
+
+                    </Button>
+
+                    <!-- ROTATION Y -->
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                    Click="MenuRotateY_Click"
+                    ToolTip="90° um Y drehen (Y)">
+
+                        <Grid Width="25" Height="25">
+
+                            <Path Data="M 5,14 A 8,8 0 1 1 15,21"
+Stroke="Black"
+StrokeThickness="1.7"
+Fill="Transparent"/>
+
+                            <Path Data="M 12,18 L 16,21 L 11,23"
+Stroke="Black"
+StrokeThickness="1.7"
+Fill="Transparent"/>
+
+                            <TextBlock Text="Y"
+     FontSize="10"
+     FontWeight="Bold"
+     HorizontalAlignment="Center"
+     VerticalAlignment="Center"/>
+
+                        </Grid>
+
+                        
+                    </Button>
+
+                    <!-- ROTATION Z -->
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                    Click="MenuRotateZ_Click"
+                    ToolTip="90° um Z drehen (Z)">
+                        <Grid Width="25" Height="25">
+
+                            <Path Data="M 5,14 A 8,8 0 1 1 15,21"
+Stroke="Black"
+StrokeThickness="1.7"
+Fill="Transparent"/>
+
+                            <Path Data="M 12,18 L 16,21 L 11,23"
+Stroke="Black"
+StrokeThickness="1.7"
+Fill="Transparent"/>
+
+                            <TextBlock Text="X"
+     FontSize="10"
+     FontWeight="Bold"
+     HorizontalAlignment="Center"
+     VerticalAlignment="Center"/>
+
+                        </Grid>
+                        
+                    </Button>
+
+
+                    <Separator Margin="3,2"/>
+
+
+                    <!-- ================================================= -->
+                    <!-- NUR 2D                                            -->
+                    <!-- ================================================= -->
+
+                    <StackPanel x:Name="PlanToolbar"
+                        Orientation="Horizontal">
+
+                        <!-- Ebene höher -->
+                        <Button Style="{StaticResource ToolbarButtonStyle}"
+                        Click="MenuLayerUp_Click"
+                        ToolTip="Bearbeitungsebene höher (Bild ↑)">
+                            <TextBlock Text="▱↑"
+                               FontSize="14"/>
+                        </Button>
+
+                        <!-- Ebene tiefer -->
+                        <Button Style="{StaticResource ToolbarButtonStyle}"
+                        Click="MenuLayerDown_Click"
+                        ToolTip="Bearbeitungsebene tiefer (Bild ↓)">
+                            <TextBlock Text="▱↓"
+                               FontSize="14"/>
+                        </Button>
+
+                        <!-- 3D -->
+                        <Button Style="{StaticResource ToolbarButtonStyle}"
+                        Click="MenuWorld_Click"
+                        ToolTip="Paksy World öffnen">
+                            <TextBlock Text="3D"
+                               FontSize="12"
+                               FontWeight="Bold"/>
+                        </Button>
+
+                    </StackPanel>
+
+
+                    <!-- ================================================= -->
+                    <!-- NUR 3D                                            -->
+                    <!-- ================================================= -->
+
+                    <StackPanel x:Name="WorldToolbar"
+                        Orientation="Horizontal"
+                        Visibility="Collapsed">
+
+                        <!-- Zoom + -->
+                        <Button Style="{StaticResource ToolbarButtonStyle}"
+                        Click="MenuZoomIn_Click"
+                        ToolTip="3D Zoom + (Strg + Mausrad hoch)">
+                            <TextBlock Text="+"
+                               FontSize="21"/>
+                        </Button>
+
+                        <!-- Zoom - -->
+                        <Button Style="{StaticResource ToolbarButtonStyle}"
+                        Click="MenuZoomOut_Click"
+                        ToolTip="3D Zoom - (Strg + Mausrad runter)">
+                            <TextBlock Text="−"
+                               FontSize="21"/>
+                        </Button>
+
+                        <!-- Kamera drehen -->
+                        <Button Style="{StaticResource ToolbarButtonStyle}"
+                        Click="MenuCameraRotate_Click"
+                        ToolTip="Kamera drehen (Strg + rechte Maustaste)">
+                            <TextBlock Text="⟳"
+                               FontSize="21"/>
+                        </Button>
+
+                        <!-- Kamera verschieben -->
+                        <Button Style="{StaticResource ToolbarButtonStyle}"
+                        Click="MenuCameraPan_Click"
+                        ToolTip="Kamera verschieben (Strg + linke Maustaste)">
+                            <TextBlock Text="✥"
+                               FontSize="18"/>
+                        </Button>
+
+                        <!-- Plan -->
+                        <Button Style="{StaticResource ToolbarButtonStyle}"
+                        Click="MenuPlan_Click"
+                        ToolTip="Paksy Plan öffnen">
+                            <TextBlock Text="2D"
+                               FontSize="12"
+                               FontWeight="Bold"/>
+                        </Button>
+
+                    </StackPanel>
+
+                </StackPanel>
+
+            </DockPanel>
+
+        </Border>
+
         <!-- Grafischer Werkzeugkasten -->
         <Border Grid.Column="0"
-                Grid.Row="0"
+                Grid.Row="2"
                 BorderBrush="#FFAAAAAA"
                 BorderThickness="1"
                 Background="#FFF7F7F7">
@@ -275,8 +741,10 @@
 
         <!-- Baufläche -->
         <TabControl x:Name="MainTabs"
+                    Grid.Row="2"
                     Grid.Column="1"
-            Margin="5">
+                    Margin="5"
+                    SelectionChanged="MainTabs_SelectionChanged">
 
             <!-- Paksy Plan -->
             <TabItem Header="Paksy Plan">
@@ -342,7 +810,7 @@
         </TabControl>
 
         <!-- Statusleiste -->
-        <StatusBar Grid.Row="1"
+        <StatusBar Grid.Row="3"
                    Grid.ColumnSpan="2">
             <TextBlock x:Name="StatusText" Text="Bereit"/>
         </StatusBar>

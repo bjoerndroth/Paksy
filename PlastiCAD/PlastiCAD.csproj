@@ -94,6 +94,7 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Class1.cs" />
     <Compile Include="Models\BallConnector.cs" />
     <Compile Include="Models\BigPlate.cs" />
     <Compile Include="Models\Cube.cs" />
@@ -194,6 +195,9 @@
     <Resource Include="Assets\parts\Plate.png" />
     <Resource Include="Assets\parts\Wheel.png" />
     <Resource Include="Assets\parts\Window.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\parts\BigWindow.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\System.ValueTuple.4.6.2\build\net471\System.ValueTuple.targets" Condition="Exists('..\packages\System.ValueTuple.4.6.2\build\net471\System.ValueTuple.targets')" />
