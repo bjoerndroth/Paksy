@@ -22,7 +22,6 @@ using System.Windows.Media.Media3D;
     using System.Windows.Shapes;
 using System.Windows.Threading;
 
-
 namespace PlastiCAD
 {
     /// <summary>
@@ -32,6 +31,8 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+
+        private string currentProjectFileName = null;
 
         private DispatcherTimer selectionRotationTimer;
 
@@ -4590,6 +4591,127 @@ namespace PlastiCAD
 
         private void SaveProject()
         {
+            if (string.IsNullOrWhiteSpace(currentProjectFileName))
+            {
+                SaveProjectAs();
+                return;
+            }
+
+            SaveProjectToFile(
+                currentProjectFileName);
+        }
+
+        private void SaveProjectAs()
+        {
+            SaveFileDialog dialog =
+                new SaveFileDialog
+                {
+                    Title = "PlastiCAD-Projekt speichern unter",
+
+                    Filter =
+                        "PlastiCAD-Projekt (*.plasticad)|*.plasticad|" +
+                        "JSON-Datei (*.json)|*.json",
+
+                    DefaultExt = ".plasticad",
+                    AddExtension = true
+                };
+
+            // Wenn bereits eine Datei geöffnet/gespeichert wurde,
+            // den bisherigen Dateinamen vorschlagen.
+            if (!string.IsNullOrWhiteSpace(currentProjectFileName))
+            {
+                dialog.FileName =
+                    System.IO.Path.GetFileName(
+                        currentProjectFileName);
+
+                string directory =
+                    System.IO.Path.GetDirectoryName(
+                        currentProjectFileName);
+
+                if (!string.IsNullOrWhiteSpace(directory))
+                {
+                    dialog.InitialDirectory =
+                        directory;
+                }
+            }
+
+            if (dialog.ShowDialog() != true)
+                return;
+
+            currentProjectFileName =
+                dialog.FileName;
+
+            UpdateWindowTitle();
+
+            SaveProjectToFile(
+                currentProjectFileName);
+        }
+        private void SaveProjectToFile(
+    string fileName)
+        {
+            ProjectFile project =
+                new ProjectFile();
+
+            foreach (PlacedPart placed
+                     in assembly.PlacedParts)
+            {
+                project.Parts.Add(
+                    new PlacedPartData
+                    {
+                        PartName =
+                            placed.Part.Name,
+
+                        X =
+                            placed.Transform.Position.X,
+
+                        Y =
+                            placed.Transform.Position.Y,
+
+                        Z =
+                            placed.Transform.Position.Z,
+
+                        Rotation =
+                            placed.Rotation,
+
+                        PlateOrientation =
+                            placed.PlateOrientation,
+
+                        RotationX =
+                            placed.Transform.Rotation.X,
+
+                        RotationY =
+                            placed.Transform.Rotation.Y,
+
+                        RotationZ =
+                            placed.Transform.Rotation.Z
+                    });
+            }
+
+            JsonSerializerOptions options =
+                new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                };
+
+            string json =
+                JsonSerializer.Serialize(
+                    project,
+                    options);
+
+            File.WriteAllText(
+                fileName,
+                json);
+
+            StatusText.Text =
+                $"{project.Parts.Count} Bauteil(e) gespeichert";
+
+            UpdateWindowTitle();
+        }
+
+
+
+        private void altSaveProject()
+        {
             SaveFileDialog dialog = new SaveFileDialog
             {
                 Title = "PlastiCAD-Projekt speichern",
@@ -4600,6 +4722,11 @@ namespace PlastiCAD
 
             if (dialog.ShowDialog() != true)
                 return;
+
+            currentProjectFileName =
+    dialog.FileName;
+
+            UpdateWindowTitle();
 
             ProjectFile project = new ProjectFile();
 
@@ -4644,8 +4771,15 @@ namespace PlastiCAD
                 Filter = "PlastiCAD-Projekt (*.plasticad)|*.plasticad|JSON-Datei (*.json)|*.json"
             };
 
-            if (dialog.ShowDialog() != true)
-                return;
+            if(dialog.ShowDialog() != true)
+    return;
+
+            currentProjectFileName =
+                dialog.FileName;
+
+            UpdateWindowTitle();
+
+
 
             string json = File.ReadAllText(dialog.FileName);
 
@@ -7461,7 +7595,19 @@ namespace PlastiCAD
             }
         }
 
-
+        private void UpdateWindowTitle()
+        {
+            if (string.IsNullOrEmpty(currentProjectFileName))
+            {
+                Title = "Neues Projekt - PlastiCAD";
+            }
+            else
+            {
+                Title =
+                    System.IO.Path.GetFileName(currentProjectFileName)
+                    + " - PlastiCAD";
+            }
+        }
 
 
 

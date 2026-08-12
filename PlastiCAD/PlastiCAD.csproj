@@ -94,7 +94,7 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Class1.cs" />
+    <Compile Include="MainWindowMenu.cs" />
     <Compile Include="Models\BallConnector.cs" />
     <Compile Include="Models\BigPlate.cs" />
     <Compile Include="Models\Cube.cs" />

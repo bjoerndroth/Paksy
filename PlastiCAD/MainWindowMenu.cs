@@ -9,17 +9,28 @@ namespace PlastiCAD
 {
     public partial class MainWindow
     {
-        private void MenuNew_Click(object sender, RoutedEventArgs e)
+        private void MenuNew_Click(
+     object sender,
+     RoutedEventArgs e)
         {
             assembly = new Assembly();
+
             selectedParts.Clear();
             copiedParts.Clear();
             currentSnaps.Clear();
+
             undoStack.Clear();
             redoStack.Clear();
+
             currentPlanZ = 0.0;
             worldCameraInitialized = false;
-            StatusText.Text = "Neues Projekt";
+
+            currentProjectFileName = null;
+            UpdateWindowTitle();
+
+            StatusText.Text =
+                "Neues Projekt";
+
             RedrawScene();
         }
 
@@ -28,6 +39,13 @@ namespace PlastiCAD
         private void MenuCopy_Click(object sender, RoutedEventArgs e) => CopySelection();
         private void MenuPaste_Click(object sender, RoutedEventArgs e) => PasteSelection();
         private void MenuDelete_Click(object sender, RoutedEventArgs e) => DeleteSelection();
+
+        private void MenuSaveAs_Click(
+    object sender,
+    RoutedEventArgs e)
+        {
+            SaveProjectAs();
+        }
 
         private void MenuSelectAll_Click(object sender, RoutedEventArgs e)
         {
