@@ -600,12 +600,7 @@ Fill="Transparent"/>
 
                 <StackPanel Margin="2">
 
-                    <TextBlock Text="Grundbauteile"
-                               FontSize="14"
-                               FontWeight="SemiBold"
-                               Margin="2,3,2,4"
-                               Foreground="#FF333333"/>
-
+                 
                     <UniformGrid Columns="2">
 
                         <Button Style="{StaticResource PartToolButtonStyle}"
@@ -682,14 +677,8 @@ Fill="Transparent"/>
 
                     </UniformGrid>
 
-                    <Separator Margin="2,5"/>
-
-                    <TextBlock Text="Weitere Bauteile"
-                               FontSize="14"
-                               FontWeight="SemiBold"
-                               Margin="2,0,2,4"
-                               Foreground="#FF333333"/>
-
+                  
+                 
                     <UniformGrid Columns="2">
 
                         <Button Style="{StaticResource PartToolButtonStyle}"

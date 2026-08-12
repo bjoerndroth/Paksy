@@ -3827,80 +3827,8 @@ namespace PlastiCAD
 
             bool controlPressed = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
 
-            if (controlPressed && e.Key == Key.Z)
-            {
-                Undo();
-
-                e.Handled = true;
-                return;
-            }
-
-            if (controlPressed && e.Key == Key.Y)
-            {
-                Redo();
-
-                e.Handled = true;
-                return;
-            }
-
-
-            if (controlPressed && e.Key == Key.S)
-            {
-                SaveProject();
-
-                e.Handled = true;
-                return;
-            }
-
-            if (controlPressed && e.Key == Key.O)
-            {
-                LoadProject();
-
-                e.Handled = true;
-                return;
-            } 
-
-
-
-            if (controlPressed && e.Key == Key.C)
-            {
-                CopySelection();
-                e.Handled = true;
-                return;
-            }
-
-            if (controlPressed && e.Key == Key.V)
-            {
-                PasteSelection();
-                e.Handled = true;
-                return;
-            }
-
-            if (e.Key == Key.Escape)
-            {
-                selectedPart = null;
-              //  PartsList.SelectedIndex = -1;
-
-                selectedParts.Clear();
-
-                StatusText.Text = "Auswahlmodus";
-                RedrawScene();
-
-                e.Handled = true;
-                return;
-            }
-
-            if (selectedParts.Count == 0)
-                return;
-
-            if (e.Key == Key.Delete)
-            {
-                DeleteSelection();
-
-                e.Handled = true;
-                return;
-            }
-
+           
+            
             // if (e.Key == Key.R)
             // {
             //   int angle =
@@ -4812,24 +4740,43 @@ namespace PlastiCAD
 
         private ProjectFile CreateProjectSnapshot()
         {
-            ProjectFile project = new ProjectFile();
+            ProjectFile project =
+                new ProjectFile();
 
-            foreach (PlacedPart placed in assembly.PlacedParts)
+            foreach (PlacedPart placed
+                     in assembly.PlacedParts)
             {
-                project.Parts.Add(new PlacedPartData
-                {
-                    PartName = placed.Part.Name,
+                project.Parts.Add(
+                    new PlacedPartData
+                    {
+                        PartName =
+                            placed.Part.Name,
 
-                    X = placed.Transform.Position.X,
-                    Y = placed.Transform.Position.Y,
-                    Z = placed.Transform.Position.Z,
+                        X =
+                            placed.Transform.Position.X,
 
-                    Rotation = placed.Rotation,
+                        Y =
+                            placed.Transform.Position.Y,
 
-                     RotationX = placed.Transform.Rotation.X,
-                    RotationY = placed.Transform.Rotation.Y,
-                    RotationZ = placed.Transform.Rotation.Z
-                });
+                        Z =
+                            placed.Transform.Position.Z,
+
+                        Rotation =
+                            placed.Rotation,
+
+                        // Wichtig für Platten / BigPlate / Fenster
+                        PlateOrientation =
+                            placed.PlateOrientation,
+
+                        RotationX =
+                            placed.Transform.Rotation.X,
+
+                        RotationY =
+                            placed.Transform.Rotation.Y,
+
+                        RotationZ =
+                            placed.Transform.Rotation.Z
+                    });
             }
 
             return project;
@@ -5476,6 +5423,91 @@ namespace PlastiCAD
      object sender,
      KeyEventArgs e)
         {
+            bool controlPressed =
+    (Keyboard.Modifiers & ModifierKeys.Control)
+    == ModifierKeys.Control;
+            if (controlPressed && e.Key == Key.S)
+            {
+                SaveProject();
+
+                e.Handled = true;
+                return;
+            }
+
+            if (controlPressed && e.Key == Key.O)
+            {
+                LoadProject();
+
+                e.Handled = true;
+                return;
+            }
+
+
+
+            if (controlPressed && e.Key == Key.C)
+            {
+                CopySelection();
+                e.Handled = true;
+                return;
+            }
+
+            if (controlPressed && e.Key == Key.V)
+            {
+                PasteSelection();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.Escape)
+            {
+                selectedPart = null;
+                //  PartsList.SelectedIndex = -1;
+
+                selectedParts.Clear();
+
+                StatusText.Text = "Auswahlmodus";
+                RedrawScene();
+
+                e.Handled = true;
+                return;
+            }
+
+            
+
+            if (e.Key == Key.Delete)
+            {
+                DeleteSelection();
+
+                e.Handled = true;
+                return;
+            }
+
+
+            // ------------------------------------------------------------
+            // RÜCKGÄNGIG / WIEDERHERSTELLEN
+            // Unbedingt VOR Y und Z behandeln.
+            // ------------------------------------------------------------
+
+            if (controlPressed &&
+                e.Key == Key.Z)
+            {
+                Undo();
+
+                e.Handled = true;
+                return;
+            }
+
+            if (controlPressed &&
+                e.Key == Key.Y)
+            {
+                Redo();
+
+                e.Handled = true;
+                return;
+            }
+
+
+
             if (e.Key == Key.Escape)
             {
                 selectedPart = null;
@@ -5504,13 +5536,9 @@ namespace PlastiCAD
                 return;
             }
 
+           double moveStep = Grider.CellSize * Scale;
 
-            double moveStep = Grider.CellSize * Scale;
-
-            bool controlPressed =
-    (Keyboard.Modifiers & ModifierKeys.Control)
-    == ModifierKeys.Control;
-
+            
             if (controlPressed &&
                 e.Key == Key.A)
             {
@@ -5532,6 +5560,8 @@ namespace PlastiCAD
                 return;
             }
 
+            if (selectedParts.Count == 0)
+                return;
 
             if (e.Key == Key.A ||
                 e.Key == Key.D ||
