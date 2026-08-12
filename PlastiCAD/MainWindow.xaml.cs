@@ -4347,31 +4347,68 @@ namespace PlastiCAD
             double grid =
                 Grider.CellSize * Scale;
 
-            double minX =
-                copiedParts.Min(
-                    part => part.Transform.Position.X);
+            // ------------------------------------------------------------
+            // REFERENZPUNKT DER KOPIERTEN GRUPPE
+            //
+            // NICHT minX/minY auf das Raster zwingen.
+            // Wir verwenden den ersten kopierten Teil als Anker.
+            // Seine eventuelle Halb-Raster-Position bleibt dadurch erhalten.
+            // ------------------------------------------------------------
 
-            double minY =
-                copiedParts.Min(
-                    part => part.Transform.Position.Y);
+            PlacedPart anchor =
+                copiedParts[0];
+
+            double anchorX =
+                anchor.Transform.Position.X;
+
+            double anchorY =
+                anchor.Transform.Position.Y;
+
+
+            // ------------------------------------------------------------
+            // MAUSPOSITION AUF RASTER
+            // ------------------------------------------------------------
 
             double targetX =
-                Math.Floor(
+                Math.Round(
                     lastMousePosition.X / grid)
                 * grid;
 
             double targetY =
-                Math.Floor(
+                Math.Round(
                     lastMousePosition.Y / grid)
                 * grid;
 
+
+            // ------------------------------------------------------------
+            // NUR GANZE RASTERSCHRITTE VERSCHIEBEN
+            //
+            // Das ist der wichtige Teil:
+            // Der ursprüngliche Rasterrest der gesamten Konstruktion
+            // bleibt exakt erhalten.
+            // ------------------------------------------------------------
+
+            double rawOffsetX =
+                targetX - anchorX;
+
+            double rawOffsetY =
+                targetY - anchorY;
+
             double offsetX =
-                targetX - minX;
+                Math.Round(
+                    rawOffsetX / grid)
+                * grid;
 
             double offsetY =
-                targetY - minY;
+                Math.Round(
+                    rawOffsetY / grid)
+                * grid;
 
-            // Erst prüfen, ob alle Zielpositionen frei sind.
+
+            // ------------------------------------------------------------
+            // PRÜFEN, OB ALLE ZIELPOSITIONEN FREI SIND
+            // ------------------------------------------------------------
+
             foreach (PlacedPart source in copiedParts)
             {
                 double newX =
@@ -4398,26 +4435,34 @@ namespace PlastiCAD
                 }
             }
 
+
             SaveUndoState();
 
             selectedParts.Clear();
+
+
+            // ------------------------------------------------------------
+            // KOPIEN ERZEUGEN
+            // ------------------------------------------------------------
 
             foreach (PlacedPart source in copiedParts)
             {
                 PlacedPart pasted =
                     new PlacedPart
                     {
-                        Part = source.Part,
+                        Part =
+                            source.Part,
 
-                        // Alte 2D-Rotation
-                        Rotation = source.Rotation,
+                        Rotation =
+                            source.Rotation,
 
-                        // Platten-, Fenster- und BigPlate-Ausrichtung
                         PlateOrientation =
                             source.PlateOrientation
                     };
 
-                // Position mit Einfügeversatz
+
+                // Position:
+                // Alle Teile bekommen EXAKT denselben Rasterversatz.
                 pasted.Transform.Position =
                     new Vector3(
                         source.Transform.Position.X
@@ -4428,12 +4473,14 @@ namespace PlastiCAD
 
                         source.Transform.Position.Z);
 
+
                 // Echte 3D-Rotation vollständig kopieren
                 pasted.Transform.Rotation =
                     new Vector3(
                         source.Transform.Rotation.X,
                         source.Transform.Rotation.Y,
                         source.Transform.Rotation.Z);
+
 
                 // Skalierung vollständig kopieren
                 pasted.Transform.Scale =
@@ -4442,16 +4489,26 @@ namespace PlastiCAD
                         source.Transform.Scale.Y,
                         source.Transform.Scale.Z);
 
+
                 pasted.Sockets =
                     source.Part.CreateSockets();
 
-                // Wichtig: jeweils nur einmal hinzufügen
-                assembly.PlacedParts.Add(pasted);
-                selectedParts.Add(pasted);
+
+                assembly.PlacedParts.Add(
+                    pasted);
+
+                selectedParts.Add(
+                    pasted);
             }
+
+
+            // ------------------------------------------------------------
+            // VERBINDUNGEN NEU AUFBAUEN
+            // ------------------------------------------------------------
 
             int connectionCount =
                 ConnectSelectedParts();
+
 
             StatusText.Text =
                 connectionCount > 0
@@ -4459,9 +4516,9 @@ namespace PlastiCAD
                       $"{connectionCount} Verbindung(en)"
                     : $"{selectedParts.Count} Bauteil(e) eingefügt";
 
+
             RedrawScene();
         }
-        
 
         private void SaveProject()
         {
