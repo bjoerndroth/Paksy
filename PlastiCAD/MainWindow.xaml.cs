@@ -31,8 +31,7 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
-
-        private string currentProjectFileName = null;
+       private string currentProjectFileName = null;
 
         private DispatcherTimer selectionRotationTimer;
 
@@ -653,7 +652,7 @@ namespace PlastiCAD
 
             RedrawScene();
         }
-        private void RedrawScene()
+        private void altRedrawScene()
         {
             BuildArea.Children.Clear();
 
@@ -3757,36 +3756,72 @@ namespace PlastiCAD
 
         private void DrawGrid()
         {
-            double grid = Grider.CellSize * Scale;
+            double grid =
+                Grider.CellSize * Scale;
 
-            double cross = 3; // halbe Kreuzgröße
+            double cross = 3;
 
-            for (double x = 0; x < BuildArea.ActualWidth; x += grid)
+            double width =
+                BuildArea.ActualWidth;
+
+            double height =
+                BuildArea.ActualHeight;
+
+            // Beim ersten Layout kann ActualWidth/Height
+            // noch 0 sein.
+            if (width <= 0)
+                width = BuildArea.Width;
+
+            if (height <= 0)
+                height = BuildArea.Height;
+
+            if (width <= 0 ||
+                height <= 0)
             {
-                for (double y = 0; y < BuildArea.ActualHeight; y += grid)
-                {
-                    Line h = new Line();
-                    h.X1 = x - cross;
-                    h.Y1 = y;
-                    h.X2 = x + cross;
-                    h.Y2 = y;
-                    h.Stroke = Brushes.LightGray;
-                    h.StrokeThickness = 1;
+                return;
+            }
 
-                    Line v = new Line();
-                    v.X1 = x;
-                    v.Y1 = y - cross;
-                    v.X2 = x;
-                    v.Y2 = y + cross;
-                    v.Stroke = Brushes.LightGray;
-                    v.StrokeThickness = 1;
+            for (double x = 0;
+                 x < width;
+                 x += grid)
+            {
+                for (double y = 0;
+                     y < height;
+                     y += grid)
+                {
+                    Line h =
+                        new Line
+                        {
+                            X1 = x - cross,
+                            Y1 = y,
+                            X2 = x + cross,
+                            Y2 = y,
+
+                            Stroke = Brushes.LightGray,
+                            StrokeThickness = 1,
+
+                            Tag = "Grid"
+                        };
+
+                    Line v =
+                        new Line
+                        {
+                            X1 = x,
+                            Y1 = y - cross,
+                            X2 = x,
+                            Y2 = y + cross,
+
+                            Stroke = Brushes.LightGray,
+                            StrokeThickness = 1,
+
+                            Tag = "Grid"
+                        };
 
                     BuildArea.Children.Add(h);
                     BuildArea.Children.Add(v);
                 }
             }
         }
-
         private void MainWindow_KeyDown(object sender, KeyEventArgs e)
         {
 
@@ -3866,21 +3901,21 @@ namespace PlastiCAD
                 return;
             }
 
-            if (e.Key == Key.R)
-            {
-                int angle =
-                    (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift
-                        ? -90
-                        : 90;
+            // if (e.Key == Key.R)
+            // {
+            //   int angle =
+            // (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift
+            //            ? -90
+            //           : 90;
 
-                RotateSelection(angle);
+            //            RotateSelection(angle);
 
-                e.Handled = true;
-                return;
-            }
+            //            e.Handled = true;
+            //return;
+            //}
 
-          
-          
+
+
         }
 
 
@@ -4498,96 +4533,7 @@ namespace PlastiCAD
 
             RedrawScene();
         }
-        private void RotateSelection(int angle)
-        {
-            if (selectedParts.Count == 0)
-                return;
-
-            SaveUndoState();
-
-
-
-            double grid = Grider.CellSize * Scale;
-
-            double minX = selectedParts.Min(
-                part => part.Transform.Position.X);
-
-            double minY = selectedParts.Min(
-                part => part.Transform.Position.Y);
-
-            double maxX = selectedParts.Max(
-                part => part.Transform.Position.X);
-
-            double maxY = selectedParts.Max(
-                part => part.Transform.Position.Y);
-
-            // Mittelpunkt der Auswahl in Rasterkoordinaten
-            double pivotX = (minX + maxX) / 2.0;
-            double pivotY = (minY + maxY) / 2.0;
-
-            foreach (PlacedPart part in selectedParts)
-            {
-                DisconnectPart(part);
-            }
-
-            foreach (PlacedPart part in selectedParts)
-            {
-
-                if (part.Part is BigPlate)
-                {
-                    // Drei Ebenen × zwei Seiten
-                    part.PlateOrientation =
-                        (part.PlateOrientation + 1) % 6;
-
-                    continue;
-                }
-
-                if (part.Part is Plate)
-                {
-                    part.PlateOrientation =
-                        (part.PlateOrientation + 1) % 3;
-
-                    continue;
-                }
-                double relativeX =
-                    part.Transform.Position.X - pivotX;
-
-                double relativeY =
-                    part.Transform.Position.Y - pivotY;
-
-                double rotatedX;
-                double rotatedY;
-
-                if (angle == 90)
-                {
-                    rotatedX = -relativeY;
-                    rotatedY = relativeX;
-                }
-                else
-                {
-                    // -90°
-                    rotatedX = relativeY;
-                    rotatedY = -relativeX;
-                }
-                part.Transform.Position.X =
-                    Math.Round((pivotX + rotatedX) / grid,
-                               MidpointRounding.AwayFromZero) * grid;
-
-                part.Transform.Position.Y =
-                    Math.Round((pivotY + rotatedY) / grid,
-                               MidpointRounding.AwayFromZero) * grid;
-                part.Rotation =
-                    (part.Rotation + angle + 360) % 360;
-            }
-
-            int connectionCount = ConnectSelectedParts();
-
-            StatusText.Text = connectionCount > 0
-                ? $"{connectionCount} Verbindung(en)"
-                : $"{selectedParts.Count} Bauteil(e) gedreht";
-
-            RedrawScene();
-        }
+        
 
         private void SaveProject()
         {
@@ -7570,9 +7516,7 @@ namespace PlastiCAD
         {
             if (PlanToolbar == null ||
                 WorldToolbar == null)
-            {
                 return;
-            }
 
             bool worldIsActive =
                 MainTabs.SelectedItem == WorldTab;
@@ -7584,6 +7528,8 @@ namespace PlastiCAD
 
                 WorldToolbar.Visibility =
                     Visibility.Visible;
+
+                RedrawWorld();
             }
             else
             {
@@ -7592,9 +7538,10 @@ namespace PlastiCAD
 
                 WorldToolbar.Visibility =
                     Visibility.Collapsed;
+
+                RedrawPlan();
             }
         }
-
         private void UpdateWindowTitle()
         {
             if (string.IsNullOrEmpty(currentProjectFileName))
@@ -7609,12 +7556,156 @@ namespace PlastiCAD
             }
         }
 
+        private void MainWindow_SizeChanged(
+    object sender,
+    SizeChangedEventArgs e)
+        {
+            if (!IsLoaded)
+                return;
+
+            RedrawScene();
+        }
 
 
+        private void RedrawPlan()
+        {
+            // ------------------------------------------------------------
+            // ALLE NICHT-RASTERELEMENTE ENTFERNEN
+            // ------------------------------------------------------------
 
+            for (int i = BuildArea.Children.Count - 1;
+                 i >= 0;
+                 i--)
+            {
+                FrameworkElement element =
+                    BuildArea.Children[i]
+                    as FrameworkElement;
 
+                if (element == null)
+                    continue;
 
+                // Raster bleibt erhalten
+                if ((element.Tag as string) != "Grid")
+                {
+                    BuildArea.Children.RemoveAt(i);
+                }
+            }
 
+            // ------------------------------------------------------------
+            // RASTER NUR ERZEUGEN, WENN NOCH KEINS VORHANDEN IST
+            // ------------------------------------------------------------
+
+            bool gridExists =
+                BuildArea.Children
+                    .OfType<FrameworkElement>()
+                    .Any(element =>
+                        (element.Tag as string) == "Grid");
+
+            if (!gridExists)
+            {
+                DrawGrid();
+            }
+
+            // ------------------------------------------------------------
+            // Ab hier dein bisheriger Bauteil-Zeichencode
+            // ------------------------------------------------------------
+
+            // Zuerst Flächenteile zeichnen,
+            // damit Rohre und andere Bauteile darüberliegen.
+            foreach (PlacedPart placed in assembly.PlacedParts)
+            {
+                if (placed.Part is WindowPlate windowPlate)
+                {
+                    DrawWindow2D(
+                        placed,
+                        windowPlate);
+
+                    continue;
+                }
+
+                if (placed.Part is BigPlate bigPlate)
+                {
+                    DrawBigPlate2D(
+                        placed,
+                        bigPlate);
+
+                    continue;
+                }
+
+                if (placed.Part is Plate plate)
+                {
+                    DrawPlate2D(
+                        placed,
+                        plate);
+                }
+            }
+
+            // Danach die übrigen Bauteile zeichnen.
+            foreach (PlacedPart placed in assembly.PlacedParts)
+            {
+                if (placed.Part is WindowPlate ||
+                    placed.Part is BigPlate ||
+                    placed.Part is Plate)
+                {
+                    continue;
+                }
+
+                if (placed.Part is Wheel wheel)
+                {
+                    DrawWheel(
+                        placed,
+                        wheel);
+
+                    continue;
+                }
+
+                if (placed.Part is EndCap endCap)
+                {
+                    DrawEndCap2D(
+                        placed,
+                        endCap);
+
+                    continue;
+                }
+
+                if (placed.Part is Cube cube)
+                {
+                    DrawCube2D(
+                        placed,
+                        cube);
+
+                    continue;
+                }
+
+                if (placed.Part is BallConnector ball)
+                {
+                    DrawBallConnector2D(
+                        placed,
+                        ball);
+
+                    continue;
+                }
+
+                if (placed.Part is StructuralPart structuralPart)
+                {
+                    DrawStructuralPart(
+                        placed,
+                        structuralPart);
+                }
+            }
+        }
+
+        private void RedrawScene()
+        {
+            if (MainTabs.SelectedItem == WorldTab)
+            {
+                RedrawWorld();
+            }
+            else
+            {
+                RedrawPlan();
+            }
+        }
 
 
 

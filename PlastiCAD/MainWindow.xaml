@@ -6,7 +6,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:PlastiCAD"
         mc:Ignorable="d"
-        Title="PlastiCAD" Height="450" Width="800">
+        Title="PlastiCAD" Height="450" Width="800"
+        SizeChanged="MainWindow_SizeChanged">
 
     <Window.Resources>
 
@@ -793,12 +794,23 @@ Fill="Transparent"/>
 
             <!-- Paksy Plan -->
             <TabItem Header="Paksy Plan">
-                <Canvas x:Name="BuildArea"
+
+                <ScrollViewer x:Name="PlanScrollViewer"
+                  HorizontalScrollBarVisibility="Auto"
+                  VerticalScrollBarVisibility="Auto"
+                  CanContentScroll="False">
+
+                    <Canvas x:Name="BuildArea"
+                Width="3000"
+                Height="3000"
                 Focusable="True"
                 Background="WhiteSmoke"
                 MouseLeftButtonDown="BuildArea_MouseLeftButtonDown"
                 MouseMove="BuildArea_MouseMove"
                 MouseLeftButtonUp="BuildArea_MouseLeftButtonUp"/>
+
+                </ScrollViewer>
+
             </TabItem>
 
             <!-- Paksy World -->
