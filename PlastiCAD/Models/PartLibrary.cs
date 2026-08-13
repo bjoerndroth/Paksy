@@ -32,6 +32,7 @@ namespace PlastiCAD.Models
             AddCubes();
             AddBallConnector();
             AddBigPlates();
+            AddPlates();
         }
 
         

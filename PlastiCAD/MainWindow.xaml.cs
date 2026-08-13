@@ -5814,9 +5814,9 @@ namespace PlastiCAD
                 DisconnectPart(placed);
             }
 
+
             // ------------------------------------------------------------
-            // TATSÄCHLICHE MITTELPUNKTE DER BAUTEILE ERMITTELN
-            // Bei Platten kommt der halbe Rasterversatz hinzu.
+            // TATSÄCHLICHE MITTELPUNKTE ERMITTELN
             // ------------------------------------------------------------
 
             Dictionary<PlacedPart, Vector3> actualPositions =
@@ -5844,50 +5844,53 @@ namespace PlastiCAD
                     position;
             }
 
+
             // ------------------------------------------------------------
-            // GEMEINSAMEN DREHPUNKT BESTIMMEN
+            // AUSWAHLART
+            // ------------------------------------------------------------
+
+            bool onlyPlates =
+                selectedParts.All(
+                    p => p.Part is Plate);
+
+            bool noPlates =
+                selectedParts.All(
+                    p => !(p.Part is Plate));
+
+            bool selectionContainsPlate =
+                selectedParts.Any(
+                    p => p.Part is Plate);
+
+
+            // ------------------------------------------------------------
+            // DREHPUNKT
             // ------------------------------------------------------------
 
             double centerX;
             double centerY;
             double centerZ;
 
-            bool onlyPlates =
-    selectedParts.All(
-        p => p.Part is Plate);
 
-            bool noPlates =
-                selectedParts.All(
-                    p => !(p.Part is Plate));
-
-
-            // ------------------------------------------------------------
-            // REINE GRUNDBAUTEIL-AUSWAHL
-            //
-            // Immer einen echten Rasteranker verwenden.
-            // Dadurch entstehen beim Drehen keine 13,75-mm-Positionen.
-            // ------------------------------------------------------------
-
+            // Reine Auswahl ohne Platten:
+            // Rasteranker benutzen.
             if (noPlates)
             {
                 PlacedPart reference =
                     selectedParts[0];
 
                 centerX =
-                    reference.Transform.Position.X / Scale;
+                    reference.Transform.Position.X
+                    / Scale;
 
                 centerY =
-                    reference.Transform.Position.Y / Scale;
+                    reference.Transform.Position.Y
+                    / Scale;
 
                 centerZ =
                     reference.Transform.Position.Z;
             }
 
-
-            // ------------------------------------------------------------
-            // UNGERADE REINE PLATTENAUSWAHL
-            // ------------------------------------------------------------
-
+            // Ungerade reine Plattenauswahl
             else if (onlyPlates &&
                      selectedParts.Count % 2 == 1)
             {
@@ -5895,21 +5898,23 @@ namespace PlastiCAD
                     selectedParts[
                         selectedParts.Count / 2];
 
+                Vector3 referencePosition =
+                    actualPositions[reference];
+
+                // WICHTIG:
+                // tatsächlichen Plattenmittelpunkt verwenden,
+                // nicht Transform.Position!
                 centerX =
-                    reference.Transform.Position.X / Scale;
+                    referencePosition.X;
 
                 centerY =
-                    reference.Transform.Position.Y / Scale;
+                    referencePosition.Y;
 
                 centerZ =
-                    reference.Transform.Position.Z;
+                    referencePosition.Z;
             }
 
-
-            // ------------------------------------------------------------
-            // GEMISCHTE AUSWAHL / GERADE PLATTENAUSWAHL
-            // ------------------------------------------------------------
-
+            // Gemischte Auswahl oder gerade Plattenauswahl
             else
             {
                 centerX =
@@ -5925,13 +5930,10 @@ namespace PlastiCAD
                         position => position.Z);
             }
 
-            // ------------------------------------------------------------
-            // ALLE BAUTEILE DREHEN
-            // ------------------------------------------------------------
 
-            bool selectionContainsPlate =
-                selectedParts.Any(
-                    p => p.Part is Plate);
+            // ------------------------------------------------------------
+            // BAUTEILE DREHEN
+            // ------------------------------------------------------------
 
             foreach (PlacedPart placed in selectedParts)
             {
@@ -5946,9 +5948,11 @@ namespace PlastiCAD
 
                 Vector3 rotatedPosition;
 
+
                 switch (axis)
                 {
                     case 'X':
+
                         rotatedPosition =
                             relativePosition.RotateX90();
 
@@ -5965,7 +5969,9 @@ namespace PlastiCAD
 
                         break;
 
+
                     case 'Y':
+
                         rotatedPosition =
                             relativePosition.RotateY90();
 
@@ -5982,7 +5988,9 @@ namespace PlastiCAD
 
                         break;
 
+
                     case 'Z':
+
                         rotatedPosition =
                             relativePosition.RotateZ90();
 
@@ -5999,9 +6007,11 @@ namespace PlastiCAD
 
                         break;
 
+
                     default:
                         return;
                 }
+
 
                 // Tatsächlicher Mittelpunkt nach der Drehung
                 double newActualX =
@@ -6013,9 +6023,9 @@ namespace PlastiCAD
                 double newActualZ =
                     centerZ + rotatedPosition.Z;
 
+
                 // --------------------------------------------------------
-                // Platten:
-                // neuen Grid-Offset der neuen Orientierung wieder abziehen.
+                // PLATTEN
                 // --------------------------------------------------------
 
                 if (placed.Part is Plate)
@@ -6032,35 +6042,64 @@ namespace PlastiCAD
                         * Scale;
 
                     placed.Transform.Position.Z =
-                        newActualZ - newPlateOffset.Z;
+                        newActualZ
+                        - newPlateOffset.Z;
                 }
+
+                // --------------------------------------------------------
+                // NORMALE BAUTEILE
+                // --------------------------------------------------------
+
                 else
                 {
-                    double grid =
-                        Grider.CellSize;
+                    // Nur dann runden, wenn KEINE Platte
+                    // in der gesamten Auswahl vorhanden ist.
+                    if (!selectionContainsPlate)
+                    {
+                        double grid =
+                            Grider.CellSize;
 
-                    double snappedX =
-                        Math.Round(newActualX / grid)
-                        * grid;
+                        double snappedX =
+                            Math.Round(
+                                newActualX / grid)
+                            * grid;
 
-                    double snappedY =
-                        Math.Round(newActualY / grid)
-                        * grid;
+                        double snappedY =
+                            Math.Round(
+                                newActualY / grid)
+                            * grid;
 
-                    double snappedZ =
-                        Math.Round(newActualZ / grid)
-                        * grid;
+                        double snappedZ =
+                            Math.Round(
+                                newActualZ / grid)
+                            * grid;
 
-                    placed.Transform.Position.X =
-                        snappedX * Scale;
+                        placed.Transform.Position.X =
+                            snappedX * Scale;
 
-                    placed.Transform.Position.Y =
-                        snappedY * Scale;
+                        placed.Transform.Position.Y =
+                            snappedY * Scale;
 
-                    placed.Transform.Position.Z =
-                        snappedZ;
+                        placed.Transform.Position.Z =
+                            snappedZ;
+                    }
+                    else
+                    {
+                        // WICHTIG:
+                        // Bei einer Auswahl mit Platten
+                        // NICHT einzeln aufs Raster runden.
+                        placed.Transform.Position.X =
+                            newActualX * Scale;
+
+                        placed.Transform.Position.Y =
+                            newActualY * Scale;
+
+                        placed.Transform.Position.Z =
+                            newActualZ;
+                    }
                 }
             }
+
 
             int connectionCount =
                 ConnectSelectedParts();
