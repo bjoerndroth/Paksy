@@ -182,30 +182,56 @@ namespace PlastiCAD
                         placed.Transform.Position.Z - z)
                     < tolerance;
 
-                if (!sameX || !sameY || !sameZ)
+                if (!sameX ||
+                    !sameY ||
+                    !sameZ)
+                {
                     continue;
+                }
+
 
                 bool movingIsOverlayPart =
                     movingPart is Wheel ||
+                    movingPart is BigWheel ||
                     movingPart is EndCap ||
                     movingPart is Plate;
 
                 bool existingIsOverlayPart =
                     placed.Part is Wheel ||
+                    placed.Part is BigWheel ||
                     placed.Part is EndCap ||
                     placed.Part is Plate;
 
-                // Zusatzteil und Grundbauteil dürfen
-                // dieselbe Rasterposition verwenden.
-                if (movingIsOverlayPart != existingIsOverlayPart)
+
+                // ------------------------------------------------------------
+                // Zusatzteil + Grundbauteil
+                // dürfen dieselbe Rasterposition benutzen.
+                // ------------------------------------------------------------
+
+                if (movingIsOverlayPart !=
+                    existingIsOverlayPart)
+                {
                     continue;
+                }
 
-                // Zwei Grundbauteile dürfen dieselbe
-                // Rasterposition nicht belegen.
+
+                // ------------------------------------------------------------
+                // Zwei Grundbauteile dürfen dieselbe Position
+                // NICHT belegen.
+                // ------------------------------------------------------------
+
                 if (!movingIsOverlayPart)
+                {
                     return true;
+                }
 
-                // Zusatzteile blockieren einander zunächst ebenfalls nicht.
+
+                // ------------------------------------------------------------
+                // Zusatzteile blockieren sich momentan nicht gegenseitig.
+                //
+                // Also z.B. Rad auf Grundteil / Endkappe usw.
+                // ------------------------------------------------------------
+
                 continue;
             }
 
