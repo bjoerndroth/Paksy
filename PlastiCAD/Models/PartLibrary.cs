@@ -26,7 +26,7 @@ namespace PlastiCAD.Models
             AddStand();
             AddJoints();
             AddWheels();
-            AddPlates();
+            AddBigWheels();
             AddEndCaps();
             AddWindows();
             AddCubes();
@@ -35,6 +35,10 @@ namespace PlastiCAD.Models
         }
 
         
+        private static void AddBigWheels()
+        {
+            Parts.Add(new BigWheel());
+        }
         private static void AddBallConnector()
         {
             Parts.Add(new BallConnector());

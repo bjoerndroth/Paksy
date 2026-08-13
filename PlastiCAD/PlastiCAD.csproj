@@ -97,6 +97,7 @@
     <Compile Include="MainWindowMenu.cs" />
     <Compile Include="Models\BallConnector.cs" />
     <Compile Include="Models\BigPlate.cs" />
+    <Compile Include="Models\BigWheel.cs" />
     <Compile Include="Models\Cube.cs" />
     <Compile Include="Models\WindowPlate.cs" />
     <Compile Include="Models\EndCap.cs" />

@@ -746,10 +746,10 @@ Fill="Transparent"/>
                         </Button>
 
                         <Button Style="{StaticResource PartToolButtonStyle}"
-                                Tag="BigRad"
+                                Tag="Big Rad"
                                 ToolTip="Big Rad"
                                 Click="PartToolButton_Click"
-                                IsEnabled="False">
+                                IsEnabled="True">
                             <Image Source="/Assets/Parts/BigWheel.png"
                                    Stretch="Uniform"
                                    Margin="1"/>

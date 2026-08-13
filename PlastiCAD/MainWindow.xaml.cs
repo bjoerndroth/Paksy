@@ -2150,193 +2150,205 @@ namespace PlastiCAD
             
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
-                if (placed.Part is Wheel wheel)
+
+
+                if (placed.Part is BigWheel bigWheel)
                 {
-                    double wx =
-                        (placed.Transform.Position.X / Scale
-                        + Grider.CellSize / 2.0) / 100.0;
-
-                    double wy =
-                        -(placed.Transform.Position.Y / Scale
-                        + Grider.CellSize / 2.0) / 100.0;
-
-                    double wz =
-                        placed.Transform.Position.Z / 100.0;
-
-                    Point3D cellCenter =
-                        new Point3D(
-                            wx,
-                            wy,
-                            wz);
-
-                    // Das Rad zeigt zunächst nach rechts.
-                    // placed.Rotation wählt wie bei einem einarmigen Teil
-                    // den gewünschten Arm.
-                    Face wheelFace =
-                        FaceHelper.RotateFace(
-                            Face.Right,
-                            placed.Rotation);
-
-                    Vector3 direction =
-                        GetDirectionFromFace(wheelFace);
-
-                    direction =
-                        placed.Transform.ApplyRotation(direction);
-
-                    double halfWidth =
-                        wheel.Width / 200.0;
-
-                    double wheelRadius =
-                        wheel.OuterDiameter / 200.0;
-
-                    // Außenkante des Rades liegt ungefähr am Ende des Arms.
-                    double armEndDistance =
-                        (Grider.CellSize / 2.0) / 100.0;
-
-                    double wheelCenterDistance =
-                        armEndDistance - halfWidth;
-
-                    Point3D wheelCenter =
-                        new Point3D(
-                            cellCenter.X
-                                + direction.X * wheelCenterDistance,
-
-                            cellCenter.Y
-                                - direction.Y * wheelCenterDistance,
-
-                            cellCenter.Z
-                                + direction.Z * wheelCenterDistance);
-
-                    Point3D start =
-                        new Point3D(
-                            wheelCenter.X
-                                - direction.X * halfWidth,
-
-                            wheelCenter.Y
-                                + direction.Y * halfWidth,
-
-                            wheelCenter.Z
-                                - direction.Z * halfWidth);
-
-                    Point3D end =
-                        new Point3D(
-                            wheelCenter.X
-                                + direction.X * halfWidth,
-
-                            wheelCenter.Y
-                                - direction.Y * halfWidth,
-
-                            wheelCenter.Z
-                                + direction.Z * halfWidth);
-
-                    // Schwarzer Reifen
-                    double tubeRadius =
-    wheel.TireThickness / 2.0 / 100.0;
-
-                    double majorRadius =
-                        (wheel.OuterDiameter - wheel.TireThickness)
-                        / 2.0 / 100.0;
-
-                    Brush tireBrush =
-    selectedParts.Contains(placed)
-        ? new SolidColorBrush(
-            Color.FromRgb(70, 70, 70))
-        : Brushes.Black;
-
-                    AddTorus(
-                        wheelCenter,
-                        direction,
-                        majorRadius,
-                        tubeRadius,
+                    DrawBigWheel3D(
                         placed,
-                        tireBrush);
-
-
-                    // Rote Felge
-                    double rimRadius =
-                        wheel.RimDiameter / 200.0;
-
-                    double rimHalfWidth =
-                        wheel.Width * 0.35 / 100.0;
-
-                    Point3D rimStart = new Point3D(
-                        wheelCenter.X - direction.X * rimHalfWidth,
-                        wheelCenter.Y + direction.Y * rimHalfWidth,
-                        wheelCenter.Z - direction.Z * rimHalfWidth);
-
-                    Point3D rimEnd = new Point3D(
-                        wheelCenter.X + direction.X * rimHalfWidth,
-                        wheelCenter.Y - direction.Y * rimHalfWidth,
-                        wheelCenter.Z + direction.Z * rimHalfWidth);
-
-                    double rimOuterRadius =
-    wheel.RimDiameter / 200.0;
-
-                    double rimHoleRadius =
-                        wheel.HoleDiameter / 200.0;
-
-                    rimHalfWidth =
-                        wheel.Width * 0.42 / 100.0;
-                    
-                    Brush rimBrush = PaksyRed;
-
-                    if (selectedParts.Contains(placed))
-                    {
-                        rimBrush = HighlightBrush(rimBrush);
-                    }
-
-
-                    AddRim(
-                        wheelCenter,
-                        direction,
-                        rimOuterRadius,
-                        rimHoleRadius,
-                        rimHalfWidth,
-                        placed,
-                        rimBrush);// Kleine rote Nabe
-
-
-
-                    double hubRadius =
-                        wheel.HoleDiameter / 200.0;
-
-                    double hubHalfWidth =
-                        (wheel.Width + 2.0) / 200.0;
-
-                    Point3D hubStart =
-                        new Point3D(
-                            wheelCenter.X
-                                - direction.X * hubHalfWidth,
-
-                            wheelCenter.Y
-                                + direction.Y * hubHalfWidth,
-
-                            wheelCenter.Z
-                                - direction.Z * hubHalfWidth);
-
-                    Point3D hubEnd =
-                        new Point3D(
-                            wheelCenter.X
-                                + direction.X * hubHalfWidth,
-
-                            wheelCenter.Y
-                                - direction.Y * hubHalfWidth,
-
-                            wheelCenter.Z
-                                + direction.Z * hubHalfWidth);
-
-           
-                    AddRim(
-                        wheelCenter,
-                        direction,
-                        rimOuterRadius,
-                        rimHoleRadius,
-                        rimHalfWidth,
-                        placed,
-                        rimBrush);
+                        bigWheel);
 
                     continue;
                 }
+
+
+                        if (placed.Part is Wheel wheel)
+                    {
+                        double wx =
+                            (placed.Transform.Position.X / Scale
+                            + Grider.CellSize / 2.0) / 100.0;
+
+                        double wy =
+                            -(placed.Transform.Position.Y / Scale
+                            + Grider.CellSize / 2.0) / 100.0;
+
+                        double wz =
+                            placed.Transform.Position.Z / 100.0;
+
+                        Point3D cellCenter =
+                            new Point3D(
+                                wx,
+                                wy,
+                                wz);
+
+                        // Das Rad zeigt zunächst nach rechts.
+                        // placed.Rotation wählt wie bei einem einarmigen Teil
+                        // den gewünschten Arm.
+                        Face wheelFace =
+                            FaceHelper.RotateFace(
+                                Face.Right,
+                                placed.Rotation);
+
+                        Vector3 direction =
+                            GetDirectionFromFace(wheelFace);
+
+                        direction =
+                            placed.Transform.ApplyRotation(direction);
+
+                        double halfWidth =
+                            wheel.Width / 200.0;
+
+                        double wheelRadius =
+                            wheel.OuterDiameter / 200.0;
+
+                        // Außenkante des Rades liegt ungefähr am Ende des Arms.
+                        double armEndDistance =
+                            (Grider.CellSize / 2.0) / 100.0;
+
+                        double wheelCenterDistance =
+                            armEndDistance - halfWidth;
+
+                        Point3D wheelCenter =
+                            new Point3D(
+                                cellCenter.X
+                                    + direction.X * wheelCenterDistance,
+
+                                cellCenter.Y
+                                    - direction.Y * wheelCenterDistance,
+
+                                cellCenter.Z
+                                    + direction.Z * wheelCenterDistance);
+
+                        Point3D start =
+                            new Point3D(
+                                wheelCenter.X
+                                    - direction.X * halfWidth,
+
+                                wheelCenter.Y
+                                    + direction.Y * halfWidth,
+
+                                wheelCenter.Z
+                                    - direction.Z * halfWidth);
+
+                        Point3D end =
+                            new Point3D(
+                                wheelCenter.X
+                                    + direction.X * halfWidth,
+
+                                wheelCenter.Y
+                                    - direction.Y * halfWidth,
+
+                                wheelCenter.Z
+                                    + direction.Z * halfWidth);
+
+                        // Schwarzer Reifen
+                        double tubeRadius =
+        wheel.TireThickness / 2.0 / 100.0;
+
+                        double majorRadius =
+                            (wheel.OuterDiameter - wheel.TireThickness)
+                            / 2.0 / 100.0;
+
+                        Brush tireBrush =
+        selectedParts.Contains(placed)
+            ? new SolidColorBrush(
+                Color.FromRgb(70, 70, 70))
+            : Brushes.Black;
+
+                        AddTorus(
+                            wheelCenter,
+                            direction,
+                            majorRadius,
+                            tubeRadius,
+                            placed,
+                            tireBrush);
+
+
+                        // Rote Felge
+                        double rimRadius =
+                            wheel.RimDiameter / 200.0;
+
+                        double rimHalfWidth =
+                            wheel.Width * 0.35 / 100.0;
+
+                        Point3D rimStart = new Point3D(
+                            wheelCenter.X - direction.X * rimHalfWidth,
+                            wheelCenter.Y + direction.Y * rimHalfWidth,
+                            wheelCenter.Z - direction.Z * rimHalfWidth);
+
+                        Point3D rimEnd = new Point3D(
+                            wheelCenter.X + direction.X * rimHalfWidth,
+                            wheelCenter.Y - direction.Y * rimHalfWidth,
+                            wheelCenter.Z + direction.Z * rimHalfWidth);
+
+                        double rimOuterRadius =
+        wheel.RimDiameter / 200.0;
+
+                        double rimHoleRadius =
+                            wheel.HoleDiameter / 200.0;
+
+                        rimHalfWidth =
+                            wheel.Width * 0.42 / 100.0;
+                    
+                        Brush rimBrush = PaksyRed;
+
+                        if (selectedParts.Contains(placed))
+                        {
+                            rimBrush = HighlightBrush(rimBrush);
+                        }
+
+
+                        AddRim(
+                            wheelCenter,
+                            direction,
+                            rimOuterRadius,
+                            rimHoleRadius,
+                            rimHalfWidth,
+                            placed,
+                            rimBrush);// Kleine rote Nabe
+
+
+
+                        double hubRadius =
+                            wheel.HoleDiameter / 200.0;
+
+                        double hubHalfWidth =
+                            (wheel.Width + 2.0) / 200.0;
+
+                        Point3D hubStart =
+                            new Point3D(
+                                wheelCenter.X
+                                    - direction.X * hubHalfWidth,
+
+                                wheelCenter.Y
+                                    + direction.Y * hubHalfWidth,
+
+                                wheelCenter.Z
+                                    - direction.Z * hubHalfWidth);
+
+                        Point3D hubEnd =
+                            new Point3D(
+                                wheelCenter.X
+                                    + direction.X * hubHalfWidth,
+
+                                wheelCenter.Y
+                                    - direction.Y * hubHalfWidth,
+
+                                wheelCenter.Z
+                                    + direction.Z * hubHalfWidth);
+
+           
+                        AddRim(
+                            wheelCenter,
+                            direction,
+                            rimOuterRadius,
+                            rimHoleRadius,
+                            rimHalfWidth,
+                            placed,
+                            rimBrush);
+
+                        continue;
+                    }
 
                 if (placed.Part is EndCap endCap)
                 {
@@ -5815,16 +5827,44 @@ namespace PlastiCAD
             double centerZ;
 
             bool onlyPlates =
-                selectedParts.All(
-                    p => p.Part is Plate);
+    selectedParts.All(
+        p => p.Part is Plate);
 
-            if (onlyPlates &&
-                selectedParts.Count % 2 == 1)
+            bool noPlates =
+                selectedParts.All(
+                    p => !(p.Part is Plate));
+
+
+            // ------------------------------------------------------------
+            // REINE GRUNDBAUTEIL-AUSWAHL
+            //
+            // Immer einen echten Rasteranker verwenden.
+            // Dadurch entstehen beim Drehen keine 13,75-mm-Positionen.
+            // ------------------------------------------------------------
+
+            if (noPlates)
             {
-                // Bei ungerader reiner Plattenauswahl:
-                // stabilen Rasteranker als Pivot verwenden.
-                //
-                // Dafür nehmen wir die "mittlere" Platte der Auswahl.
+                PlacedPart reference =
+                    selectedParts[0];
+
+                centerX =
+                    reference.Transform.Position.X / Scale;
+
+                centerY =
+                    reference.Transform.Position.Y / Scale;
+
+                centerZ =
+                    reference.Transform.Position.Z;
+            }
+
+
+            // ------------------------------------------------------------
+            // UNGERADE REINE PLATTENAUSWAHL
+            // ------------------------------------------------------------
+
+            else if (onlyPlates &&
+                     selectedParts.Count % 2 == 1)
+            {
                 PlacedPart reference =
                     selectedParts[
                         selectedParts.Count / 2];
@@ -5838,10 +5878,14 @@ namespace PlastiCAD
                 centerZ =
                     reference.Transform.Position.Z;
             }
+
+
+            // ------------------------------------------------------------
+            // GEMISCHTE AUSWAHL / GERADE PLATTENAUSWAHL
+            // ------------------------------------------------------------
+
             else
             {
-                // Normale gemischte Auswahl:
-                // echter geometrischer Mittelpunkt.
                 centerX =
                     actualPositions.Values.Average(
                         position => position.X);
@@ -5858,6 +5902,10 @@ namespace PlastiCAD
             // ------------------------------------------------------------
             // ALLE BAUTEILE DREHEN
             // ------------------------------------------------------------
+
+            bool selectionContainsPlate =
+                selectedParts.Any(
+                    p => p.Part is Plate);
 
             foreach (PlacedPart placed in selectedParts)
             {
@@ -5962,14 +6010,29 @@ namespace PlastiCAD
                 }
                 else
                 {
+                    double grid =
+                        Grider.CellSize;
+
+                    double snappedX =
+                        Math.Round(newActualX / grid)
+                        * grid;
+
+                    double snappedY =
+                        Math.Round(newActualY / grid)
+                        * grid;
+
+                    double snappedZ =
+                        Math.Round(newActualZ / grid)
+                        * grid;
+
                     placed.Transform.Position.X =
-                        newActualX * Scale;
+                        snappedX * Scale;
 
                     placed.Transform.Position.Y =
-                        newActualY * Scale;
+                        snappedY * Scale;
 
                     placed.Transform.Position.Z =
-                        newActualZ;
+                        snappedZ;
                 }
             }
 
@@ -7395,11 +7458,43 @@ namespace PlastiCAD
             double centerZ;
 
             bool onlyPlates =
-                selectedParts.All(
-                    p => p.Part is Plate);
+    selectedParts.All(
+        p => p.Part is Plate);
 
-            if (onlyPlates &&
-                selectedParts.Count % 2 == 1)
+            bool noPlates =
+                selectedParts.All(
+                    p => !(p.Part is Plate));
+
+
+            // ------------------------------------------------------------
+            // REINE GRUNDBAUTEIL-AUSWAHL
+            //
+            // Immer einen echten Rasteranker verwenden.
+            // Dadurch entstehen beim Drehen keine 13,75-mm-Positionen.
+            // ------------------------------------------------------------
+
+            if (noPlates)
+            {
+                PlacedPart reference =
+                    selectedParts[0];
+
+                centerX =
+                    reference.Transform.Position.X / Scale;
+
+                centerY =
+                    reference.Transform.Position.Y / Scale;
+
+                centerZ =
+                    reference.Transform.Position.Z;
+            }
+
+
+            // ------------------------------------------------------------
+            // UNGERADE REINE PLATTENAUSWAHL
+            // ------------------------------------------------------------
+
+            else if (onlyPlates &&
+                     selectedParts.Count % 2 == 1)
             {
                 PlacedPart reference =
                     selectedParts[
@@ -7414,6 +7509,12 @@ namespace PlastiCAD
                 centerZ =
                     reference.Transform.Position.Z;
             }
+
+
+            // ------------------------------------------------------------
+            // GEMISCHTE AUSWAHL / GERADE PLATTENAUSWAHL
+            // ------------------------------------------------------------
+
             else
             {
                 centerX =
@@ -7736,7 +7837,14 @@ namespace PlastiCAD
                 {
                     continue;
                 }
+                if (placed.Part is BigWheel bigWheel)
+                {
+                    DrawBigWheel2D(
+                        placed,
+                        bigWheel);
 
+                    continue;
+                }
                 if (placed.Part is Wheel wheel)
                 {
                     DrawWheel(
@@ -7793,6 +7901,1161 @@ namespace PlastiCAD
                 RedrawPlan();
             }
         }
+
+        private void DrawBigWheel3D(
+    PlacedPart placed,
+    BigWheel wheel)
+        {
+            // ------------------------------------------------------------
+            // POSITION UND AUSRICHTUNG
+            // Genau wie beim kleinen Rad
+            // ------------------------------------------------------------
+
+            double wx =
+                (placed.Transform.Position.X / Scale
+                + Grider.CellSize / 2.0) / 100.0;
+
+            double wy =
+                -(placed.Transform.Position.Y / Scale
+                + Grider.CellSize / 2.0) / 100.0;
+
+            double wz =
+                placed.Transform.Position.Z / 100.0;
+
+            Point3D cellCenter =
+                new Point3D(
+                    wx,
+                    wy,
+                    wz);
+
+
+            Face wheelFace =
+                FaceHelper.RotateFace(
+                    Face.Right,
+                    placed.Rotation);
+
+            Vector3 direction =
+                GetDirectionFromFace(
+                    wheelFace);
+
+            direction =
+                placed.Transform.ApplyRotation(
+                    direction);
+
+
+            // ------------------------------------------------------------
+            // RADMITTELPUNKT
+            // ------------------------------------------------------------
+
+            double halfTotalWidth =
+                wheel.Width / 200.0;
+
+            double armEndDistance =
+                (Grider.CellSize / 2.0)
+                / 100.0;
+
+            double wheelCenterDistance =
+                armEndDistance
+                - halfTotalWidth;
+
+            Point3D wheelCenter =
+                new Point3D(
+                    cellCenter.X
+                        + direction.X
+                        * wheelCenterDistance,
+
+                    cellCenter.Y
+                        - direction.Y
+                        * wheelCenterDistance,
+
+                    cellCenter.Z
+                        + direction.Z
+                        * wheelCenterDistance);
+
+
+            Brush rimBrush =
+                PaksyRed;
+
+            Brush tireBrush =
+                Brushes.Black;
+
+            if (selectedParts.Contains(placed))
+            {
+                rimBrush =
+                    HighlightBrush(rimBrush);
+
+                tireBrush =
+                    new SolidColorBrush(
+                        Color.FromRgb(
+                            70,
+                            70,
+                            70));
+            }
+
+
+            // ------------------------------------------------------------
+            // 1. MASSIVER SCHWARZER REIFEN
+            //
+            // außen Ø64
+            // innen Ø46
+            // Breite 8 mm
+            // ------------------------------------------------------------
+
+            double tireOuterRadius =
+                wheel.OuterDiameter
+                / 200.0;
+
+            double tireInnerRadius =
+                wheel.RimDiameter
+                / 200.0;
+
+            double tireHalfWidth =
+                wheel.TireWidth
+                / 200.0;
+
+            AddFlatRing(
+                wheelCenter,
+                direction,
+
+                tireOuterRadius,
+                tireInnerRadius,
+
+                tireHalfWidth,
+
+                placed,
+                tireBrush);
+
+
+            // ------------------------------------------------------------
+            // 2. FLACHE ROTE FELGENSCHEIBE
+            //
+            // Ø46
+            // nur etwa 2 mm dick
+            // ------------------------------------------------------------
+
+            double rimOuterRadius =
+                wheel.RimDiameter
+                / 200.0;
+
+            double centerHoleRadius =
+                wheel.HoleDiameter
+                / 200.0;
+
+            double rimBodyHalfWidth =
+                wheel.RimBodyThickness
+                / 200.0;
+
+            AddFlatRing(
+                wheelCenter,
+                direction,
+
+                rimOuterRadius,
+                centerHoleRadius,
+
+                rimBodyHalfWidth,
+
+                placed,
+                rimBrush);
+
+
+            // ------------------------------------------------------------
+            // 3. ÄUSSERER FELGENRAND
+            //
+            // radial etwa 2 mm breit
+            // etwas kräftiger als die flache Scheibe
+            // ------------------------------------------------------------
+
+            double rimEdgeInnerRadius =
+                (wheel.RimDiameter / 2.0
+                - wheel.RimEdgeWidth)
+                / 100.0;
+
+            double rimEdgeHalfWidth =
+                2.0 / 100.0;
+
+            AddFlatRing(
+                wheelCenter,
+                direction,
+
+                rimOuterRadius,
+                rimEdgeInnerRadius,
+
+                rimEdgeHalfWidth,
+
+                placed,
+                rimBrush);
+
+
+            // ------------------------------------------------------------
+            // 4. MITTLERE NABE
+            //
+            // Bohrung Ø9,5 mm
+            // Gesamtlänge 9 mm
+            //
+            // Außendurchmesser ist vorerst 14 mm.
+            // Den können wir optisch noch korrigieren.
+            // ------------------------------------------------------------
+
+            double hubOuterRadius =
+                7.0 / 100.0;
+
+            double hubHalfWidth =
+                wheel.BoreDepth
+                / 200.0;
+
+            AddFlatRing(
+                wheelCenter,
+                direction,
+
+                hubOuterRadius,
+                centerHoleRadius,
+
+                hubHalfWidth,
+
+                placed,
+                rimBrush);
+
+
+            // ------------------------------------------------------------
+            // BASISVEKTOREN IN DER RADEBENE
+            // ------------------------------------------------------------
+
+            Vector3D axis =
+                new Vector3D(
+                    direction.X,
+                    -direction.Y,
+                    direction.Z);
+
+            if (axis.Length == 0)
+                return;
+
+            axis.Normalize();
+
+            Vector3D reference =
+                Math.Abs(axis.Y) < 0.9
+                    ? new Vector3D(0, 1, 0)
+                    : new Vector3D(1, 0, 0);
+
+            Vector3D side1 =
+                Vector3D.CrossProduct(
+                    axis,
+                    reference);
+
+            side1.Normalize();
+
+            Vector3D side2 =
+                Vector3D.CrossProduct(
+                    axis,
+                    side1);
+
+            side2.Normalize();
+
+
+            // ------------------------------------------------------------
+            // 5. VIER ZUSÄTZLICHE Ø9,5-mm-LÖCHER
+            //
+            // Zunächst optisch als schwarze Bohrungen.
+            // ------------------------------------------------------------
+
+            double sideHoleRadius =
+                wheel.SideHoleRadius
+                / 100.0;
+
+            double sideHoleTubeRadius =
+                wheel.SideHoleDiameter
+                / 200.0;
+
+            double holeHalfLength =
+                2.5 / 100.0;
+
+
+            for (int i = 0;
+     i < wheel.SideHoleCount;
+     i++)
+            {
+                double angle =
+                    Math.PI / 4.0
+                    + i * Math.PI / 2.0;
+
+                Vector3D radial =
+                    side1 * Math.Cos(angle)
+                    + side2 * Math.Sin(angle);
+
+                Point3D holeCenter =
+                    wheelCenter
+                    + radial
+                    * sideHoleRadius;
+
+                Point3D holeStart =
+                    holeCenter
+                    - axis
+                    * holeHalfLength;
+
+                Point3D holeEnd =
+                    holeCenter
+                    + axis
+                    * holeHalfLength;
+
+                AddCylinder(
+                    holeStart,
+                    holeEnd,
+                    sideHoleTubeRadius,
+                    placed,
+                    Brushes.Black);
+            }
+
+
+            // ------------------------------------------------------------
+            // 6. VIER RUNDFUGEN
+            //
+            // je ca. 60°
+            // 2 mm breit
+            // etwa 3 mm vor Felgenrand
+            // ------------------------------------------------------------
+
+            double grooveRadius =
+                (
+                    wheel.RimDiameter / 2.0
+                    - wheel.GrooveInset
+                    - wheel.GrooveWidth / 2.0
+                ) / 100.0;
+
+            double grooveTubeRadius =
+                wheel.GrooveWidth
+                / 2.0
+                / 100.0;
+
+
+            // Vorderseite der Felge
+            double frontOffset =
+                rimBodyHalfWidth
+                + grooveTubeRadius * 0.25;
+
+            Point3D grooveFaceCenter =
+                wheelCenter
+                - axis * frontOffset;
+
+
+            for (int i = 0;
+                 i < wheel.GrooveCount;
+                 i++)
+            {
+                // 4 Fugen um jeweils 90° verteilt.
+                // Jede Fuge selbst ist 60° lang.
+                double middleAngle =
+                    i * 90.0;
+
+                double startAngle =
+                    middleAngle
+                    - wheel.GrooveAngle / 2.0;
+
+                AddArcTube(
+                    grooveFaceCenter,
+                    axis,
+                    side1,
+                    side2,
+
+                    grooveRadius,
+                    grooveTubeRadius,
+
+                    startAngle,
+                    wheel.GrooveAngle,
+
+                    placed,
+
+                    Brushes.DarkRed);
+            }
+        }
+
+        private void AddFlatRing(
+    Point3D center,
+    Vector3 direction,
+    double outerRadius,
+    double innerRadius,
+    double halfWidth,
+    PlacedPart placed,
+    Brush brush)
+        {
+            const int segments = 64;
+
+            Vector3D axis =
+                new Vector3D(
+                    direction.X,
+                    -direction.Y,
+                    direction.Z);
+
+            if (axis.Length == 0)
+                return;
+
+            if (outerRadius <= innerRadius ||
+                innerRadius < 0 ||
+                halfWidth <= 0)
+            {
+                return;
+            }
+
+            axis.Normalize();
+
+            Vector3D reference =
+                Math.Abs(axis.Y) < 0.9
+                    ? new Vector3D(0, 1, 0)
+                    : new Vector3D(1, 0, 0);
+
+            Vector3D side1 =
+                Vector3D.CrossProduct(
+                    axis,
+                    reference);
+
+            side1.Normalize();
+
+            Vector3D side2 =
+                Vector3D.CrossProduct(
+                    axis,
+                    side1);
+
+            side2.Normalize();
+
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+
+            // Pro Segment:
+            //
+            // 0 = vorne außen
+            // 1 = vorne innen
+            // 2 = hinten außen
+            // 3 = hinten innen
+
+            for (int i = 0;
+                 i < segments;
+                 i++)
+            {
+                double angle =
+                    2.0 * Math.PI
+                    * i
+                    / segments;
+
+                Vector3D radial =
+                    side1 * Math.Cos(angle)
+                    + side2 * Math.Sin(angle);
+
+                mesh.Positions.Add(
+                    center
+                    - axis * halfWidth
+                    + radial * outerRadius);
+
+                mesh.Positions.Add(
+                    center
+                    - axis * halfWidth
+                    + radial * innerRadius);
+
+                mesh.Positions.Add(
+                    center
+                    + axis * halfWidth
+                    + radial * outerRadius);
+
+                mesh.Positions.Add(
+                    center
+                    + axis * halfWidth
+                    + radial * innerRadius);
+            }
+
+
+            for (int i = 0;
+                 i < segments;
+                 i++)
+            {
+                int next =
+                    (i + 1)
+                    % segments;
+
+                int a =
+                    i * 4;
+
+                int b =
+                    next * 4;
+
+
+                // Vorderseite
+                mesh.TriangleIndices.Add(a);
+                mesh.TriangleIndices.Add(b);
+                mesh.TriangleIndices.Add(a + 1);
+
+                mesh.TriangleIndices.Add(a + 1);
+                mesh.TriangleIndices.Add(b);
+                mesh.TriangleIndices.Add(b + 1);
+
+
+                // Rückseite
+                mesh.TriangleIndices.Add(a + 2);
+                mesh.TriangleIndices.Add(a + 3);
+                mesh.TriangleIndices.Add(b + 2);
+
+                mesh.TriangleIndices.Add(a + 3);
+                mesh.TriangleIndices.Add(b + 3);
+                mesh.TriangleIndices.Add(b + 2);
+
+
+                // Außenfläche
+                mesh.TriangleIndices.Add(a);
+                mesh.TriangleIndices.Add(a + 2);
+                mesh.TriangleIndices.Add(b);
+
+                mesh.TriangleIndices.Add(b);
+                mesh.TriangleIndices.Add(a + 2);
+                mesh.TriangleIndices.Add(b + 2);
+
+
+                // Innenfläche / Bohrung
+                mesh.TriangleIndices.Add(a + 1);
+                mesh.TriangleIndices.Add(b + 1);
+                mesh.TriangleIndices.Add(a + 3);
+
+                mesh.TriangleIndices.Add(a + 3);
+                mesh.TriangleIndices.Add(b + 1);
+                mesh.TriangleIndices.Add(b + 3);
+            }
+
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(
+                    brush);
+
+            GeometryModel3D model =
+                new GeometryModel3D
+                {
+                    Geometry = mesh,
+                    Material = material,
+                    BackMaterial = material
+                };
+
+            worldPartMap[model] =
+                placed;
+
+            WorldViewport.Children.Add(
+                new ModelVisual3D
+                {
+                    Content = model
+                });
+        }
+        private void AddArcTube(
+    Point3D center,
+    Vector3D axis,
+    Vector3D side1,
+    Vector3D side2,
+    double arcRadius,
+    double tubeRadius,
+    double startAngleDegrees,
+    double sweepAngleDegrees,
+    PlacedPart placed,
+    Brush brush)
+        {
+            const int arcSegments = 18;
+            const int tubeSegments = 8;
+
+            axis.Normalize();
+            side1.Normalize();
+            side2.Normalize();
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+            double start =
+                startAngleDegrees
+                * Math.PI / 180.0;
+
+            double sweep =
+                sweepAngleDegrees
+                * Math.PI / 180.0;
+
+
+            for (int i = 0;
+                 i <= arcSegments;
+                 i++)
+            {
+                double t =
+                    (double)i
+                    / arcSegments;
+
+                double angle =
+                    start
+                    + sweep * t;
+
+                Vector3D radial =
+                    side1 * Math.Cos(angle)
+                    + side2 * Math.Sin(angle);
+
+                Point3D arcCenter =
+                    center
+                    + radial * arcRadius;
+
+
+                for (int j = 0;
+                     j < tubeSegments;
+                     j++)
+                {
+                    double tubeAngle =
+                        2.0 * Math.PI
+                        * j
+                        / tubeSegments;
+
+                    Vector3D offset =
+                        radial
+                            * Math.Cos(tubeAngle)
+                            * tubeRadius
+
+                        + axis
+                            * Math.Sin(tubeAngle)
+                            * tubeRadius;
+
+                    mesh.Positions.Add(
+                        arcCenter + offset);
+                }
+            }
+
+
+            for (int i = 0;
+                 i < arcSegments;
+                 i++)
+            {
+                for (int j = 0;
+                     j < tubeSegments;
+                     j++)
+                {
+                    int nextJ =
+                        (j + 1)
+                        % tubeSegments;
+
+                    int a =
+                        i * tubeSegments + j;
+
+                    int b =
+                        (i + 1)
+                        * tubeSegments + j;
+
+                    int c =
+                        i * tubeSegments
+                        + nextJ;
+
+                    int d =
+                        (i + 1)
+                        * tubeSegments
+                        + nextJ;
+
+                    mesh.TriangleIndices.Add(a);
+                    mesh.TriangleIndices.Add(b);
+                    mesh.TriangleIndices.Add(c);
+
+                    mesh.TriangleIndices.Add(c);
+                    mesh.TriangleIndices.Add(b);
+                    mesh.TriangleIndices.Add(d);
+                }
+            }
+
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(
+                    brush);
+
+            GeometryModel3D model =
+                new GeometryModel3D
+                {
+                    Geometry = mesh,
+                    Material = material,
+                    BackMaterial = material
+                };
+
+            worldPartMap[model] =
+                placed;
+
+            WorldViewport.Children.Add(
+                new ModelVisual3D
+                {
+                    Content = model
+                });
+        }
+
+       private void DrawBigWheel2D(
+    PlacedPart placed,
+    BigWheel wheel)
+{
+    bool isCurrentLayer =
+        Math.Abs(
+            placed.Transform.Position.Z
+            - currentPlanZ)
+        < 0.001;
+
+    if (!isCurrentLayer)
+        return;
+
+    Vector3 cellCenter =
+        GetCellCenter(placed);
+
+    Face wheelFace =
+        FaceHelper.RotateFace(
+            Face.Right,
+            placed.Rotation);
+
+    wheelFace =
+        FaceHelper.RotateFace3D(
+            wheelFace,
+            placed.Transform.Rotation);
+
+    bool isSelected =
+        selectedParts.Contains(placed);
+
+    Brush outlineBrush =
+        isSelected
+            ? Brushes.LimeGreen
+            : Brushes.Black;
+
+    Brush rimBrush =
+        PaksyRed;
+
+    if (isSelected)
+    {
+        rimBrush =
+            HighlightBrush(rimBrush);
+    }
+
+
+    double wheelDiameter =
+        wheel.OuterDiameter * Scale;
+
+    double rimDiameter =
+        wheel.RimDiameter * Scale;
+
+    double tireWidth =
+        wheel.TireWidth * Scale;
+
+    double totalWidth =
+        wheel.Width * Scale;
+
+    double holeDiameter =
+        wheel.HoleDiameter * Scale;
+
+    double halfWidth =
+        totalWidth / 2.0;
+
+
+    // Gleiche Positionierung wie beim normalen Rad
+    double armEndDistance =
+        Grider.CellSize
+        * Scale
+        / 2.0;
+
+    double wheelCenterDistance =
+        armEndDistance
+        - halfWidth;
+
+    Vector3 wheelCenter =
+        new Vector3(
+            cellCenter.X,
+            cellCenter.Y,
+            cellCenter.Z);
+
+
+    switch (wheelFace)
+    {
+        case Face.Right:
+            wheelCenter.X +=
+                wheelCenterDistance;
+            break;
+
+        case Face.Left:
+            wheelCenter.X -=
+                wheelCenterDistance;
+            break;
+
+        case Face.Top:
+            wheelCenter.Y -=
+                wheelCenterDistance;
+            break;
+
+        case Face.Bottom:
+            wheelCenter.Y +=
+                wheelCenterDistance;
+            break;
+
+        case Face.Front:
+        case Face.Back:
+
+            DrawBigWheelFromFront(
+                placed,
+                wheel,
+                wheelCenter,
+                rimBrush,
+                outlineBrush);
+
+            return;
+    }
+
+
+    // ------------------------------------------------------------
+    // SEITENANSICHT
+    // ------------------------------------------------------------
+
+    bool horizontalAxis =
+        wheelFace == Face.Left ||
+        wheelFace == Face.Right;
+
+
+    // Schwarzer Reifen
+    Rectangle tire =
+        new Rectangle
+        {
+            Fill =
+                Brushes.Black,
+
+            Stroke =
+                outlineBrush,
+
+            StrokeThickness =
+                isSelected
+                    ? 2.0
+                    : 1.0,
+
+            RadiusX =
+                tireWidth / 2.0,
+
+            RadiusY =
+                tireWidth / 2.0
+        };
+
+
+    if (horizontalAxis)
+    {
+        tire.Width =
+            tireWidth;
+
+        tire.Height =
+            wheelDiameter;
+    }
+    else
+    {
+        tire.Width =
+            wheelDiameter;
+
+        tire.Height =
+            tireWidth;
+    }
+
+
+    Canvas.SetLeft(
+        tire,
+        wheelCenter.X
+        - tire.Width / 2.0);
+
+    Canvas.SetTop(
+        tire,
+        wheelCenter.Y
+        - tire.Height / 2.0);
+
+    BuildArea.Children.Add(
+        tire);
+
+
+    // ------------------------------------------------------------
+    // FELGE
+    // ------------------------------------------------------------
+
+    double rimBodyWidth =
+        wheel.RimBodyThickness
+        * Scale;
+
+    Rectangle rim =
+        new Rectangle
+        {
+            Fill =
+                rimBrush,
+
+            Stroke =
+                Brushes.DarkRed,
+
+            StrokeThickness =
+                1.0,
+
+            RadiusX = 2,
+            RadiusY = 2
+        };
+
+
+    if (horizontalAxis)
+    {
+        rim.Width =
+            rimBodyWidth;
+
+        rim.Height =
+            rimDiameter;
+    }
+    else
+    {
+        rim.Width =
+            rimDiameter;
+
+        rim.Height =
+            rimBodyWidth;
+    }
+
+
+    Canvas.SetLeft(
+        rim,
+        wheelCenter.X
+        - rim.Width / 2.0);
+
+    Canvas.SetTop(
+        rim,
+        wheelCenter.Y
+        - rim.Height / 2.0);
+
+    BuildArea.Children.Add(
+        rim);
+
+
+    // ------------------------------------------------------------
+    // MITTELNABE
+    // 9 mm lang
+    // ------------------------------------------------------------
+
+    Rectangle hub =
+        new Rectangle
+        {
+            Fill =
+                rimBrush,
+
+            Stroke =
+                Brushes.DarkRed,
+
+            StrokeThickness =
+                1.0,
+
+            RadiusX = 2,
+            RadiusY = 2
+        };
+
+
+    double hubLength =
+        wheel.BoreDepth
+        * Scale;
+
+
+    if (horizontalAxis)
+    {
+        hub.Width =
+            hubLength;
+
+        hub.Height =
+            holeDiameter;
+    }
+    else
+    {
+        hub.Width =
+            holeDiameter;
+
+        hub.Height =
+            hubLength;
+    }
+
+
+    Canvas.SetLeft(
+        hub,
+        wheelCenter.X
+        - hub.Width / 2.0);
+
+    Canvas.SetTop(
+        hub,
+        wheelCenter.Y
+        - hub.Height / 2.0);
+
+    BuildArea.Children.Add(
+        hub);
+}
+
+
+
+
+
+        private void DrawBigWheelFromFront(
+    PlacedPart placed,
+    BigWheel wheel,
+    Vector3 center,
+    Brush rimBrush,
+    Brush outlineBrush)
+        {
+            double outerDiameter =
+                wheel.OuterDiameter
+                * Scale;
+
+            double rimDiameter =
+                wheel.RimDiameter
+                * Scale;
+
+            double centerHoleDiameter =
+                wheel.HoleDiameter
+                * Scale;
+
+            double sideHoleDiameter =
+                wheel.SideHoleDiameter
+                * Scale;
+
+            double sideHoleRadius =
+                wheel.SideHoleRadius
+                * Scale;
+
+
+            // Reifen
+            Ellipse tire =
+                new Ellipse
+                {
+                    Width =
+                        outerDiameter,
+
+                    Height =
+                        outerDiameter,
+
+                    Fill =
+                        Brushes.Black,
+
+                    Stroke =
+                        outlineBrush,
+
+                    StrokeThickness =
+                        selectedParts.Contains(placed)
+                            ? 2.0
+                            : 1.0
+                };
+
+            Canvas.SetLeft(
+                tire,
+                center.X
+                - outerDiameter / 2.0);
+
+            Canvas.SetTop(
+                tire,
+                center.Y
+                - outerDiameter / 2.0);
+
+            BuildArea.Children.Add(
+                tire);
+
+
+            // Felge
+            Ellipse rim =
+                new Ellipse
+                {
+                    Width =
+                        rimDiameter,
+
+                    Height =
+                        rimDiameter,
+
+                    Fill =
+                        rimBrush,
+
+                    Stroke =
+                        Brushes.DarkRed,
+
+                    StrokeThickness =
+                        1.0
+                };
+
+            Canvas.SetLeft(
+                rim,
+                center.X
+                - rimDiameter / 2.0);
+
+            Canvas.SetTop(
+                rim,
+                center.Y
+                - rimDiameter / 2.0);
+
+            BuildArea.Children.Add(
+                rim);
+
+
+            // Mittelloch
+            Ellipse centerHole =
+                new Ellipse
+                {
+                    Width =
+                        centerHoleDiameter,
+
+                    Height =
+                        centerHoleDiameter,
+
+                    Fill =
+                        Brushes.Black
+                };
+
+            Canvas.SetLeft(
+                centerHole,
+                center.X
+                - centerHoleDiameter / 2.0);
+
+            Canvas.SetTop(
+                centerHole,
+                center.Y
+                - centerHoleDiameter / 2.0);
+
+            BuildArea.Children.Add(
+                centerHole);
+
+
+            // Vier äußere Löcher
+            // 45° gegenüber den Fugen versetzt
+            for (int i = 0;
+                 i < wheel.SideHoleCount;
+                 i++)
+            {
+                double angle =
+                    Math.PI / 4.0
+                    + i * Math.PI / 2.0;
+
+                double x =
+                    center.X
+                    + Math.Cos(angle)
+                    * sideHoleRadius;
+
+                double y =
+                    center.Y
+                    + Math.Sin(angle)
+                    * sideHoleRadius;
+
+                Ellipse hole =
+                    new Ellipse
+                    {
+                        Width =
+                            sideHoleDiameter,
+
+                        Height =
+                            sideHoleDiameter,
+
+                        Fill =
+                            Brushes.Black
+                    };
+
+                Canvas.SetLeft(
+                    hole,
+                    x
+                    - sideHoleDiameter / 2.0);
+
+                Canvas.SetTop(
+                    hole,
+                    y
+                    - sideHoleDiameter / 2.0);
+
+                BuildArea.Children.Add(
+                    hole);
+            }
+        }
+
+
+
+
+
+
+
 
 
 
