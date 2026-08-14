@@ -7,7 +7,8 @@
         xmlns:local="clr-namespace:PlastiCAD"
         mc:Ignorable="d"
         Title="PlastiCAD" Height="450" Width="800"
-        SizeChanged="MainWindow_SizeChanged">
+        SizeChanged="MainWindow_SizeChanged"
+        WindowState="Maximized">
 
     <Window.Resources>
 
@@ -165,7 +166,8 @@
               Grid.Column="0"
               Grid.ColumnSpan="2">
 
-            <MenuItem Header="_Datei">
+            <MenuItem Header="_Datei"
+                      x:Name="FileMenu">
                 <MenuItem Header="_Speichern"
                           InputGestureText="Strg+S"
                           Click="MenuSave_Click"/>
@@ -179,8 +181,22 @@
                 <MenuItem Header="_Öffnen..."
                           InputGestureText="Strg+O"
                           Click="MenuOpen_Click"/>
-                
+                <Separator/>
+
+                <MenuItem Header="Zuletzt geöffnet"
+              IsEnabled="False"
+              FontWeight="Bold"/>
+
+                <Separator x:Name="RecentFilesSeparator"/>
+
+                <MenuItem Header="Beenden"
+              Click="ExitMenuItem_Click"/>
+
+            <Separator/>
+
             </MenuItem>
+
+
 
             <MenuItem Header="_Bearbeiten">
                 <MenuItem Header="_Kopieren"

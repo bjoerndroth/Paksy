@@ -31,7 +31,20 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
-       private string currentProjectFileName = null;
+
+        private string RecentFilesPath =>
+    System.IO.Path.Combine(
+        Environment.GetFolderPath(
+            Environment.SpecialFolder.ApplicationData),
+        "PlastiCAD",
+        "recentFiles.json");
+
+
+        private readonly List<string> recentFiles = new List<string>();
+
+        private const int MaxRecentFiles = 5;
+
+        private string currentProjectFileName = null;
 
         private DispatcherTimer selectionRotationTimer;
 
@@ -239,7 +252,9 @@ namespace PlastiCAD
         }
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            
             RedrawScene();
+            LoadRecentFiles();
         }
         
 
@@ -4740,70 +4755,10 @@ namespace PlastiCAD
                 Filter = "PlastiCAD-Projekt (*.plasticad)|*.plasticad|JSON-Datei (*.json)|*.json"
             };
 
-            if(dialog.ShowDialog() != true)
-    return;
-
-            currentProjectFileName =
-                dialog.FileName;
-
-            UpdateWindowTitle();
-
-
-
-            string json = File.ReadAllText(dialog.FileName);
-
-            ProjectFile project =
-                JsonSerializer.Deserialize<ProjectFile>(json);
-
-            if (project == null)
-            {
-                StatusText.Text = "Projekt konnte nicht geladen werden";
+            if (dialog.ShowDialog() != true)
                 return;
-            }
 
-            assembly.PlacedParts.Clear();
-            assembly.Connections.Clear();
-
-            selectedParts.Clear();
-            currentSnaps.Clear();
-
-            foreach (PlacedPartData data in project.Parts)
-            {
-                Part part = PartLibrary.Parts.FirstOrDefault(
-                    item => item.Name == data.PartName);
-
-                if (part == null)
-                    continue;
-
-                PlacedPart placed = new PlacedPart
-                {
-                    Part = part,
-                    Rotation = data.Rotation,
-                    PlateOrientation = data.PlateOrientation
-                };
-
-                placed.Transform.Position = new Vector3(
-                    data.X,
-                    data.Y,
-                    data.Z);
-
-                placed.Transform.Rotation.X = data.RotationX;
-                placed.Transform.Rotation.Y = data.RotationY;
-                placed.Transform.Rotation.Z = data.RotationZ;
-
-                placed.Sockets = part.CreateSockets();
-
-                assembly.PlacedParts.Add(placed);
-            }
-
-            RebuildConnections();
-
-            StatusText.Text =
-                $"{assembly.PlacedParts.Count} Bauteil(e) geladen";
-
-            worldCameraInitialized = false;
-
-            RedrawScene();
+            LoadProjectFromFile(dialog.FileName);
         }
 
         private void RebuildConnections()
@@ -9117,17 +9072,263 @@ namespace PlastiCAD
             }
         }
 
+        private void AddRecentFile(string filePath)
+        {
+            recentFiles.RemoveAll(
+                path => string.Equals(
+                    path,
+                    filePath,
+                    StringComparison.OrdinalIgnoreCase));
 
+            recentFiles.Insert(0, filePath);
 
+            while (recentFiles.Count > MaxRecentFiles)
+            {
+                recentFiles.RemoveAt(
+                    recentFiles.Count - 1);
+            }
 
+            SaveRecentFiles();
 
+            UpdateRecentFilesMenu();
+        }
 
+        private void SaveRecentFiles()
+        {
+            try
+            {
+                string directory =
+                    System.IO.Path.GetDirectoryName(
+                        RecentFilesPath);
 
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
 
+                string json =
+                    JsonSerializer.Serialize(
+                        recentFiles,
+                        new JsonSerializerOptions
+                        {
+                            WriteIndented = true
+                        });
 
+                File.WriteAllText(
+                    RecentFilesPath,
+                    json);
+            }
+            catch
+            {
+                // Recent-Files sind Komfortfunktion.
+                // Ein Fehler darf PlastiCAD nicht stoppen.
+            }
+        }
+        private void UpdateRecentFilesMenu()
+        {
+            // ------------------------------------------------------------
+            // ALTE RECENT-FILE-EINTRÄGE ENTFERNEN
+            // ------------------------------------------------------------
 
+            for (int i = FileMenu.Items.Count - 1; i >= 0; i--)
+            {
+                if (FileMenu.Items[i] is MenuItem item &&
+                    item.Tag as string == "RecentFile")
+                {
+                    FileMenu.Items.RemoveAt(i);
+                }
+            }
 
+            // ------------------------------------------------------------
+            // POSITION DES SEPARATORS FINDEN
+            //
+            // Die Dateien werden direkt VOR diesem Separator eingefügt.
+            // ------------------------------------------------------------
 
+            int insertIndex =
+                FileMenu.Items.IndexOf(
+                    RecentFilesSeparator);
+
+            if (insertIndex < 0)
+                return;
+
+            // ------------------------------------------------------------
+            // KEINE DATEIEN
+            // ------------------------------------------------------------
+
+            if (recentFiles.Count == 0)
+            {
+                MenuItem emptyItem =
+                    new MenuItem
+                    {
+                        Header = "(keine)",
+                        IsEnabled = false,
+                        Tag = "RecentFile"
+                    };
+
+                FileMenu.Items.Insert(
+                    insertIndex,
+                    emptyItem);
+
+                return;
+            }
+
+            // ------------------------------------------------------------
+            // LETZTE DATEIEN DIREKT EINTRAGEN
+            // ------------------------------------------------------------
+
+            foreach (string filePath in recentFiles)
+            {
+                MenuItem item =
+                    new MenuItem
+                    {
+                        Header =
+                            System.IO.Path.GetFileNameWithoutExtension(filePath),
+
+                        ToolTip =
+                            filePath,
+
+                        Tag =
+                            "RecentFile"
+                    };
+
+                // Dateipfad separat merken
+                item.DataContext =
+                    filePath;
+
+                item.Click +=
+                    RecentFileMenuItem_Click;
+
+                FileMenu.Items.Insert(
+                    insertIndex,
+                    item);
+
+                insertIndex++;
+            }
+        }
+
+        private void RecentFileMenuItem_Click(
+     object sender,
+     RoutedEventArgs e)
+        {
+            if (sender is MenuItem item &&
+                item.DataContext is string filePath)
+            {
+                LoadProjectFromFile(filePath);
+            }
+        }
+        private void LoadRecentFiles()
+        {
+            recentFiles.Clear();
+
+            try
+            {
+                if (!File.Exists(RecentFilesPath))
+                {
+                    UpdateRecentFilesMenu();
+                    return;
+                }
+
+                string json =
+                    File.ReadAllText(
+                        RecentFilesPath);
+
+                List<string> savedFiles =
+                    JsonSerializer.Deserialize<List<string>>(
+                        json);
+
+                if (savedFiles != null)
+                {
+                    foreach (string filePath in savedFiles)
+                    {
+                        if (File.Exists(filePath))
+                        {
+                            recentFiles.Add(filePath);
+                        }
+
+                        if (recentFiles.Count >= MaxRecentFiles)
+                            break;
+                    }
+                }
+            }
+            catch
+            {
+                recentFiles.Clear();
+            }
+
+            UpdateRecentFilesMenu();
+        }
+
+        private void LoadProjectFromFile(string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                return;
+
+            if (!File.Exists(filePath))
+            {
+                StatusText.Text = "Datei wurde nicht gefunden";
+                return;
+            }
+
+            currentProjectFileName = filePath;
+
+            UpdateWindowTitle();
+
+            string json = File.ReadAllText(filePath);
+
+            ProjectFile project =
+                JsonSerializer.Deserialize<ProjectFile>(json);
+
+            if (project == null)
+            {
+                StatusText.Text = "Projekt konnte nicht geladen werden";
+                return;
+            }
+
+            assembly.PlacedParts.Clear();
+            assembly.Connections.Clear();
+
+            selectedParts.Clear();
+            currentSnaps.Clear();
+
+            foreach (PlacedPartData data in project.Parts)
+            {
+                Part part = PartLibrary.Parts.FirstOrDefault(
+                    item => item.Name == data.PartName);
+
+                if (part == null)
+                    continue;
+
+                PlacedPart placed = new PlacedPart
+                {
+                    Part = part,
+                    Rotation = data.Rotation,
+                    PlateOrientation = data.PlateOrientation
+                };
+
+                placed.Transform.Position = new Vector3(
+                    data.X,
+                    data.Y,
+                    data.Z);
+
+                placed.Transform.Rotation.X = data.RotationX;
+                placed.Transform.Rotation.Y = data.RotationY;
+                placed.Transform.Rotation.Z = data.RotationZ;
+
+                placed.Sockets = part.CreateSockets();
+
+                assembly.PlacedParts.Add(placed);
+            }
+
+            RebuildConnections();
+            AddRecentFile(filePath);
+            StatusText.Text =
+                $"{assembly.PlacedParts.Count} Bauteil(e) geladen";
+
+            worldCameraInitialized = false;
+
+            RedrawScene();
+        }
 
 
     }

@@ -202,5 +202,12 @@ namespace PlastiCAD
             StatusText.Text = $"Bearbeitungsebene Z = {currentPlanZ:0.##} mm";
             RedrawScene();
         }
+
+
+        private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
+
     }
 }
