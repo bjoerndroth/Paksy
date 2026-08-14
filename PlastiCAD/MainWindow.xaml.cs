@@ -5892,26 +5892,28 @@ namespace PlastiCAD
 
             // Ungerade reine Plattenauswahl
             else if (onlyPlates &&
-                     selectedParts.Count % 2 == 1)
+         selectedParts.Count % 2 == 1)
             {
                 PlacedPart reference =
                     selectedParts[
                         selectedParts.Count / 2];
 
-                Vector3 referencePosition =
-                    actualPositions[reference];
-
                 // WICHTIG:
-                // tatsächlichen Plattenmittelpunkt verwenden,
-                // nicht Transform.Position!
+                // Bei einer einzelnen bzw. ungeraden Plattenauswahl
+                // den RASTERANKER als Drehpunkt verwenden.
+                //
+                // Dadurch bleibt Transform.Position auf dem
+                // normalen 27,5-mm-Raster.
                 centerX =
-                    referencePosition.X;
+                    reference.Transform.Position.X
+                    / Scale;
 
                 centerY =
-                    referencePosition.Y;
+                    reference.Transform.Position.Y
+                    / Scale;
 
                 centerZ =
-                    referencePosition.Z;
+                    reference.Transform.Position.Z;
             }
 
             // Gemischte Auswahl oder gerade Plattenauswahl
