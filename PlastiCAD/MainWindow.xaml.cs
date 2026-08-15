@@ -5541,6 +5541,36 @@ namespace PlastiCAD
             bool controlPressed =
     (Keyboard.Modifiers & ModifierKeys.Control)
     == ModifierKeys.Control;
+
+            if (e.Key == Key.Add ||
+   e.Key == Key.OemPlus)
+            {
+                currentPlanZ += Grider.CellSize;
+
+                StatusText.Text =
+                    $"Bearbeitungsebene Z = {currentPlanZ:0.##} mm";
+
+                RedrawScene();
+
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.Subtract ||
+                e.Key == Key.OemMinus)
+            {
+                currentPlanZ -= Grider.CellSize;
+
+                StatusText.Text =
+                    $"Bearbeitungsebene Z = {currentPlanZ:0.##} mm";
+
+                RedrawScene();
+
+                e.Handled = true;
+                return;
+            }
+
+
             if (controlPressed && e.Key == Key.S)
             {
                 SaveProject();
@@ -5730,32 +5760,7 @@ namespace PlastiCAD
                 return;
             }
 
-            if (e.Key == Key.PageUp)
-            {
-                currentPlanZ += Grider.CellSize;
-
-                StatusText.Text =
-                    $"Bearbeitungsebene Z = {currentPlanZ:0.##} mm";
-
-                RedrawScene();
-
-                e.Handled = true;
-                return;
-            }
-
-            if (e.Key == Key.PageDown)
-            {
-                currentPlanZ -= Grider.CellSize;
-
-                StatusText.Text =
-                    $"Bearbeitungsebene Z = {currentPlanZ:0.##} mm";
-
-                RedrawScene();
-
-                e.Handled = true;
-                return;
-            }
-
+           
             if (selectedParts.Count == 0)
                 return;
 
