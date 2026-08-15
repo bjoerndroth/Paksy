@@ -1457,8 +1457,8 @@ namespace PlastiCAD
                     placed.Transform.Position.Z - currentPlanZ)
                 < 0.001;
 
-            if (!isCurrentLayer)
-                return;
+           
+          
 
             Vector3 cellCenter =
                 GetCellCenter(placed);
@@ -1476,11 +1476,27 @@ namespace PlastiCAD
             bool isSelected =
                 selectedParts.Contains(placed);
 
-            Brush capBrush =
-                isSelected
-                    ? HighlightBrush(Brushes.Gold)
-                    : Brushes.Gold;
 
+            Brush capBrush;
+
+            if (isSelected)
+            {
+                capBrush = HighlightBrush(Brushes.Gold);
+            }
+            else if (isCurrentLayer)
+            {
+                capBrush = Brushes.Gold;
+            }
+            else
+            {
+                capBrush =
+                    new SolidColorBrush(
+                        Color.FromArgb(
+                            45,
+                            255,
+                            215,
+                            0));
+            }
             double capDiameter =
                 endCap.OuterDiameter * Scale;
 
@@ -1664,8 +1680,26 @@ namespace PlastiCAD
                     placed.Transform.Position.Z - currentPlanZ)
                 < 0.001;
 
-            if (!isCurrentLayer)
-                return;
+            Brush plateBrush;
+
+            if (selectedParts.Contains(placed))
+            {
+                plateBrush = HighlightBrush(PaksyRed);
+            }
+            else if (isCurrentLayer)
+            {
+                plateBrush = PaksyRed;
+            }
+            else
+            {
+                plateBrush =
+                    new SolidColorBrush(
+                        Color.FromArgb(
+                            45,
+                            235,
+                            45,
+                            45));
+            }
 
             double halfGrid =
                 Grider.CellSize * Scale / 2.0;
@@ -1684,8 +1718,7 @@ namespace PlastiCAD
                     2.0,
                     plate.Thickness * Scale);
 
-            Brush plateBrush =
-                PaksyRed;
+            
 
             if (selectedParts.Contains(placed))
             {
@@ -1952,8 +1985,7 @@ namespace PlastiCAD
                     placed.Transform.Position.Z - currentPlanZ)
                 < 0.001;
 
-            if (!isCurrentLayer)
-                return;
+           
 
             Vector3 cellCenter = GetCellCenter(placed);
 
@@ -1970,10 +2002,26 @@ namespace PlastiCAD
             bool isSelected =
     selectedParts.Contains(placed);
 
-            Brush outlineBrush =
-                isSelected
-                    ? Brushes.LimeGreen
-                    : Brushes.Black;
+            Brush outlineBrush;
+
+            if (isSelected)
+            {
+                outlineBrush = Brushes.LimeGreen;
+            }
+            else if (isCurrentLayer)
+            {
+                outlineBrush = Brushes.Black;
+            }
+            else
+            {
+                outlineBrush =
+                    new SolidColorBrush(
+                        Color.FromArgb(
+                            55,
+                            0,
+                            0,
+                            0));
+            }
 
             double wheelDiameter =
                 wheel.OuterDiameter * Scale;
@@ -2033,11 +2081,19 @@ namespace PlastiCAD
             bool horizontalAxis =
                 wheelFace == Face.Left ||
                 wheelFace == Face.Right;
-
+            Brush tireBrush =
+    isCurrentLayer
+        ? Brushes.Black
+        : new SolidColorBrush(
+            Color.FromArgb(
+                45,
+                0,
+                0,
+                0));
             // Schwarzer, abgerundeter Gummireifen
             Rectangle tireShape = new Rectangle
             {
-                Fill = Brushes.Black,
+                Fill = tireBrush,
                 Stroke = outlineBrush,
                 StrokeThickness = isSelected ? 2.0 : 1.0,
                 RadiusX = halfWidth,
@@ -2068,10 +2124,19 @@ namespace PlastiCAD
             // Rote Felge innerhalb des Reifens
             double rimWidth =
                 wheelWidth * 0.60;
+            Brush rimBrush =
+    isCurrentLayer
+        ? PaksyRed
+        : new SolidColorBrush(
+            Color.FromArgb(
+                45,
+                235,
+                45,
+                45));
 
             Rectangle rimShape = new Rectangle
             {
-                Fill = Brushes.Red,
+                Fill = rimBrush,
                 Stroke = Brushes.DarkRed,
                 StrokeThickness = 1.0,
                 RadiusX = rimWidth / 3.0,
@@ -8598,313 +8663,353 @@ namespace PlastiCAD
                 });
         }
 
-       private void DrawBigWheel2D(
-    PlacedPart placed,
-    BigWheel wheel)
-{
-    bool isCurrentLayer =
-        Math.Abs(
-            placed.Transform.Position.Z
-            - currentPlanZ)
-        < 0.001;
-
-    if (!isCurrentLayer)
-        return;
-
-    Vector3 cellCenter =
-        GetCellCenter(placed);
-
-    Face wheelFace =
-        FaceHelper.RotateFace(
-            Face.Right,
-            placed.Rotation);
-
-    wheelFace =
-        FaceHelper.RotateFace3D(
-            wheelFace,
-            placed.Transform.Rotation);
-
-    bool isSelected =
-        selectedParts.Contains(placed);
-
-    Brush outlineBrush =
-        isSelected
-            ? Brushes.LimeGreen
-            : Brushes.Black;
-
-    Brush rimBrush =
-        PaksyRed;
-
-    if (isSelected)
-    {
-        rimBrush =
-            HighlightBrush(rimBrush);
-    }
-
-
-    double wheelDiameter =
-        wheel.OuterDiameter * Scale;
-
-    double rimDiameter =
-        wheel.RimDiameter * Scale;
-
-    double tireWidth =
-        wheel.TireWidth * Scale;
-
-    double totalWidth =
-        wheel.Width * Scale;
-
-    double holeDiameter =
-        wheel.HoleDiameter * Scale;
-
-    double halfWidth =
-        totalWidth / 2.0;
-
-
-    // Gleiche Positionierung wie beim normalen Rad
-    double armEndDistance =
-        Grider.CellSize
-        * Scale
-        / 2.0;
-
-    double wheelCenterDistance =
-        armEndDistance
-        - halfWidth;
-
-    Vector3 wheelCenter =
-        new Vector3(
-            cellCenter.X,
-            cellCenter.Y,
-            cellCenter.Z);
-
-
-    switch (wheelFace)
-    {
-        case Face.Right:
-            wheelCenter.X +=
-                wheelCenterDistance;
-            break;
-
-        case Face.Left:
-            wheelCenter.X -=
-                wheelCenterDistance;
-            break;
-
-        case Face.Top:
-            wheelCenter.Y -=
-                wheelCenterDistance;
-            break;
-
-        case Face.Bottom:
-            wheelCenter.Y +=
-                wheelCenterDistance;
-            break;
-
-        case Face.Front:
-        case Face.Back:
-
-            DrawBigWheelFromFront(
-                placed,
-                wheel,
-                wheelCenter,
-                rimBrush,
-                outlineBrush);
-
-            return;
-    }
-
-
-    // ------------------------------------------------------------
-    // SEITENANSICHT
-    // ------------------------------------------------------------
-
-    bool horizontalAxis =
-        wheelFace == Face.Left ||
-        wheelFace == Face.Right;
-
-
-    // Schwarzer Reifen
-    Rectangle tire =
-        new Rectangle
+        private void DrawBigWheel2D(
+      PlacedPart placed,
+      BigWheel wheel)
         {
-            Fill =
-                Brushes.Black,
+            bool isCurrentLayer =
+                Math.Abs(
+                    placed.Transform.Position.Z
+                    - currentPlanZ)
+                < 0.001;
 
-            Stroke =
-                outlineBrush,
+            Vector3 cellCenter =
+                GetCellCenter(placed);
 
-            StrokeThickness =
-                isSelected
-                    ? 2.0
-                    : 1.0,
+            Face wheelFace =
+                FaceHelper.RotateFace(
+                    Face.Right,
+                    placed.Rotation);
 
-            RadiusX =
-                tireWidth / 2.0,
+            wheelFace =
+                FaceHelper.RotateFace3D(
+                    wheelFace,
+                    placed.Transform.Rotation);
 
-            RadiusY =
-                tireWidth / 2.0
-        };
+            bool isSelected =
+                selectedParts.Contains(placed);
 
+            Brush outlineBrush;
+            Brush tireBrush;
+            Brush rimBrush;
 
-    if (horizontalAxis)
-    {
-        tire.Width =
-            tireWidth;
+            if (isSelected)
+            {
+                outlineBrush =
+                    Brushes.LimeGreen;
 
-        tire.Height =
-            wheelDiameter;
-    }
-    else
-    {
-        tire.Width =
-            wheelDiameter;
+                tireBrush =
+                    new SolidColorBrush(
+                        Color.FromArgb(
+                            180,
+                            70,
+                            70,
+                            70));
 
-        tire.Height =
-            tireWidth;
-    }
+                rimBrush =
+                    HighlightBrush(
+                        PaksyRed);
+            }
+            else if (isCurrentLayer)
+            {
+                outlineBrush =
+                    Brushes.Black;
 
+                tireBrush =
+                    Brushes.Black;
 
-    Canvas.SetLeft(
-        tire,
-        wheelCenter.X
-        - tire.Width / 2.0);
+                rimBrush =
+                    PaksyRed;
+            }
+            else
+            {
+                outlineBrush =
+                    new SolidColorBrush(
+                        Color.FromArgb(
+                            55,
+                            0,
+                            0,
+                            0));
 
-    Canvas.SetTop(
-        tire,
-        wheelCenter.Y
-        - tire.Height / 2.0);
+                tireBrush =
+                    new SolidColorBrush(
+                        Color.FromArgb(
+                            45,
+                            0,
+                            0,
+                            0));
 
-    BuildArea.Children.Add(
-        tire);
+                rimBrush =
+                    new SolidColorBrush(
+                        Color.FromArgb(
+                            45,
+                            235,
+                            45,
+                            45));
+            }
 
+            double wheelDiameter =
+                wheel.OuterDiameter * Scale;
 
-    // ------------------------------------------------------------
-    // FELGE
-    // ------------------------------------------------------------
+            double rimDiameter =
+                wheel.RimDiameter * Scale;
 
-    double rimBodyWidth =
-        wheel.RimBodyThickness
-        * Scale;
+            double tireWidth =
+                wheel.TireWidth * Scale;
 
-    Rectangle rim =
-        new Rectangle
-        {
-            Fill =
-                rimBrush,
+            double totalWidth =
+                wheel.Width * Scale;
 
-            Stroke =
-                Brushes.DarkRed,
+            double holeDiameter =
+                wheel.HoleDiameter * Scale;
 
-            StrokeThickness =
-                1.0,
+            double halfWidth =
+                totalWidth / 2.0;
 
-            RadiusX = 2,
-            RadiusY = 2
-        };
+            double armEndDistance =
+                Grider.CellSize
+                * Scale
+                / 2.0;
 
+            double wheelCenterDistance =
+                armEndDistance
+                - halfWidth;
 
-    if (horizontalAxis)
-    {
-        rim.Width =
-            rimBodyWidth;
+            Vector3 wheelCenter =
+                new Vector3(
+                    cellCenter.X,
+                    cellCenter.Y,
+                    cellCenter.Z);
 
-        rim.Height =
-            rimDiameter;
-    }
-    else
-    {
-        rim.Width =
-            rimDiameter;
+            switch (wheelFace)
+            {
+                case Face.Right:
+                    wheelCenter.X +=
+                        wheelCenterDistance;
+                    break;
 
-        rim.Height =
-            rimBodyWidth;
-    }
+                case Face.Left:
+                    wheelCenter.X -=
+                        wheelCenterDistance;
+                    break;
 
+                case Face.Top:
+                    wheelCenter.Y -=
+                        wheelCenterDistance;
+                    break;
 
-    Canvas.SetLeft(
-        rim,
-        wheelCenter.X
-        - rim.Width / 2.0);
+                case Face.Bottom:
+                    wheelCenter.Y +=
+                        wheelCenterDistance;
+                    break;
 
-    Canvas.SetTop(
-        rim,
-        wheelCenter.Y
-        - rim.Height / 2.0);
+                case Face.Front:
+                case Face.Back:
 
-    BuildArea.Children.Add(
-        rim);
+                    DrawBigWheelFromFront(
+     placed,
+     wheel,
+     wheelCenter,
+     tireBrush,
+     rimBrush,
+     outlineBrush);
+                    return;
+            }
 
+            bool horizontalAxis =
+                wheelFace == Face.Left ||
+                wheelFace == Face.Right;
 
-    // ------------------------------------------------------------
-    // MITTELNABE
-    // 9 mm lang
-    // ------------------------------------------------------------
+            Rectangle tire =
+                new Rectangle
+                {
+                    Fill =
+                        tireBrush,
 
-    Rectangle hub =
-        new Rectangle
-        {
-            Fill =
-                rimBrush,
+                    Stroke =
+                        outlineBrush,
 
-            Stroke =
-                Brushes.DarkRed,
+                    StrokeThickness =
+                        isSelected
+                            ? 2.0
+                            : 1.0,
 
-            StrokeThickness =
-                1.0,
+                    RadiusX =
+                        tireWidth / 2.0,
 
-            RadiusX = 2,
-            RadiusY = 2
-        };
+                    RadiusY =
+                        tireWidth / 2.0
+                };
 
+            if (horizontalAxis)
+            {
+                tire.Width =
+                    tireWidth;
 
-    double hubLength =
-        wheel.BoreDepth
-        * Scale;
+                tire.Height =
+                    wheelDiameter;
+            }
+            else
+            {
+                tire.Width =
+                    wheelDiameter;
 
+                tire.Height =
+                    tireWidth;
+            }
 
-    if (horizontalAxis)
-    {
-        hub.Width =
-            hubLength;
+            Canvas.SetLeft(
+                tire,
+                wheelCenter.X
+                - tire.Width / 2.0);
 
-        hub.Height =
-            holeDiameter;
-    }
-    else
-    {
-        hub.Width =
-            holeDiameter;
+            Canvas.SetTop(
+                tire,
+                wheelCenter.Y
+                - tire.Height / 2.0);
 
-        hub.Height =
-            hubLength;
-    }
+            BuildArea.Children.Add(
+                tire);
 
+            double rimBodyWidth =
+                wheel.RimBodyThickness
+                * Scale;
 
-    Canvas.SetLeft(
-        hub,
-        wheelCenter.X
-        - hub.Width / 2.0);
+            Rectangle rim =
+                new Rectangle
+                {
+                    Fill =
+                        rimBrush,
 
-    Canvas.SetTop(
-        hub,
-        wheelCenter.Y
-        - hub.Height / 2.0);
+                    Stroke =
+                        isCurrentLayer || isSelected
+                            ? Brushes.DarkRed
+                            : new SolidColorBrush(
+                                Color.FromArgb(
+                                    45,
+                                    120,
+                                    0,
+                                    0)),
 
-    BuildArea.Children.Add(
-        hub);
-}
+                    StrokeThickness =
+                        1.0,
 
+                    RadiusX =
+                        2,
 
+                    RadiusY =
+                        2
+                };
 
+            if (horizontalAxis)
+            {
+                rim.Width =
+                    rimBodyWidth;
+
+                rim.Height =
+                    rimDiameter;
+            }
+            else
+            {
+                rim.Width =
+                    rimDiameter;
+
+                rim.Height =
+                    rimBodyWidth;
+            }
+
+            Canvas.SetLeft(
+                rim,
+                wheelCenter.X
+                - rim.Width / 2.0);
+
+            Canvas.SetTop(
+                rim,
+                wheelCenter.Y
+                - rim.Height / 2.0);
+
+            BuildArea.Children.Add(
+                rim);
+
+            Rectangle hub =
+                new Rectangle
+                {
+                    Fill =
+                        rimBrush,
+
+                    Stroke =
+                        isCurrentLayer || isSelected
+                            ? Brushes.DarkRed
+                            : new SolidColorBrush(
+                                Color.FromArgb(
+                                    45,
+                                    120,
+                                    0,
+                                    0)),
+
+                    StrokeThickness =
+                        1.0,
+
+                    RadiusX =
+                        2,
+
+                    RadiusY =
+                        2
+                };
+
+            double hubLength =
+                wheel.BoreDepth
+                * Scale;
+
+            if (horizontalAxis)
+            {
+                hub.Width =
+                    hubLength;
+
+                hub.Height =
+                    holeDiameter;
+            }
+            else
+            {
+                hub.Width =
+                    holeDiameter;
+
+                hub.Height =
+                    hubLength;
+            }
+
+            Canvas.SetLeft(
+                hub,
+                wheelCenter.X
+                - hub.Width / 2.0);
+
+            Canvas.SetTop(
+                hub,
+                wheelCenter.Y
+                - hub.Height / 2.0);
+
+            BuildArea.Children.Add(
+                hub);
+        }
 
 
         private void DrawBigWheelFromFront(
-    PlacedPart placed,
-    BigWheel wheel,
-    Vector3 center,
-    Brush rimBrush,
-    Brush outlineBrush)
+      PlacedPart placed,
+      BigWheel wheel,
+      Vector3 center,
+      Brush tireBrush,
+      Brush rimBrush,
+      Brush outlineBrush)
         {
+            bool isCurrentLayer =
+                Math.Abs(
+                    placed.Transform.Position.Z
+                    - currentPlanZ)
+                < 0.001;
+
+            bool isSelected =
+                selectedParts.Contains(placed);
+
             double outerDiameter =
                 wheel.OuterDiameter
                 * Scale;
@@ -8926,7 +9031,34 @@ namespace PlastiCAD
                 * Scale;
 
 
-            // Reifen
+            // ------------------------------------------------------------
+            // LOCHFARBE
+            // ------------------------------------------------------------
+
+            Brush holeBrush;
+
+            if (isSelected ||
+                isCurrentLayer)
+            {
+                holeBrush =
+                    Brushes.Black;
+            }
+            else
+            {
+                holeBrush =
+                    new SolidColorBrush(
+                        Color.FromArgb(
+                            45,
+                            0,
+                            0,
+                            0));
+            }
+
+
+            // ------------------------------------------------------------
+            // REIFEN
+            // ------------------------------------------------------------
+
             Ellipse tire =
                 new Ellipse
                 {
@@ -8937,13 +9069,13 @@ namespace PlastiCAD
                         outerDiameter,
 
                     Fill =
-                        Brushes.Black,
+                        tireBrush,
 
                     Stroke =
                         outlineBrush,
 
                     StrokeThickness =
-                        selectedParts.Contains(placed)
+                        isSelected
                             ? 2.0
                             : 1.0
                 };
@@ -8962,7 +9094,10 @@ namespace PlastiCAD
                 tire);
 
 
-            // Felge
+            // ------------------------------------------------------------
+            // FELGE
+            // ------------------------------------------------------------
+
             Ellipse rim =
                 new Ellipse
                 {
@@ -8976,7 +9111,14 @@ namespace PlastiCAD
                         rimBrush,
 
                     Stroke =
-                        Brushes.DarkRed,
+                        isCurrentLayer || isSelected
+                            ? Brushes.DarkRed
+                            : new SolidColorBrush(
+                                Color.FromArgb(
+                                    45,
+                                    120,
+                                    0,
+                                    0)),
 
                     StrokeThickness =
                         1.0
@@ -8996,7 +9138,10 @@ namespace PlastiCAD
                 rim);
 
 
-            // Mittelloch
+            // ------------------------------------------------------------
+            // MITTELLOCH
+            // ------------------------------------------------------------
+
             Ellipse centerHole =
                 new Ellipse
                 {
@@ -9007,7 +9152,7 @@ namespace PlastiCAD
                         centerHoleDiameter,
 
                     Fill =
-                        Brushes.Black
+                        holeBrush
                 };
 
             Canvas.SetLeft(
@@ -9024,8 +9169,10 @@ namespace PlastiCAD
                 centerHole);
 
 
-            // Vier äußere Löcher
-            // 45° gegenüber den Fugen versetzt
+            // ------------------------------------------------------------
+            // VIER ÄUSSERE LÖCHER
+            // ------------------------------------------------------------
+
             for (int i = 0;
                  i < wheel.SideHoleCount;
                  i++)
@@ -9054,7 +9201,7 @@ namespace PlastiCAD
                             sideHoleDiameter,
 
                         Fill =
-                            Brushes.Black
+                            holeBrush
                     };
 
                 Canvas.SetLeft(
