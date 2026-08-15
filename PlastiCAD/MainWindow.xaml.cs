@@ -39,6 +39,18 @@ namespace PlastiCAD
         "PlastiCAD",
         "recentFiles.json");
 
+        private DispatcherTimer toolboxPreviewTimer;
+
+        private Model3DGroup activeToolboxPreviewModel;
+
+        private double toolboxPreviewAngle = 0.0;
+
+        private Model3DGroup elbowPreviewModel =
+    new Model3DGroup();
+
+        private DispatcherTimer elbowPreviewTimer;
+
+        private double elbowPreviewAngle = 0.0;
 
         private readonly List<string> recentFiles = new List<string>();
 
@@ -154,6 +166,8 @@ namespace PlastiCAD
 
             PartLibrary.Initialize();
 
+            CreateToolboxPreviews();
+
             // foreach (Part part in PartLibrary.Parts)
             // {
             //PartsList.Items.Add(part.Name);
@@ -162,7 +176,359 @@ namespace PlastiCAD
             Loaded += MainWindow_Loaded;
             KeyDown += MainWindow_KeyDown;
         }
+      
 
+        private void CreateStructuralToolboxPreview(
+    string partName,
+    Model3DGroup previewModel)
+        {
+            previewModel.Children.Clear();
+
+            Part part =
+                PartLibrary.Parts.FirstOrDefault(
+                    p => p.Name == partName);
+
+            if (!(part is StructuralPart structuralPart))
+                return;
+
+            Point3D center =
+                new Point3D(
+                    0,
+                    0,
+                    0);
+
+            double radius =
+                structuralPart.OuterDiameter / 200.0;
+
+            double armLength =
+                (structuralPart.Length / 2.0) / 100.0;
+
+            Brush brush =
+                new SolidColorBrush(
+                    Color.FromRgb(
+                        35,
+                        140,
+                        195));
+
+            // Mittelpunkt z.B. bei Winkel, T-Stück, Kreuz
+            if (structuralPart.DrawCenter)
+            {
+                GeometryModel3D sphere =
+                    CreatePreviewSphere(
+                        center,
+                        radius,
+                        brush);
+
+                previewModel.Children.Add(
+                    sphere);
+            }
+
+            // Arme aus den Sockets erzeugen
+            foreach (Socket socket in structuralPart.CreateSockets())
+            {
+                Vector3 direction =
+                    GetDirectionFromFace(
+                        socket.Face);
+
+                Point3D end =
+                    new Point3D(
+                        center.X
+                            + direction.X * armLength,
+
+                        center.Y
+                            - direction.Y * armLength,
+
+                        center.Z
+                            + direction.Z * armLength);
+
+                GeometryModel3D cylinder =
+                    CreatePreviewCylinder(
+                        center,
+                        end,
+                        radius,
+                        brush);
+
+                if (cylinder != null)
+                {
+                    previewModel.Children.Add(
+                        cylinder);
+                }
+            }
+        }
+        private void CreateElbowToolboxPreview()
+        {
+            ElbowPreviewModel.Children.Clear();
+
+            Part part =
+                PartLibrary.Parts.FirstOrDefault(
+                    p => p.Name == "90° Winkel");
+
+            if (!(part is StructuralPart elbow))
+                return;
+
+            Point3D center =
+                new Point3D(
+                    0,
+                    0,
+                    0);
+
+            double radius =
+                elbow.OuterDiameter / 200.0;
+
+            double armLength =
+                (elbow.Length / 2.0) / 100.0;
+
+            Brush brush =
+                new SolidColorBrush(
+                    Color.FromRgb(
+                        35,
+                        140,
+                        195));
+
+            // Mittelpunkt
+            if (elbow.DrawCenter)
+            {
+                GeometryModel3D sphere =
+                    CreatePreviewSphere(
+                        center,
+                        radius,
+                        brush);
+
+                ElbowPreviewModel.Children.Add(
+                    sphere);
+            }
+
+            // Arme über die Sockets erzeugen
+            foreach (Socket socket in elbow.CreateSockets())
+            {
+                Vector3 direction =
+                    GetDirectionFromFace(
+                        socket.Face);
+
+                Point3D end =
+                    new Point3D(
+                        center.X
+                            + direction.X * armLength,
+
+                        center.Y
+                            - direction.Y * armLength,
+
+                        center.Z
+                            + direction.Z * armLength);
+
+                GeometryModel3D cylinder =
+                    CreatePreviewCylinder(
+                        center,
+                        end,
+                        radius,
+                        brush);
+
+                if (cylinder != null)
+                {
+                    ElbowPreviewModel.Children.Add(
+                        cylinder);
+                }
+            }
+
+            // Toolbox-Vorschau doppelt so groß darstellen
+            ElbowPreviewModel.Transform =
+                new ScaleTransform3D(
+                    1.0,
+                    1.0,
+                    1.0);
+        }
+        private GeometryModel3D CreatePreviewCylinder(
+    Point3D start,
+    Point3D end,
+    double radius,
+    Brush brush)
+        {
+            const int segments = 24;
+
+            Vector3D axis =
+                end - start;
+
+            if (axis.Length == 0)
+                return null;
+
+            axis.Normalize();
+
+            Vector3D reference =
+                Math.Abs(axis.Y) < 0.9
+                    ? new Vector3D(0, 1, 0)
+                    : new Vector3D(1, 0, 0);
+
+            Vector3D side1 =
+                Vector3D.CrossProduct(
+                    axis,
+                    reference);
+
+            side1.Normalize();
+
+            Vector3D side2 =
+                Vector3D.CrossProduct(
+                    axis,
+                    side1);
+
+            side2.Normalize();
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+            for (int i = 0;
+                 i < segments;
+                 i++)
+            {
+                double angle =
+                    2.0 * Math.PI
+                    * i / segments;
+
+                Vector3D offset =
+                    side1
+                        * (Math.Cos(angle) * radius)
+                    + side2
+                        * (Math.Sin(angle) * radius);
+
+                mesh.Positions.Add(
+                    start + offset);
+
+                mesh.Positions.Add(
+                    end + offset);
+            }
+
+            for (int i = 0;
+                 i < segments;
+                 i++)
+            {
+                int next =
+                    (i + 1) % segments;
+
+                int a = i * 2;
+                int b = next * 2;
+                int c = a + 1;
+                int d = b + 1;
+
+                mesh.TriangleIndices.Add(a);
+                mesh.TriangleIndices.Add(b);
+                mesh.TriangleIndices.Add(c);
+
+                mesh.TriangleIndices.Add(c);
+                mesh.TriangleIndices.Add(b);
+                mesh.TriangleIndices.Add(d);
+            }
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(
+                    brush);
+
+            return new GeometryModel3D
+            {
+                Geometry = mesh,
+                Material = material,
+                BackMaterial = material
+            };
+        }
+
+        private GeometryModel3D CreatePreviewSphere(
+    Point3D center,
+    double radius,
+    Brush brush)
+        {
+            const int latitudeSegments = 12;
+            const int longitudeSegments = 20;
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+            for (int latitude = 0;
+                 latitude <= latitudeSegments;
+                 latitude++)
+            {
+                double theta =
+                    Math.PI
+                    * latitude
+                    / latitudeSegments;
+
+                double sinTheta =
+                    Math.Sin(theta);
+
+                double cosTheta =
+                    Math.Cos(theta);
+
+                for (int longitude = 0;
+                     longitude <= longitudeSegments;
+                     longitude++)
+                {
+                    double phi =
+                        2.0
+                        * Math.PI
+                        * longitude
+                        / longitudeSegments;
+
+                    double x =
+                        center.X
+                        + radius
+                        * sinTheta
+                        * Math.Cos(phi);
+
+                    double y =
+                        center.Y
+                        + radius
+                        * cosTheta;
+
+                    double z =
+                        center.Z
+                        + radius
+                        * sinTheta
+                        * Math.Sin(phi);
+
+                    mesh.Positions.Add(
+                        new Point3D(
+                            x,
+                            y,
+                            z));
+                }
+            }
+
+            for (int latitude = 0;
+                 latitude < latitudeSegments;
+                 latitude++)
+            {
+                for (int longitude = 0;
+                     longitude < longitudeSegments;
+                     longitude++)
+                {
+                    int first =
+                        latitude
+                        * (longitudeSegments + 1)
+                        + longitude;
+
+                    int second =
+                        first
+                        + longitudeSegments
+                        + 1;
+
+                    mesh.TriangleIndices.Add(first);
+                    mesh.TriangleIndices.Add(second);
+                    mesh.TriangleIndices.Add(first + 1);
+
+                    mesh.TriangleIndices.Add(second);
+                    mesh.TriangleIndices.Add(second + 1);
+                    mesh.TriangleIndices.Add(first + 1);
+                }
+            }
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(
+                    brush);
+
+            return new GeometryModel3D
+            {
+                Geometry = mesh,
+                Material = material,
+                BackMaterial = material
+            };
+        }
         private bool IsPositionOccupied(
     double x,
     double y,
@@ -9481,6 +9847,245 @@ namespace PlastiCAD
 
             RedrawScene();
         }
+
+
+        private void ElbowPreview_MouseEnter(
+    object sender,
+    MouseEventArgs e)
+        {
+            if (elbowPreviewTimer != null)
+                return;
+
+            elbowPreviewTimer =
+                new DispatcherTimer
+                {
+                    Interval =
+                        TimeSpan.FromMilliseconds(20)
+                };
+
+            elbowPreviewTimer.Tick +=
+                ElbowPreviewTimer_Tick;
+
+            elbowPreviewTimer.Start();
+        }
+
+        private void ElbowPreview_MouseLeave(
+    object sender,
+    MouseEventArgs e)
+        {
+            if (elbowPreviewTimer != null)
+            {
+                elbowPreviewTimer.Stop();
+
+                elbowPreviewTimer.Tick -=
+                    ElbowPreviewTimer_Tick;
+
+                elbowPreviewTimer = null;
+            }
+
+            elbowPreviewAngle = 0;
+
+            ElbowPreviewModel.Transform =
+                Transform3D.Identity;
+        }
+
+        private void ElbowPreviewTimer_Tick(
+    object sender,
+    EventArgs e)
+        {
+            elbowPreviewAngle += 2.0;
+
+            if (elbowPreviewAngle >= 360.0)
+            {
+                elbowPreviewAngle -= 360.0;
+            }
+
+            AxisAngleRotation3D rotation =
+                new AxisAngleRotation3D(
+                    new Vector3D(
+                        0,
+                        1,
+                        0),
+                    elbowPreviewAngle);
+
+            ElbowPreviewModel.Transform =
+                new RotateTransform3D(
+                    rotation,
+                    new Point3D(
+                        0,
+                        0,
+                        0));
+        }
+
+
+        private void ToolboxPreview_MouseEnter(
+    object sender,
+    MouseEventArgs e)
+        {
+            if (!(sender is Button button))
+                return;
+
+            if (!(button.Tag is string partName))
+                return;
+
+            activeToolboxPreviewModel =
+                GetToolboxPreviewModel(
+                    partName);
+
+            if (activeToolboxPreviewModel == null)
+                return;
+
+            toolboxPreviewAngle = 0.0;
+
+            if (toolboxPreviewTimer == null)
+            {
+                toolboxPreviewTimer =
+                    new DispatcherTimer
+                    {
+                        Interval =
+                            TimeSpan.FromMilliseconds(20)
+                    };
+
+                toolboxPreviewTimer.Tick +=
+                    ToolboxPreviewTimer_Tick;
+            }
+
+            toolboxPreviewTimer.Start();
+        }
+
+        private void ToolboxPreview_MouseLeave(
+    object sender,
+    MouseEventArgs e)
+        {
+            if (toolboxPreviewTimer != null)
+            {
+                toolboxPreviewTimer.Stop();
+            }
+
+            if (activeToolboxPreviewModel != null)
+            {
+                activeToolboxPreviewModel.Transform =
+                    Transform3D.Identity;
+            }
+
+            activeToolboxPreviewModel = null;
+
+            toolboxPreviewAngle = 0.0;
+        }
+
+        private void ToolboxPreviewTimer_Tick(
+    object sender,
+    EventArgs e)
+        {
+            if (activeToolboxPreviewModel == null)
+                return;
+
+            toolboxPreviewAngle += 2.0;
+
+            if (toolboxPreviewAngle >= 360.0)
+            {
+                toolboxPreviewAngle -= 360.0;
+            }
+
+            AxisAngleRotation3D rotation =
+                new AxisAngleRotation3D(
+                    new Vector3D(
+                        0,
+                        1,
+                        0),
+                    toolboxPreviewAngle);
+
+            activeToolboxPreviewModel.Transform =
+                new RotateTransform3D(
+                    rotation,
+                    new Point3D(
+                        0,
+                        0,
+                        0));
+        }
+
+
+        private void CreateToolboxPreviews()
+        {
+            CreateStructuralToolboxPreview(
+                "Rohr 27,5 mm",
+                PipePreviewModel);
+
+            CreateStructuralToolboxPreview(
+                "90° Winkel",
+                ElbowPreviewModel);
+
+            CreateStructuralToolboxPreview(
+                "T-Stück",
+                TeePreviewModel);
+
+            CreateStructuralToolboxPreview(
+                "Kreuz",
+                CrossPreviewModel);
+
+            CreateStructuralToolboxPreview(
+                "Corner",
+                CornerPreviewModel);
+
+            CreateStructuralToolboxPreview(
+                "Edge",
+                EdgePreviewModel);
+
+            CreateStructuralToolboxPreview(
+                "Stand",
+                StandPreviewModel);
+
+            CreateStructuralToolboxPreview(
+                "SpaceCross",
+                SpaceCrossPreviewModel);
+        }
+        private Model3DGroup GetToolboxPreviewModel(
+     string partName)
+        {
+            switch (partName)
+            {
+                case "Rohr 27,5 mm":
+                    return PipePreviewModel;
+
+                case "90° Winkel":
+                    return ElbowPreviewModel;
+
+                case "T-Stück":
+                    return TeePreviewModel;
+
+                case "Kreuz":
+                    return CrossPreviewModel;
+
+                case "Corner":
+                    return CornerPreviewModel;
+
+                case "Edge":
+                    return EdgePreviewModel;
+
+                case "Stand":
+                    return StandPreviewModel;
+
+                case "SpaceCross":
+                    return SpaceCrossPreviewModel;
+
+                default:
+                    return null;
+            }
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     }

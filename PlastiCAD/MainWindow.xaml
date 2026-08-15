@@ -12,63 +12,114 @@
 
     <Window.Resources>
 
-        <Style x:Key="PartToolButtonStyle"
-               TargetType="Button">
+        <SolidColorBrush x:Key="WorldBackgroundBrush"
+                 Color="LightGray"/>
 
-            <Setter Property="Width" Value="94"/>
-            <Setter Property="Height" Value="76"/>
-            <Setter Property="Margin" Value="2"/>
-            <Setter Property="Padding" Value="2"/>
-            <Setter Property="Background" Value="#FFF4F4F4"/>
-            <Setter Property="BorderBrush" Value="#FFB5B5B5"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+        <Style x:Key="Toolbox3DPreviewStyle"
+       TargetType="Viewport3D">
+
+            <Setter Property="Width"
+            Value="86"/>
+
+            <Setter Property="Height"
+            Value="86"/>
+
+            <Setter Property="ClipToBounds"
+            Value="True"/>
+
+            <Setter Property="HorizontalAlignment"
+            Value="Center"/>
+
+            <Setter Property="VerticalAlignment"
+            Value="Center"/>
+
+        </Style>
+
+        <PerspectiveCamera x:Key="ToolboxPreviewCamera"
+                   x:Shared="False"
+                   Position="0.38,0.34,0.42"
+                   LookDirection="-0.3,-0.26,-0.32"
+                   UpDirection="0,1,0"
+                   FieldOfView="30"/>
+
+        <Model3DGroup x:Key="ToolboxPreviewLights"
+              x:Shared="False">
+
+            <!-- Gleiches Licht wie Paksy World -->
+
+            <DirectionalLight
+        Color="#a0FFd0"
+        Direction="-1,-1,-2"/>
+
+            <AmbientLight
+        Color="#602A40"/>
+
+            <DirectionalLight
+        Color="#a0E0c0"
+        Direction="1,1,2"/>
+
+        </Model3DGroup>
+
+        
+
+        <Style x:Key="PartToolButtonStyle"
+       TargetType="Button">
+
+            <Setter Property="Margin"
+            Value="3"/>
+
+            <Setter Property="Padding"
+            Value="2"/>
+
+            <Setter Property="Background"
+            Value="#F4F4F4"/>
+
+            <Setter Property="BorderBrush"
+            Value="#B5B5B5"/>
+
+            <Setter Property="BorderThickness"
+            Value="1"/>
 
             <Setter Property="Template">
                 <Setter.Value>
+
                     <ControlTemplate TargetType="Button">
 
                         <Border x:Name="ButtonBorder"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="2">
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}">
 
                             <ContentPresenter
-                                Margin="{TemplateBinding Padding}"
-                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
 
                         </Border>
 
                         <ControlTemplate.Triggers>
 
-                            <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger Property="IsMouseOver"
+                             Value="True">
+
                                 <Setter TargetName="ButtonBorder"
-                                        Property="Background"
-                                        Value="#FFE7F2FA"/>
-                                <Setter TargetName="ButtonBorder"
-                                        Property="BorderBrush"
-                                        Value="#FF1683B5"/>
+                                Property="Background"
+                                Value="#EAEAEA"/>
+
                             </Trigger>
 
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="ButtonBorder"
-                                        Property="Background"
-                                        Value="#FFCCE8F5"/>
-                            </Trigger>
+                            <Trigger Property="IsPressed"
+                             Value="True">
 
-                            <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="ButtonBorder"
-                                        Property="Opacity"
-                                        Value="0.40"/>
+                                Property="Background"
+                                Value="#DCDCDC"/>
+
                             </Trigger>
 
                         </ControlTemplate.Triggers>
 
                     </ControlTemplate>
+
                 </Setter.Value>
             </Setter>
 
@@ -605,6 +656,9 @@ Fill="Transparent"/>
         </Border>
 
         <!-- Grafischer Werkzeugkasten -->
+        
+        
+        
         <Border Grid.Column="0"
                 Grid.Row="2"
                 BorderBrush="#FFAAAAAA"
@@ -616,85 +670,284 @@ Fill="Transparent"/>
 
                 <StackPanel Margin="2">
 
-                 
+
                     <UniformGrid Columns="2">
 
-                        <Button Style="{StaticResource PartToolButtonStyle}"
-                                Tag="Rohr 27,5 mm"
-                                ToolTip="Rohr"
-                                Click="PartToolButton_Click">
-                            <Image Source="/Assets/Parts/Pipe.png"
-                                   Stretch="Uniform"
-                                   Margin="1"/>
-                        </Button>
+                        <!-- ====================================================== -->
+                        <!-- ROHR                                                   -->
+                        <!-- ====================================================== -->
 
                         <Button Style="{StaticResource PartToolButtonStyle}"
-                                Tag="90° Winkel"
-                                ToolTip="90° Winkel"
-                                Click="PartToolButton_Click">
-                            <Image Source="/Assets/Parts/Elbow.png"
-                                   Stretch="Uniform"
-                                   Margin="1"/>
+            Tag="Rohr 27,5 mm"
+            ToolTip="Rohr"
+            Click="PartToolButton_Click"
+            MouseEnter="ToolboxPreview_MouseEnter"
+            MouseLeave="ToolboxPreview_MouseLeave">
+
+                            <Border Background="{StaticResource WorldBackgroundBrush}">
+
+                                <Viewport3D
+                Style="{StaticResource Toolbox3DPreviewStyle}"
+                Camera="{StaticResource ToolboxPreviewCamera}">
+
+                                    <ModelVisual3D
+                    Content="{StaticResource ToolboxPreviewLights}"/>
+
+                                    <ModelVisual3D>
+                                        <ModelVisual3D.Content>
+
+                                            <Model3DGroup
+                            x:Name="PipePreviewModel"/>
+
+                                        </ModelVisual3D.Content>
+                                    </ModelVisual3D>
+
+                                </Viewport3D>
+
+                            </Border>
+
                         </Button>
 
-                        <Button Style="{StaticResource PartToolButtonStyle}"
-                                Tag="T-Stück"
-                                ToolTip="T-Stück"
-                                Click="PartToolButton_Click">
-                            <Image Source="/Assets/Parts/Tee.png"
-                                   Stretch="Uniform"
-                                   Margin="1"/>
-                        </Button>
+
+                        <!-- ====================================================== -->
+                        <!-- 90° WINKEL                                             -->
+                        <!-- ====================================================== -->
 
                         <Button Style="{StaticResource PartToolButtonStyle}"
-                                Tag="Kreuz"
-                                ToolTip="Kreuz"
-                                Click="PartToolButton_Click">
-                            <Image Source="/Assets/Parts/Cross.png"
-                                   Stretch="Uniform"
-                                   Margin="1"/>
+        Tag="90° Winkel"
+        ToolTip="90° Winkel"
+        Click="PartToolButton_Click"
+        MouseEnter="ToolboxPreview_MouseEnter"
+        MouseLeave="ToolboxPreview_MouseLeave">
+
+                            <Border Background="{StaticResource WorldBackgroundBrush}">
+
+                                <Viewport3D x:Name="ElbowPreview"
+                    Style="{StaticResource Toolbox3DPreviewStyle}"
+                    Camera="{StaticResource ToolboxPreviewCamera}">
+
+                                    <ModelVisual3D
+                Content="{StaticResource ToolboxPreviewLights}"/>
+
+                                    <ModelVisual3D>
+                                        <ModelVisual3D.Content>
+                                            <Model3DGroup x:Name="ElbowPreviewModel"/>
+                                        </ModelVisual3D.Content>
+                                    </ModelVisual3D>
+
+                                </Viewport3D>
+
+                            </Border>
+
                         </Button>
 
-                        <Button Style="{StaticResource PartToolButtonStyle}"
-                                Tag="Corner"
-                                ToolTip="Corner"
-                                Click="PartToolButton_Click">
-                            <Image Source="/Assets/Parts/Corner.png"
-                                   Stretch="Uniform"
-                                   Margin="1"/>
-                        </Button>
+
+                        <!-- ====================================================== -->
+                        <!-- T-STÜCK                                                -->
+                        <!-- ====================================================== -->
 
                         <Button Style="{StaticResource PartToolButtonStyle}"
-                                Tag="Edge"
-                                ToolTip="Edge"
-                                Click="PartToolButton_Click">
-                            <Image Source="/Assets/Parts/Edge.png"
-                                   Stretch="Uniform"
-                                   Margin="1"/>
+            Tag="T-Stück"
+            ToolTip="T-Stück"
+            Click="PartToolButton_Click"
+            MouseEnter="ToolboxPreview_MouseEnter"
+            MouseLeave="ToolboxPreview_MouseLeave">
+
+                            <Border Background="{StaticResource WorldBackgroundBrush}">
+
+                                <Viewport3D
+                Style="{StaticResource Toolbox3DPreviewStyle}"
+                Camera="{StaticResource ToolboxPreviewCamera}">
+
+                                    <ModelVisual3D
+                    Content="{StaticResource ToolboxPreviewLights}"/>
+
+                                    <ModelVisual3D>
+                                        <ModelVisual3D.Content>
+
+                                            <Model3DGroup
+                            x:Name="TeePreviewModel"/>
+
+                                        </ModelVisual3D.Content>
+                                    </ModelVisual3D>
+
+                                </Viewport3D>
+
+                            </Border>
+
                         </Button>
 
-                        <Button Style="{StaticResource PartToolButtonStyle}"
-                                Tag="Stand"
-                                ToolTip="Stand"
-                                Click="PartToolButton_Click">
-                            <Image Source="/Assets/Parts/Stand.png"
-                                   Stretch="Uniform"
-                                   Margin="1"/>
-                        </Button>
+
+                        <!-- ====================================================== -->
+                        <!-- KREUZ                                                  -->
+                        <!-- ====================================================== -->
 
                         <Button Style="{StaticResource PartToolButtonStyle}"
-                                Tag="SpaceCross"
-                                ToolTip="SpaceCross"
-                                Click="PartToolButton_Click">
-                            <Image Source="/Assets/Parts/SpaceCross.png"
-                                   Stretch="Uniform"
-                                   Margin="1"/>
+            Tag="Kreuz"
+            ToolTip="Kreuz"
+            Click="PartToolButton_Click"
+            MouseEnter="ToolboxPreview_MouseEnter"
+            MouseLeave="ToolboxPreview_MouseLeave">
+
+                            <Border Background="{StaticResource WorldBackgroundBrush}">
+
+                                <Viewport3D
+                Style="{StaticResource Toolbox3DPreviewStyle}"
+                Camera="{StaticResource ToolboxPreviewCamera}">
+
+                                    <ModelVisual3D
+                    Content="{StaticResource ToolboxPreviewLights}"/>
+
+                                    <ModelVisual3D>
+                                        <ModelVisual3D.Content>
+
+                                            <Model3DGroup
+                            x:Name="CrossPreviewModel"/>
+
+                                        </ModelVisual3D.Content>
+                                    </ModelVisual3D>
+
+                                </Viewport3D>
+
+                            </Border>
+
+                        </Button>
+
+
+                        <!-- ====================================================== -->
+                        <!-- CORNER - vorerst PNG                                   -->
+                        <!-- ====================================================== -->
+                        <!-- ====================================================== -->
+                        <!-- CORNER                                                 -->
+                        <!-- ====================================================== -->
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+        Tag="Corner"
+        ToolTip="Corner"
+        Click="PartToolButton_Click"
+        MouseEnter="ToolboxPreview_MouseEnter"
+        MouseLeave="ToolboxPreview_MouseLeave">
+
+                            <Border Background="{StaticResource WorldBackgroundBrush}">
+
+                                <Viewport3D Style="{StaticResource Toolbox3DPreviewStyle}"
+                    Camera="{StaticResource ToolboxPreviewCamera}">
+
+                                    <ModelVisual3D
+                Content="{StaticResource ToolboxPreviewLights}"/>
+
+                                    <ModelVisual3D>
+                                        <ModelVisual3D.Content>
+                                            <Model3DGroup x:Name="CornerPreviewModel"/>
+                                        </ModelVisual3D.Content>
+                                    </ModelVisual3D>
+
+                                </Viewport3D>
+
+                            </Border>
+
+                        </Button>
+
+
+                        <!-- ====================================================== -->
+                        <!-- EDGE                                                   -->
+                        <!-- ====================================================== -->
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+        Tag="Edge"
+        ToolTip="Edge"
+        Click="PartToolButton_Click"
+        MouseEnter="ToolboxPreview_MouseEnter"
+        MouseLeave="ToolboxPreview_MouseLeave">
+
+                            <Border Background="{StaticResource WorldBackgroundBrush}">
+
+                                <Viewport3D Style="{StaticResource Toolbox3DPreviewStyle}"
+                    Camera="{StaticResource ToolboxPreviewCamera}">
+
+                                    <ModelVisual3D
+                Content="{StaticResource ToolboxPreviewLights}"/>
+
+                                    <ModelVisual3D>
+                                        <ModelVisual3D.Content>
+                                            <Model3DGroup x:Name="EdgePreviewModel"/>
+                                        </ModelVisual3D.Content>
+                                    </ModelVisual3D>
+
+                                </Viewport3D>
+
+                            </Border>
+
+                        </Button>
+
+
+                        <!-- ====================================================== -->
+                        <!-- STAND                                                  -->
+                        <!-- ====================================================== -->
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+        Tag="Stand"
+        ToolTip="Stand"
+        Click="PartToolButton_Click"
+        MouseEnter="ToolboxPreview_MouseEnter"
+        MouseLeave="ToolboxPreview_MouseLeave">
+
+                            <Border Background="{StaticResource WorldBackgroundBrush}">
+
+                                <Viewport3D Style="{StaticResource Toolbox3DPreviewStyle}"
+                    Camera="{StaticResource ToolboxPreviewCamera}">
+
+                                    <ModelVisual3D
+                Content="{StaticResource ToolboxPreviewLights}"/>
+
+                                    <ModelVisual3D>
+                                        <ModelVisual3D.Content>
+                                            <Model3DGroup x:Name="StandPreviewModel"/>
+                                        </ModelVisual3D.Content>
+                                    </ModelVisual3D>
+
+                                </Viewport3D>
+
+                            </Border>
+
+                        </Button>
+
+
+                        <!-- ====================================================== -->
+                        <!-- SPACECROSS                                             -->
+                        <!-- ====================================================== -->
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+        Tag="SpaceCross"
+        ToolTip="SpaceCross"
+        Click="PartToolButton_Click"
+        MouseEnter="ToolboxPreview_MouseEnter"
+        MouseLeave="ToolboxPreview_MouseLeave">
+
+                            <Border Background="{StaticResource WorldBackgroundBrush}">
+
+                                <Viewport3D Style="{StaticResource Toolbox3DPreviewStyle}"
+                    Camera="{StaticResource ToolboxPreviewCamera}">
+
+                                    <ModelVisual3D
+                Content="{StaticResource ToolboxPreviewLights}"/>
+
+                                    <ModelVisual3D>
+                                        <ModelVisual3D.Content>
+                                            <Model3DGroup x:Name="SpaceCrossPreviewModel"/>
+                                        </ModelVisual3D.Content>
+                                    </ModelVisual3D>
+
+                                </Viewport3D>
+
+                            </Border>
+
                         </Button>
 
                     </UniformGrid>
 
-                  
-                 
+
+
                     <UniformGrid Columns="2">
 
                         <Button Style="{StaticResource PartToolButtonStyle}"
