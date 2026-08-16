@@ -31,7 +31,7 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
-
+        private string activeToolboxPreviewPartName;
         private string RecentFilesPath =>
     System.IO.Path.Combine(
         Environment.GetFolderPath(
@@ -254,6 +254,9 @@ namespace PlastiCAD
                         cylinder);
                 }
             }
+            ApplyToolboxPreviewStartRotation(
+                partName,
+                previewModel);
         }
         private void CreateElbowToolboxPreview()
         {
@@ -9928,6 +9931,9 @@ namespace PlastiCAD
             if (!(button.Tag is string partName))
                 return;
 
+            activeToolboxPreviewPartName =
+                partName;
+
             activeToolboxPreviewModel =
                 GetToolboxPreviewModel(
                     partName);
@@ -9962,23 +9968,31 @@ namespace PlastiCAD
                 toolboxPreviewTimer.Stop();
             }
 
-            if (activeToolboxPreviewModel != null)
+            if (activeToolboxPreviewModel != null &&
+                !string.IsNullOrWhiteSpace(
+                    activeToolboxPreviewPartName))
             {
-                activeToolboxPreviewModel.Transform =
-                    Transform3D.Identity;
+                ApplyToolboxPreviewStartRotation(
+                    activeToolboxPreviewPartName,
+                    activeToolboxPreviewModel);
             }
 
             activeToolboxPreviewModel = null;
+            activeToolboxPreviewPartName = null;
 
             toolboxPreviewAngle = 0.0;
         }
 
         private void ToolboxPreviewTimer_Tick(
-    object sender,
-    EventArgs e)
+     object sender,
+     EventArgs e)
         {
-            if (activeToolboxPreviewModel == null)
+            if (activeToolboxPreviewModel == null ||
+                string.IsNullOrWhiteSpace(
+                    activeToolboxPreviewPartName))
+            {
                 return;
+            }
 
             toolboxPreviewAngle += 2.0;
 
@@ -9987,23 +10001,38 @@ namespace PlastiCAD
                 toolboxPreviewAngle -= 360.0;
             }
 
-            AxisAngleRotation3D rotation =
-                new AxisAngleRotation3D(
-                    new Vector3D(
-                        0,
-                        1,
-                        0),
-                    toolboxPreviewAngle);
+            Vector3D startRotation =
+                GetToolboxPreviewStartRotation(
+                    activeToolboxPreviewPartName);
+
+            Transform3DGroup transforms =
+                new Transform3DGroup();
+
+            // Startwinkel X
+            transforms.Children.Add(
+                new RotateTransform3D(
+                    new AxisAngleRotation3D(
+                        new Vector3D(1, 0, 0),
+                        startRotation.X)));
+
+            // Startwinkel Y + Hover-Drehung
+            transforms.Children.Add(
+                new RotateTransform3D(
+                    new AxisAngleRotation3D(
+                        new Vector3D(0, 1, 0),
+                        startRotation.Y
+                        + toolboxPreviewAngle)));
+
+            // Startwinkel Z
+            transforms.Children.Add(
+                new RotateTransform3D(
+                    new AxisAngleRotation3D(
+                        new Vector3D(0, 0, 1),
+                        startRotation.Z)));
 
             activeToolboxPreviewModel.Transform =
-                new RotateTransform3D(
-                    rotation,
-                    new Point3D(
-                        0,
-                        0,
-                        0));
+                transforms;
         }
-
 
         private void CreateToolboxPreviews()
         {
@@ -10074,10 +10103,73 @@ namespace PlastiCAD
         }
 
 
+        private Vector3D GetToolboxPreviewStartRotation(
+    string partName)
+        {
+            switch (partName)
+            {
+                case "Rohr 27,5 mm":
+                    return new Vector3D(0, 0, 0);
+
+                case "90° Winkel":
+                    return new Vector3D(0, 90, 0);
+
+                case "T-Stück":
+                    return new Vector3D(0, 0, 0);
+
+                case "Kreuz":
+                    return new Vector3D(0, 0, 0);
+
+                case "Corner":
+                    return new Vector3D(0, 90, 0);
+
+                case "Edge":
+                    return new Vector3D(0, -20, 0);
+
+                case "Stand":
+                    return new Vector3D(0, 0, 0);
+
+                case "SpaceCross":
+                    return new Vector3D(0, 0, 0);
+
+                default:
+                    return new Vector3D(0, 0, 0);
+            }
+        }
 
 
+        private void ApplyToolboxPreviewStartRotation(
+    string partName,
+    Model3DGroup previewModel)
+        {
+            Vector3D rotation =
+                GetToolboxPreviewStartRotation(
+                    partName);
 
+            Transform3DGroup transforms =
+                new Transform3DGroup();
 
+            transforms.Children.Add(
+                new RotateTransform3D(
+                    new AxisAngleRotation3D(
+                        new Vector3D(1, 0, 0),
+                        rotation.X)));
+
+            transforms.Children.Add(
+                new RotateTransform3D(
+                    new AxisAngleRotation3D(
+                        new Vector3D(0, 1, 0),
+                        rotation.Y)));
+
+            transforms.Children.Add(
+                new RotateTransform3D(
+                    new AxisAngleRotation3D(
+                        new Vector3D(0, 0, 1),
+                        rotation.Z)));
+
+            previewModel.Transform =
+                transforms;
+        }
 
 
 
