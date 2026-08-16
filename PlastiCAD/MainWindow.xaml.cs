@@ -10067,6 +10067,507 @@ namespace PlastiCAD
             CreateStructuralToolboxPreview(
                 "SpaceCross",
                 SpaceCrossPreviewModel);
+
+            // Spezialteile
+
+            CreateCubeToolboxPreview(
+                CubePreviewModel);
+
+            CreateBallToolboxPreview(
+                BallPreviewModel);
+
+            CreatePlateToolboxPreview(
+                PlatePreviewModel);
+
+            CreateBigPlateToolboxPreview(
+                BigPlatePreviewModel);
+
+            CreateWindowToolboxPreview(
+                WindowPreviewModel);
+            
+            CreateWheelToolboxPreview(
+                WheelPreviewModel);
+
+            CreateBigWheelToolboxPreview(
+                BigWheelPreviewModel);
+
+            CreateEndCapToolboxPreview(
+    EndCapPreviewModel);
+
+        }
+
+        private void CreateEndCapToolboxPreview(
+    Model3DGroup previewModel)
+        {
+            previewModel.Children.Clear();
+
+            Part part =
+                PartLibrary.Parts.FirstOrDefault(
+                    p => p.Name == "Endkappe");
+
+            if (!(part is EndCap endCap))
+                return;
+
+            double previewScale =
+                2.40;
+
+            Point3D center =
+                new Point3D(
+                    0,
+                    0,
+                    0);
+
+            Vector3D axis =
+                new Vector3D(
+                    1,
+                    0,
+                    0);
+
+            axis.Normalize();
+
+            Brush capBrush =
+                Brushes.Gold;
+
+
+            // ------------------------------------------------------------
+            // GLEICHE MASSE WIE AddEndCap() IN PAKSY WORLD
+            // ------------------------------------------------------------
+
+            double flangeRadius =
+                0.060
+                * previewScale;
+
+            double flangeLength =
+                0.010
+                * previewScale;
+
+            double coneRadius =
+                flangeRadius;
+
+            double coneLength =
+                0.035
+                * previewScale;
+
+
+            // ------------------------------------------------------------
+            // FLANSCH
+            // ------------------------------------------------------------
+
+            Point3D flangeStart =
+                center
+                - axis * (flangeLength / 2.0);
+
+            Point3D flangeEnd =
+                center
+                + axis * (flangeLength / 2.0);
+
+            GeometryModel3D flange =
+                CreatePreviewCylinder(
+                    flangeStart,
+                    flangeEnd,
+                    flangeRadius,
+                    capBrush);
+
+            if (flange != null)
+            {
+                previewModel.Children.Add(
+                    flange);
+            }
+
+
+            // ------------------------------------------------------------
+            // KEGEL
+            // ------------------------------------------------------------
+
+            Point3D coneStart =
+                flangeEnd;
+
+            Point3D coneTip =
+                coneStart
+                + axis * coneLength;
+
+            GeometryModel3D cone =
+                CreatePreviewCone(
+                    coneStart,
+                    coneTip,
+                    coneRadius,
+                    capBrush);
+
+            if (cone != null)
+            {
+                previewModel.Children.Add(
+                    cone);
+            }
+
+
+            ApplyToolboxPreviewStartRotation(
+                "Endkappe",
+                previewModel);
+        }
+        private GeometryModel3D CreatePreviewCone(
+    Point3D start,
+    Point3D end,
+    double radius,
+    Brush brush)
+        {
+            const int segments = 32;
+
+            Vector3D axis =
+                end - start;
+
+            if (axis.Length == 0)
+                return null;
+
+            axis.Normalize();
+
+            Vector3D reference =
+                Math.Abs(axis.Y) < 0.9
+                    ? new Vector3D(0, 1, 0)
+                    : new Vector3D(1, 0, 0);
+
+            Vector3D side1 =
+                Vector3D.CrossProduct(
+                    axis,
+                    reference);
+
+            side1.Normalize();
+
+            Vector3D side2 =
+                Vector3D.CrossProduct(
+                    axis,
+                    side1);
+
+            side2.Normalize();
+
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+            // Spitze
+            mesh.Positions.Add(
+                end);
+
+            // Mittelpunkt der Grundfläche
+            mesh.Positions.Add(
+                start);
+
+
+            // Kreis
+            for (int i = 0;
+                 i < segments;
+                 i++)
+            {
+                double angle =
+                    2.0
+                    * Math.PI
+                    * i
+                    / segments;
+
+                Vector3D offset =
+                    side1
+                        * Math.Cos(angle)
+                        * radius
+                    +
+                    side2
+                        * Math.Sin(angle)
+                        * radius;
+
+                mesh.Positions.Add(
+                    start + offset);
+            }
+
+
+            for (int i = 0;
+                 i < segments;
+                 i++)
+            {
+                int current =
+                    2 + i;
+
+                int next =
+                    2 + ((i + 1) % segments);
+
+
+                // Mantelfläche
+                mesh.TriangleIndices.Add(0);
+                mesh.TriangleIndices.Add(current);
+                mesh.TriangleIndices.Add(next);
+
+
+                // Grundfläche
+                mesh.TriangleIndices.Add(1);
+                mesh.TriangleIndices.Add(next);
+                mesh.TriangleIndices.Add(current);
+            }
+
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(
+                    brush);
+
+            return new GeometryModel3D
+            {
+                Geometry = mesh,
+                Material = material,
+                BackMaterial = material
+            };
+        }
+        private void CreateWindowToolboxPreview(
+    Model3DGroup previewModel)
+        {
+            previewModel.Children.Clear();
+
+            Part part =
+                PartLibrary.Parts.FirstOrDefault(
+                    p => p.Name == "Fenster");
+
+            if (!(part is WindowPlate windowPlate))
+                return;
+
+            double previewScale =
+                0.80;
+
+            double width =
+                windowPlate.Width / 100.0
+                * previewScale;
+
+            double height =
+                windowPlate.Height / 100.0
+                * previewScale;
+
+            double thickness =
+                windowPlate.Thickness / 100.0
+                * previewScale;
+
+            double barWidth =
+                windowPlate.CenterBarWidth / 100.0
+                * previewScale;
+
+            double barThickness =
+                thickness + 0.002;
+
+
+            // Transparente Scheibe
+            Brush glassBrush =
+                new SolidColorBrush(
+                    Color.FromArgb(
+                        70,
+                        180,
+                        230,
+                        255));
+
+
+            // Mittelsteg
+            Brush centerBarBrush =
+                new SolidColorBrush(
+                    Color.FromArgb(
+                        150,
+                        190,
+                        210,
+                        220));
+
+
+            Point3D center =
+                new Point3D(
+                    0,
+                    0,
+                    0);
+
+
+            // ------------------------------------------------------------
+            // GLASSCHEIBE
+            // ------------------------------------------------------------
+
+            GeometryModel3D glass =
+                CreatePreviewBox(
+                    center,
+                    width,
+                    thickness,
+                    height,
+                    glassBrush);
+
+            previewModel.Children.Add(
+                glass);
+
+
+            // ------------------------------------------------------------
+            // MITTELSTEG
+            // ------------------------------------------------------------
+
+            GeometryModel3D centerBar =
+                CreatePreviewBox(
+                    center,
+                    barWidth,
+                    barThickness,
+                    height,
+                    centerBarBrush);
+
+            previewModel.Children.Add(
+                centerBar);
+
+
+            ApplyToolboxPreviewStartRotation(
+                "Fenster",
+                previewModel);
+        }
+        private void CreatePlateToolboxPreview(
+    Model3DGroup previewModel)
+        {
+            previewModel.Children.Clear();
+
+            Part part =
+                PartLibrary.Parts.FirstOrDefault(
+                    p => p.Name == "Platte");
+
+            if (!(part is Plate plate))
+                return;
+
+            Brush brush =
+                PaksyRed;
+
+            double previewScale = 0.80;
+
+            double width =
+                plate.Width / 100.0
+                * previewScale;
+
+            double height =
+                plate.Height / 100.0
+                * previewScale;
+
+            double thickness =
+                plate.Thickness / 100.0
+                * previewScale;
+
+            GeometryModel3D model =
+                CreatePreviewBox(
+                    new Point3D(0, 0, 0),
+                    width,
+                    thickness,
+                    height,
+                    brush);
+
+            previewModel.Children.Add(
+                model);
+
+            ApplyToolboxPreviewStartRotation(
+                "Platte",
+                previewModel);
+        }
+
+        private void CreateBigPlateToolboxPreview(
+    Model3DGroup previewModel)
+        {
+            previewModel.Children.Clear();
+
+            Part part =
+                PartLibrary.Parts.FirstOrDefault(
+                    p => p.Name == "Große Platte");
+
+            if (!(part is BigPlate plate))
+                return;
+
+            Brush brush =
+                PaksyRed;
+            double previewScale = 0.80;
+
+            double outerSize =
+     plate.OuterSize / 100.0
+     * previewScale;
+
+            double innerSize =
+                plate.InnerSize / 100.0
+                * previewScale;
+
+            double plateThickness =
+                plate.PlateThickness / 100.0
+                * previewScale;
+
+            double ribLength =
+                plate.RibLength / 100.0
+                * previewScale;
+
+            double ribHeight =
+                plate.RibHeight / 100.0
+                * previewScale;
+
+            double ribThickness =
+                plate.RibThickness / 100.0
+                * previewScale;
+
+            double ribOffset =
+                (
+                    plate.RibClearDistance / 2.0
+                    + plate.RibThickness / 2.0
+                ) / 100.0
+                * previewScale;
+
+            double plateCenterOffset =
+                (
+                    plate.TotalThickness / 2.0
+                    - plate.PlateThickness / 2.0
+                ) / 100.0
+                * previewScale;
+
+            // Große Vorderseite
+            previewModel.Children.Add(
+                CreatePreviewBox(
+                    new Point3D(
+                        0,
+                        plateCenterOffset,
+                        0),
+
+                    outerSize,
+                    plateThickness,
+                    outerSize,
+                    brush));
+
+
+            // Kleine Rückseite
+            previewModel.Children.Add(
+                CreatePreviewBox(
+                    new Point3D(
+                        0,
+                        -plateCenterOffset,
+                        0),
+
+                    innerSize,
+                    plateThickness,
+                    innerSize,
+                    brush));
+
+
+            // Erster Steg
+            previewModel.Children.Add(
+                CreatePreviewBox(
+                    new Point3D(
+                        -ribOffset,
+                        0,
+                        0),
+
+                    ribThickness,
+                    ribHeight,
+                    ribLength,
+                    brush));
+
+
+            // Zweiter Steg
+            previewModel.Children.Add(
+                CreatePreviewBox(
+                    new Point3D(
+                        ribOffset,
+                        0,
+                        0),
+
+                    ribThickness,
+                    ribHeight,
+                    ribLength,
+                    brush));
+
+
+            ApplyToolboxPreviewStartRotation(
+                "Große Platte",
+                previewModel);
         }
         private Model3DGroup GetToolboxPreviewModel(
      string partName)
@@ -10097,6 +10598,27 @@ namespace PlastiCAD
                 case "SpaceCross":
                     return SpaceCrossPreviewModel;
 
+                case "Würfel":
+                    return CubePreviewModel;
+
+                case "Kugel":
+                    return BallPreviewModel;
+
+                case "Platte":
+                    return PlatePreviewModel;
+
+                case "Große Platte":
+                    return BigPlatePreviewModel;
+                case "Fenster":
+                    return WindowPreviewModel;
+                case "Rad":
+                    return WheelPreviewModel;
+        
+                case "Big Rad":
+                    return BigWheelPreviewModel;
+
+                case "Endkappe":
+                    return EndCapPreviewModel;
                 default:
                     return null;
             }
@@ -10124,12 +10646,26 @@ namespace PlastiCAD
                     return new Vector3D(0, 90, 0);
 
                 case "Edge":
-                    return new Vector3D(0, -20, 0);
+                    return new Vector3D(10, 0, 30);
 
                 case "Stand":
                     return new Vector3D(0, 0, 0);
 
                 case "SpaceCross":
+                    return new Vector3D(0, 0, 0);
+                case "Platte":
+                    return new Vector3D(30, 20, 30);
+
+                case "Große Platte":
+                    return new Vector3D(30, 20, 30);
+                case "Fenster":
+                    return new Vector3D(30, 20, 30);
+                case "Rad":
+                    return new Vector3D(0, 0, 0);
+
+                case "Big Rad":
+                    return new Vector3D(0, 0, 0);
+                case "Endkappe":
                     return new Vector3D(0, 0, 0);
 
                 default:
@@ -10170,6 +10706,1302 @@ namespace PlastiCAD
             previewModel.Transform =
                 transforms;
         }
+
+        private void CreateCubeToolboxPreview(
+    Model3DGroup previewModel)
+        {
+            previewModel.Children.Clear();
+
+            Part part =
+                PartLibrary.Parts.FirstOrDefault(
+                    p => p.Name == "Würfel");
+
+            if (!(part is Cube cube))
+                return;
+
+            Point3D center =
+                new Point3D(0, 0, 0);
+
+
+            // Größe nur für die Darstellung in der Toolbox
+            double previewScale = 0.70;
+
+            double size =
+                cube.Size / 100.0
+                * previewScale;
+
+            double cornerRadius =
+                cube.CornerRadius / 100.0
+                * previewScale;
+
+            double holeRadius =
+                cube.HoleDiameter / 200.0
+                * previewScale;
+
+
+            Brush blueBrush =
+                new SolidColorBrush(
+                    Color.FromRgb(
+                        35,
+                        140,
+                        195));
+
+            // ... Rest deiner Methode bleibt unverändert
+            Brush holeEdgeBrush =
+                new SolidColorBrush(
+                    Color.FromRgb(
+                        20,
+                        35,
+                        45));
+
+            Brush holeInsideBrush =
+                Brushes.Black;
+
+
+            // ------------------------------------------------------------
+            // ABGERUNDETER WÜRFEL
+            // ------------------------------------------------------------
+
+            double innerSize =
+                size - 2.0 * cornerRadius;
+
+            double halfInner =
+                innerSize / 2.0;
+
+
+            // Drei Grundkörper
+
+            previewModel.Children.Add(
+                CreatePreviewBox(
+                    center,
+                    size,
+                    innerSize,
+                    innerSize,
+                    blueBrush));
+
+            previewModel.Children.Add(
+                CreatePreviewBox(
+                    center,
+                    innerSize,
+                    size,
+                    innerSize,
+                    blueBrush));
+
+            previewModel.Children.Add(
+                CreatePreviewBox(
+                    center,
+                    innerSize,
+                    innerSize,
+                    size,
+                    blueBrush));
+
+
+            // ------------------------------------------------------------
+            // KANTEN X
+            // ------------------------------------------------------------
+
+            foreach (double ySign in new[] { -1.0, 1.0 })
+            {
+                foreach (double zSign in new[] { -1.0, 1.0 })
+                {
+                    GeometryModel3D cylinder =
+                        CreatePreviewCylinder(
+                            new Point3D(
+                                -halfInner,
+                                ySign * halfInner,
+                                zSign * halfInner),
+
+                            new Point3D(
+                                halfInner,
+                                ySign * halfInner,
+                                zSign * halfInner),
+
+                            cornerRadius,
+                            blueBrush);
+
+                    if (cylinder != null)
+                        previewModel.Children.Add(cylinder);
+                }
+            }
+
+
+            // ------------------------------------------------------------
+            // KANTEN Y
+            // ------------------------------------------------------------
+
+            foreach (double xSign in new[] { -1.0, 1.0 })
+            {
+                foreach (double zSign in new[] { -1.0, 1.0 })
+                {
+                    GeometryModel3D cylinder =
+                        CreatePreviewCylinder(
+                            new Point3D(
+                                xSign * halfInner,
+                                -halfInner,
+                                zSign * halfInner),
+
+                            new Point3D(
+                                xSign * halfInner,
+                                halfInner,
+                                zSign * halfInner),
+
+                            cornerRadius,
+                            blueBrush);
+
+                    if (cylinder != null)
+                        previewModel.Children.Add(cylinder);
+                }
+            }
+
+
+            // ------------------------------------------------------------
+            // KANTEN Z
+            // ------------------------------------------------------------
+
+            foreach (double xSign in new[] { -1.0, 1.0 })
+            {
+                foreach (double ySign in new[] { -1.0, 1.0 })
+                {
+                    GeometryModel3D cylinder =
+                        CreatePreviewCylinder(
+                            new Point3D(
+                                xSign * halfInner,
+                                ySign * halfInner,
+                                -halfInner),
+
+                            new Point3D(
+                                xSign * halfInner,
+                                ySign * halfInner,
+                                halfInner),
+
+                            cornerRadius,
+                            blueBrush);
+
+                    if (cylinder != null)
+                        previewModel.Children.Add(cylinder);
+                }
+            }
+
+
+            // ------------------------------------------------------------
+            // 8 RUNDE ECKEN
+            // ------------------------------------------------------------
+
+            foreach (double xSign in new[] { -1.0, 1.0 })
+            {
+                foreach (double ySign in new[] { -1.0, 1.0 })
+                {
+                    foreach (double zSign in new[] { -1.0, 1.0 })
+                    {
+                        previewModel.Children.Add(
+                            CreatePreviewSphere(
+                                new Point3D(
+                                    xSign * halfInner,
+                                    ySign * halfInner,
+                                    zSign * halfInner),
+
+                                cornerRadius,
+                                blueBrush));
+                    }
+                }
+            }
+
+
+            // ------------------------------------------------------------
+            // 6 BOHRUNGEN
+            // ------------------------------------------------------------
+
+            Vector3D[] directions =
+            {
+        new Vector3D(-1, 0, 0),
+        new Vector3D( 1, 0, 0),
+        new Vector3D(0, -1, 0),
+        new Vector3D(0,  1, 0),
+        new Vector3D(0, 0, -1),
+        new Vector3D(0, 0,  1)
+    };
+
+            double halfSize =
+                size / 2.0;
+
+            foreach (Vector3D direction in directions)
+            {
+                Vector3D normal =
+                    direction;
+
+                normal.Normalize();
+
+                Point3D holeCenter =
+                    center
+                    + normal * (halfSize + 0.0003);
+
+                previewModel.Children.Add(
+                    CreatePreviewDisc(
+                        holeCenter,
+                        normal,
+                        holeRadius,
+                        holeEdgeBrush));
+
+                previewModel.Children.Add(
+                    CreatePreviewDisc(
+                        holeCenter + normal * 0.0002,
+                        normal,
+                        holeRadius * 0.72,
+                        holeInsideBrush));
+            }
+            ScaleTransform3D scale =
+    new ScaleTransform3D(
+        0.70,
+        0.70,
+        0.70);
+
+            previewModel.Transform =
+                scale;
+            ApplyToolboxPreviewStartRotation(
+                "Würfel",
+                previewModel);
+        }
+
+        private void CreateBallToolboxPreview(
+    Model3DGroup previewModel)
+        {
+            previewModel.Children.Clear();
+
+            Part part =
+                PartLibrary.Parts.FirstOrDefault(
+                    p => p.Name == "Kugel");
+
+            if (!(part is BallConnector ball))
+                return;
+
+            Point3D center =
+                new Point3D(0, 0, 0);
+
+            double ballRadius =
+                ball.Diameter / 200.0;
+
+            double holeRadius =
+                ball.HoleDiameter / 200.0;
+
+            Brush blueBrush =
+                new SolidColorBrush(
+                    Color.FromRgb(
+                        35,
+                        140,
+                        195));
+
+            Brush holeEdgeBrush =
+                new SolidColorBrush(
+                    Color.FromRgb(
+                        20,
+                        40,
+                        50));
+
+            Brush holeInsideBrush =
+                Brushes.Black;
+
+
+            // Kugel
+            previewModel.Children.Add(
+                CreatePreviewSphere(
+                    center,
+                    ballRadius,
+                    blueBrush));
+
+
+            // Sechs Sacklochöffnungen
+            Vector3D[] directions =
+            {
+        new Vector3D(-1, 0, 0),
+        new Vector3D( 1, 0, 0),
+        new Vector3D(0, -1, 0),
+        new Vector3D(0,  1, 0),
+        new Vector3D(0, 0, -1),
+        new Vector3D(0, 0,  1)
+    };
+
+            foreach (Vector3D direction in directions)
+            {
+                Vector3D normal =
+                    direction;
+
+                normal.Normalize();
+
+                Point3D holeCenter =
+                    center
+                    + normal
+                    * (ballRadius + 0.0003);
+
+                previewModel.Children.Add(
+                    CreatePreviewDisc(
+                        holeCenter,
+                        normal,
+                        holeRadius,
+                        holeEdgeBrush));
+
+                previewModel.Children.Add(
+                    CreatePreviewDisc(
+                        holeCenter
+                        + normal * 0.0002,
+
+                        normal,
+                        holeRadius * 0.72,
+                        holeInsideBrush));
+            }
+
+            ApplyToolboxPreviewStartRotation(
+                "Kugel",
+                previewModel);
+        }
+
+        private GeometryModel3D CreatePreviewBox(
+    Point3D center,
+    double width,
+    double height,
+    double depth,
+    Brush brush)
+        {
+            double hx =
+                width / 2.0;
+
+            double hy =
+                height / 2.0;
+
+            double hz =
+                depth / 2.0;
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+            mesh.Positions.Add(
+                new Point3D(
+                    center.X - hx,
+                    center.Y - hy,
+                    center.Z - hz));
+
+            mesh.Positions.Add(
+                new Point3D(
+                    center.X + hx,
+                    center.Y - hy,
+                    center.Z - hz));
+
+            mesh.Positions.Add(
+                new Point3D(
+                    center.X + hx,
+                    center.Y + hy,
+                    center.Z - hz));
+
+            mesh.Positions.Add(
+                new Point3D(
+                    center.X - hx,
+                    center.Y + hy,
+                    center.Z - hz));
+
+            mesh.Positions.Add(
+                new Point3D(
+                    center.X - hx,
+                    center.Y - hy,
+                    center.Z + hz));
+
+            mesh.Positions.Add(
+                new Point3D(
+                    center.X + hx,
+                    center.Y - hy,
+                    center.Z + hz));
+
+            mesh.Positions.Add(
+                new Point3D(
+                    center.X + hx,
+                    center.Y + hy,
+                    center.Z + hz));
+
+            mesh.Positions.Add(
+                new Point3D(
+                    center.X - hx,
+                    center.Y + hy,
+                    center.Z + hz));
+
+            int[] triangles =
+            {
+        0,1,2, 0,2,3,
+        4,6,5, 4,7,6,
+        0,4,5, 0,5,1,
+        1,5,6, 1,6,2,
+        2,6,7, 2,7,3,
+        3,7,4, 3,4,0
+    };
+
+            foreach (int index in triangles)
+            {
+                mesh.TriangleIndices.Add(index);
+            }
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(
+                    brush);
+
+            return new GeometryModel3D
+            {
+                Geometry = mesh,
+                Material = material,
+                BackMaterial = material
+            };
+        }
+
+        private GeometryModel3D CreatePreviewDisc(
+    Point3D center,
+    Vector3D normal,
+    double radius,
+    Brush brush)
+        {
+            const int segments = 32;
+
+            if (normal.Length == 0)
+                return null;
+
+            normal.Normalize();
+
+            Vector3D reference =
+                Math.Abs(normal.Y) < 0.9
+                    ? new Vector3D(0, 1, 0)
+                    : new Vector3D(1, 0, 0);
+
+            Vector3D side1 =
+                Vector3D.CrossProduct(
+                    normal,
+                    reference);
+
+            side1.Normalize();
+
+            Vector3D side2 =
+                Vector3D.CrossProduct(
+                    normal,
+                    side1);
+
+            side2.Normalize();
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+            mesh.Positions.Add(center);
+
+            for (int index = 0;
+                 index < segments;
+                 index++)
+            {
+                double angle =
+                    2.0
+                    * Math.PI
+                    * index
+                    / segments;
+
+                Vector3D offset =
+                    side1
+                        * (Math.Cos(angle) * radius)
+                    + side2
+                        * (Math.Sin(angle) * radius);
+
+                mesh.Positions.Add(
+                    center + offset);
+            }
+
+            for (int index = 0;
+                 index < segments;
+                 index++)
+            {
+                int next =
+                    (index + 1) % segments;
+
+                mesh.TriangleIndices.Add(0);
+                mesh.TriangleIndices.Add(index + 1);
+                mesh.TriangleIndices.Add(next + 1);
+            }
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(
+                    brush);
+
+            return new GeometryModel3D
+            {
+                Geometry = mesh,
+                Material = material,
+                BackMaterial = material
+            };
+        }
+
+
+        private void CreateWheelToolboxPreview(
+    Model3DGroup previewModel)
+        {
+            previewModel.Children.Clear();
+
+            Part part =
+                PartLibrary.Parts.FirstOrDefault(
+                    p => p.Name == "Rad");
+
+            if (!(part is Wheel wheel))
+                return;
+
+            double previewScale = 0.80;
+
+            Point3D center =
+                new Point3D(0, 0, 0);
+
+            // Radachse entlang X
+            Vector3D axis =
+                new Vector3D(1, 0, 0);
+
+            double tubeRadius =
+                wheel.TireThickness
+                / 2.0
+                / 100.0
+                * previewScale;
+
+            double majorRadius =
+                (wheel.OuterDiameter
+                - wheel.TireThickness)
+                / 2.0
+                / 100.0
+                * previewScale;
+
+            double rimOuterRadius =
+                wheel.RimDiameter
+                / 200.0
+                * previewScale;
+
+            double rimHoleRadius =
+                wheel.HoleDiameter
+                / 200.0
+                * previewScale;
+
+            double rimHalfWidth =
+                wheel.Width
+                * 0.42
+                / 100.0
+                * previewScale;
+
+
+            // ------------------------------------------------------------
+            // SCHWARZER REIFEN
+            // ------------------------------------------------------------
+
+            GeometryModel3D tire =
+                CreatePreviewTorus(
+                    center,
+                    axis,
+                    majorRadius,
+                    tubeRadius,
+                    Brushes.Black);
+
+            if (tire != null)
+            {
+                previewModel.Children.Add(
+                    tire);
+            }
+
+
+            // ------------------------------------------------------------
+            // ROTE FELGE
+            // ------------------------------------------------------------
+
+            GeometryModel3D rim =
+                CreatePreviewRim(
+                    center,
+                    axis,
+                    rimOuterRadius,
+                    rimHoleRadius,
+                    rimHalfWidth,
+                    PaksyRed);
+
+            if (rim != null)
+            {
+                previewModel.Children.Add(
+                    rim);
+            }
+
+
+            ApplyToolboxPreviewStartRotation(
+                "Rad",
+                previewModel);
+        }
+
+        private GeometryModel3D CreatePreviewTorus(
+    Point3D center,
+    Vector3D axis,
+    double majorRadius,
+    double tubeRadius,
+    Brush brush)
+        {
+            const int majorSegments = 32;
+            const int tubeSegments = 16;
+
+            if (axis.Length == 0)
+                return null;
+
+            axis.Normalize();
+
+            Vector3D reference =
+                Math.Abs(axis.Y) < 0.9
+                    ? new Vector3D(0, 1, 0)
+                    : new Vector3D(1, 0, 0);
+
+            Vector3D side1 =
+                Vector3D.CrossProduct(
+                    axis,
+                    reference);
+
+            side1.Normalize();
+
+            Vector3D side2 =
+                Vector3D.CrossProduct(
+                    axis,
+                    side1);
+
+            side2.Normalize();
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+            for (int majorIndex = 0;
+                 majorIndex < majorSegments;
+                 majorIndex++)
+            {
+                double majorAngle =
+                    2.0 * Math.PI
+                    * majorIndex
+                    / majorSegments;
+
+                Vector3D radialDirection =
+                    side1 * Math.Cos(majorAngle)
+                    + side2 * Math.Sin(majorAngle);
+
+                Point3D ringCenter =
+                    center
+                    + radialDirection
+                    * majorRadius;
+
+                for (int tubeIndex = 0;
+                     tubeIndex < tubeSegments;
+                     tubeIndex++)
+                {
+                    double tubeAngle =
+                        2.0 * Math.PI
+                        * tubeIndex
+                        / tubeSegments;
+
+                    Vector3D offset =
+                        radialDirection
+                        * (Math.Cos(tubeAngle)
+                        * tubeRadius)
+
+                        + axis
+                        * (Math.Sin(tubeAngle)
+                        * tubeRadius);
+
+                    mesh.Positions.Add(
+                        ringCenter + offset);
+                }
+            }
+
+            for (int majorIndex = 0;
+                 majorIndex < majorSegments;
+                 majorIndex++)
+            {
+                int nextMajor =
+                    (majorIndex + 1)
+                    % majorSegments;
+
+                for (int tubeIndex = 0;
+                     tubeIndex < tubeSegments;
+                     tubeIndex++)
+                {
+                    int nextTube =
+                        (tubeIndex + 1)
+                        % tubeSegments;
+
+                    int a =
+                        majorIndex
+                        * tubeSegments
+                        + tubeIndex;
+
+                    int b =
+                        nextMajor
+                        * tubeSegments
+                        + tubeIndex;
+
+                    int c =
+                        majorIndex
+                        * tubeSegments
+                        + nextTube;
+
+                    int d =
+                        nextMajor
+                        * tubeSegments
+                        + nextTube;
+
+                    mesh.TriangleIndices.Add(a);
+                    mesh.TriangleIndices.Add(b);
+                    mesh.TriangleIndices.Add(c);
+
+                    mesh.TriangleIndices.Add(c);
+                    mesh.TriangleIndices.Add(b);
+                    mesh.TriangleIndices.Add(d);
+                }
+            }
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(
+                    brush);
+
+            return new GeometryModel3D
+            {
+                Geometry = mesh,
+                Material = material,
+                BackMaterial = material
+            };
+        }
+
+        private GeometryModel3D CreatePreviewRim(
+    Point3D center,
+    Vector3D axis,
+    double outerRadius,
+    double holeRadius,
+    double halfWidth,
+    Brush brush)
+        {
+            const int segments = 48;
+
+            if (axis.Length == 0)
+                return null;
+
+            if (holeRadius <= 0 ||
+                outerRadius <= holeRadius ||
+                halfWidth <= 0)
+            {
+                return null;
+            }
+
+            axis.Normalize();
+
+            Vector3D reference =
+                Math.Abs(axis.Y) < 0.9
+                    ? new Vector3D(0, 1, 0)
+                    : new Vector3D(1, 0, 0);
+
+            Vector3D side1 =
+                Vector3D.CrossProduct(
+                    axis,
+                    reference);
+
+            side1.Normalize();
+
+            Vector3D side2 =
+                Vector3D.CrossProduct(
+                    axis,
+                    side1);
+
+            side2.Normalize();
+
+            Point[] profile =
+            {
+        new Point(
+            -halfWidth * 0.55,
+            holeRadius),
+
+        new Point(
+            -halfWidth,
+            holeRadius * 1.30),
+
+        new Point(
+            -halfWidth * 0.75,
+            outerRadius * 0.72),
+
+        new Point(
+            -halfWidth * 0.55,
+            outerRadius),
+
+        new Point(
+            halfWidth * 0.55,
+            outerRadius),
+
+        new Point(
+            halfWidth * 0.75,
+            outerRadius * 0.72),
+
+        new Point(
+            halfWidth,
+            holeRadius * 1.30),
+
+        new Point(
+            halfWidth * 0.55,
+            holeRadius)
+    };
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+            int profileCount =
+                profile.Length;
+
+            for (int segment = 0;
+                 segment < segments;
+                 segment++)
+            {
+                double angle =
+                    2.0 * Math.PI
+                    * segment
+                    / segments;
+
+                Vector3D radialDirection =
+                    side1 * Math.Cos(angle)
+                    + side2 * Math.Sin(angle);
+
+                foreach (Point profilePoint
+                         in profile)
+                {
+                    Point3D point =
+                        center
+                        + axis * profilePoint.X
+                        + radialDirection
+                        * profilePoint.Y;
+
+                    mesh.Positions.Add(
+                        point);
+                }
+            }
+
+            for (int segment = 0;
+                 segment < segments;
+                 segment++)
+            {
+                int nextSegment =
+                    (segment + 1)
+                    % segments;
+
+                for (int profileIndex = 0;
+                     profileIndex < profileCount;
+                     profileIndex++)
+                {
+                    int nextProfile =
+                        (profileIndex + 1)
+                        % profileCount;
+
+                    int a =
+                        segment
+                        * profileCount
+                        + profileIndex;
+
+                    int b =
+                        nextSegment
+                        * profileCount
+                        + profileIndex;
+
+                    int c =
+                        segment
+                        * profileCount
+                        + nextProfile;
+
+                    int d =
+                        nextSegment
+                        * profileCount
+                        + nextProfile;
+
+                    mesh.TriangleIndices.Add(a);
+                    mesh.TriangleIndices.Add(b);
+                    mesh.TriangleIndices.Add(c);
+
+                    mesh.TriangleIndices.Add(c);
+                    mesh.TriangleIndices.Add(b);
+                    mesh.TriangleIndices.Add(d);
+                }
+            }
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(
+                    brush);
+
+            return new GeometryModel3D
+            {
+                Geometry = mesh,
+                Material = material,
+                BackMaterial = material
+            };
+        }
+
+
+        private void CreateBigWheelToolboxPreview(
+    Model3DGroup previewModel)
+        {
+            previewModel.Children.Clear();
+
+            Part part =
+                PartLibrary.Parts.FirstOrDefault(
+                    p => p.Name == "Big Rad");
+
+            if (!(part is BigWheel wheel))
+                return;
+
+            double previewScale = 0.5;
+
+            Point3D center =
+                new Point3D(0, 0, 0);
+
+            Vector3D axis =
+                new Vector3D(1, 0, 0);
+
+            axis.Normalize();
+
+            Vector3D reference =
+                Math.Abs(axis.Y) < 0.9
+                    ? new Vector3D(0, 1, 0)
+                    : new Vector3D(1, 0, 0);
+
+            Vector3D side1 =
+                Vector3D.CrossProduct(
+                    axis,
+                    reference);
+
+            side1.Normalize();
+
+            Vector3D side2 =
+                Vector3D.CrossProduct(
+                    axis,
+                    side1);
+
+            side2.Normalize();
+
+
+            // ------------------------------------------------------------
+            // REIFEN
+            // ------------------------------------------------------------
+
+            double tireOuterRadius =
+                wheel.OuterDiameter
+                / 200.0
+                * previewScale;
+
+            double tireInnerRadius =
+                wheel.RimDiameter
+                / 200.0
+                * previewScale;
+
+            double tireHalfWidth =
+                wheel.TireWidth
+                / 200.0
+                * previewScale;
+
+            GeometryModel3D tire =
+                CreatePreviewFlatRing(
+                    center,
+                    axis,
+                    tireOuterRadius,
+                    tireInnerRadius,
+                    tireHalfWidth,
+                    Brushes.Black);
+
+            if (tire != null)
+                previewModel.Children.Add(tire);
+
+
+            // ------------------------------------------------------------
+            // ROTE FELGENSCHEIBE
+            // ------------------------------------------------------------
+
+            double rimOuterRadius =
+                wheel.RimDiameter
+                / 200.0
+                * previewScale;
+
+            double centerHoleRadius =
+                wheel.HoleDiameter
+                / 200.0
+                * previewScale;
+
+            double rimBodyHalfWidth =
+                wheel.RimBodyThickness
+                / 200.0
+                * previewScale;
+
+            GeometryModel3D rim =
+                CreatePreviewFlatRing(
+                    center,
+                    axis,
+                    rimOuterRadius,
+                    centerHoleRadius,
+                    rimBodyHalfWidth,
+                    PaksyRed);
+
+            if (rim != null)
+                previewModel.Children.Add(rim);
+
+
+            // ------------------------------------------------------------
+            // ÄUSSERER FELGENRAND
+            // ------------------------------------------------------------
+
+            double rimEdgeInnerRadius =
+                (
+                    wheel.RimDiameter / 2.0
+                    - wheel.RimEdgeWidth
+                )
+                / 100.0
+                * previewScale;
+
+            double rimEdgeHalfWidth =
+                2.0
+                / 100.0
+                * previewScale;
+
+            GeometryModel3D rimEdge =
+                CreatePreviewFlatRing(
+                    center,
+                    axis,
+                    rimOuterRadius,
+                    rimEdgeInnerRadius,
+                    rimEdgeHalfWidth,
+                    PaksyRed);
+
+            if (rimEdge != null)
+                previewModel.Children.Add(rimEdge);
+
+
+            // ------------------------------------------------------------
+            // MITTLERE NABE
+            // ------------------------------------------------------------
+
+            double hubOuterRadius =
+                7.0
+                / 100.0
+                * previewScale;
+
+            double hubHalfWidth =
+                wheel.BoreDepth
+                / 200.0
+                * previewScale;
+
+            GeometryModel3D hub =
+                CreatePreviewFlatRing(
+                    center,
+                    axis,
+                    hubOuterRadius,
+                    centerHoleRadius,
+                    hubHalfWidth,
+                    PaksyRed);
+
+            if (hub != null)
+                previewModel.Children.Add(hub);
+
+
+            // ------------------------------------------------------------
+            // VIER ZUSÄTZLICHE LÖCHER
+            // ------------------------------------------------------------
+
+            double sideHoleRadius =
+                wheel.SideHoleRadius
+                / 100.0
+                * previewScale;
+
+            double sideHoleTubeRadius =
+                wheel.SideHoleDiameter
+                / 200.0
+                * previewScale;
+
+            double holeHalfLength =
+                2.5
+                / 100.0
+                * previewScale;
+
+            for (int i = 0;
+                 i < wheel.SideHoleCount;
+                 i++)
+            {
+                double angle =
+                    Math.PI / 4.0
+                    + i * Math.PI / 2.0;
+
+                Vector3D radial =
+                    side1 * Math.Cos(angle)
+                    + side2 * Math.Sin(angle);
+
+                Point3D holeCenter =
+                    center
+                    + radial * sideHoleRadius;
+
+                Point3D holeStart =
+                    holeCenter
+                    - axis * holeHalfLength;
+
+                Point3D holeEnd =
+                    holeCenter
+                    + axis * holeHalfLength;
+
+                GeometryModel3D hole =
+                    CreatePreviewCylinder(
+                        holeStart,
+                        holeEnd,
+                        sideHoleTubeRadius,
+                        Brushes.Black);
+
+                if (hole != null)
+                {
+                    previewModel.Children.Add(
+                        hole);
+                }
+            }
+
+            ApplyToolboxPreviewStartRotation(
+                "Big Rad",
+                previewModel);
+        }
+
+
+
+        private GeometryModel3D CreatePreviewFlatRing(
+    Point3D center,
+    Vector3D axis,
+    double outerRadius,
+    double innerRadius,
+    double halfWidth,
+    Brush brush)
+        {
+            const int segments = 64;
+
+            if (axis.Length == 0)
+                return null;
+
+            if (outerRadius <= innerRadius ||
+                innerRadius < 0 ||
+                halfWidth <= 0)
+            {
+                return null;
+            }
+
+            axis.Normalize();
+
+            Vector3D reference =
+                Math.Abs(axis.Y) < 0.9
+                    ? new Vector3D(0, 1, 0)
+                    : new Vector3D(1, 0, 0);
+
+            Vector3D side1 =
+                Vector3D.CrossProduct(
+                    axis,
+                    reference);
+
+            side1.Normalize();
+
+            Vector3D side2 =
+                Vector3D.CrossProduct(
+                    axis,
+                    side1);
+
+            side2.Normalize();
+
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
+
+            for (int i = 0;
+                 i < segments;
+                 i++)
+            {
+                double angle =
+                    2.0 * Math.PI
+                    * i
+                    / segments;
+
+                Vector3D radial =
+                    side1 * Math.Cos(angle)
+                    + side2 * Math.Sin(angle);
+
+                mesh.Positions.Add(
+                    center
+                    - axis * halfWidth
+                    + radial * outerRadius);
+
+                mesh.Positions.Add(
+                    center
+                    - axis * halfWidth
+                    + radial * innerRadius);
+
+                mesh.Positions.Add(
+                    center
+                    + axis * halfWidth
+                    + radial * outerRadius);
+
+                mesh.Positions.Add(
+                    center
+                    + axis * halfWidth
+                    + radial * innerRadius);
+            }
+
+            for (int i = 0;
+                 i < segments;
+                 i++)
+            {
+                int next =
+                    (i + 1) % segments;
+
+                int a = i * 4;
+                int b = next * 4;
+
+                // Vorderseite
+                mesh.TriangleIndices.Add(a);
+                mesh.TriangleIndices.Add(b);
+                mesh.TriangleIndices.Add(a + 1);
+
+                mesh.TriangleIndices.Add(a + 1);
+                mesh.TriangleIndices.Add(b);
+                mesh.TriangleIndices.Add(b + 1);
+
+                // Rückseite
+                mesh.TriangleIndices.Add(a + 2);
+                mesh.TriangleIndices.Add(a + 3);
+                mesh.TriangleIndices.Add(b + 2);
+
+                mesh.TriangleIndices.Add(a + 3);
+                mesh.TriangleIndices.Add(b + 3);
+                mesh.TriangleIndices.Add(b + 2);
+
+                // Außenfläche
+                mesh.TriangleIndices.Add(a);
+                mesh.TriangleIndices.Add(a + 2);
+                mesh.TriangleIndices.Add(b);
+
+                mesh.TriangleIndices.Add(b);
+                mesh.TriangleIndices.Add(a + 2);
+                mesh.TriangleIndices.Add(b + 2);
+
+                // Innenfläche
+                mesh.TriangleIndices.Add(a + 1);
+                mesh.TriangleIndices.Add(b + 1);
+                mesh.TriangleIndices.Add(a + 3);
+
+                mesh.TriangleIndices.Add(a + 3);
+                mesh.TriangleIndices.Add(b + 1);
+                mesh.TriangleIndices.Add(b + 3);
+            }
+
+            DiffuseMaterial material =
+                new DiffuseMaterial(
+                    brush);
+
+            return new GeometryModel3D
+            {
+                Geometry = mesh,
+                Material = material,
+                BackMaterial = material
+            };
+        }
+
+
+
+
+
+
+
+
+
+
 
 
 
