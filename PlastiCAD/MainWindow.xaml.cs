@@ -31,9 +31,10 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
-
+        private Point3D? lastWorldHitPoint = null;
         private class ClipboardProjectData
         {
+            
             public string Format { get; set; } = "PlastiCADClipboard";
             public int Version { get; set; } = 1;
 
@@ -6040,6 +6041,7 @@ namespace PlastiCAD
                         hit.ModelHit,
                         out PlacedPart placed))
                 {
+                    lastWorldHitPoint = hit.PointHit;
                     worldMouseDownPart = placed;
 
                     // Wenn das Teil bereits zur Auswahl gehört,
@@ -6137,11 +6139,41 @@ namespace PlastiCAD
                 }
 
                 // Kein Drag -> normaler Klick
-                if (!worldPartWasDragged &&
-                    worldMouseDownPart != null)
+                // Kein Drag -> normaler Klick
+                if (!worldPartWasDragged && worldMouseDownPart != null)
                 {
+                    // --------------------------------------------------------
+                    // NEU: Wenn ein Toolbox-Bauteil ausgewählt ist → platzieren
+                    // --------------------------------------------------------
+                    if (selectedPart != null)
+                    {
+                        // Hit-Punkt in Weltkoordinaten holen
+                        // (vereinfacht: wir nehmen den Mittelpunkt des getroffenen Teils
+                        //  oder den exakten Hit-Punkt, falls verfügbar)
+                        Point3D hitPoint = new Point3D(0, 0, 0);
 
+                        // Besser: den echten Hit-Punkt aus dem vorherigen HitTest merken
+                        // (dazu musst du in MouseDown den hit.PointHit speichern)
+                        if (lastWorldHitPoint.HasValue)
+                            hitPoint = lastWorldHitPoint.Value;
+                        else
+                        {
+                            // Fallback: Zellenmitte des angeklickten Teils
+                            Vector3 center = GetCellCenter(worldMouseDownPart);
+                            hitPoint = new Point3D(
+                                (center.X / Scale) / 100.0,
+                                -(center.Y / Scale) / 100.0,
+                                worldMouseDownPart.Transform.Position.Z / 100.0);
+                        }
 
+                        PlaceSelectedPartAtSocket(worldMouseDownPart, hitPoint);
+                        e.Handled = true;
+                        return;
+                    }
+
+                    // --------------------------------------------------------
+                    // Bestehende Auswahl-Logik (Ctrl etc.)
+                    // --------------------------------------------------------
                     if (ctrlPressed)
                     {
                         if (selectedParts.Contains(worldMouseDownPart))
@@ -6155,9 +6187,13 @@ namespace PlastiCAD
                         selectedParts.Add(worldMouseDownPart);
                     }
 
-                    StatusText.Text =
-                        $"{selectedParts.Count} Bauteil(e) ausgewählt";
                 }
+
+
+
+                StatusText.Text =
+                        $"{selectedParts.Count} Bauteil(e) ausgewählt";
+                
 
                 worldPartDragStartPositions.Clear();
                 worldMouseDownPart = null;
@@ -12052,16 +12088,443 @@ namespace PlastiCAD
         }
 
 
+        /// <summary>
+        /// Findet den Socket eines Bauteils, der dem Mausklick am nächsten liegt.
+        /// </summary>
+       
+        /// <summary>
+        /// Gibt die komplementäre Face zurück (Left↔Right, Top↔Bottom, Front↔Back).
+        /// </summary>
+        private Face GetOppositeFace(Face face)
+        {
+            switch (face)
+            {
+                case Face.Left: return Face.Right;
+                case Face.Right: return Face.Left;
+                case Face.Top: return Face.Bottom;
+                case Face.Bottom: return Face.Top;
+                case Face.Front: return Face.Back;
+                case Face.Back: return Face.Front;
+                default: return face;
+            }
+        }
+
+        /// <summary>
+        /// Versucht eine 90°-Orientierung zu finden, bei der der Socket
+        /// des neuen Teils die gewünschte Welt-Face bekommt.
+        /// </summary>
+        private bool TryFindOrientationForSocket(
+            Part newPart,
+            Socket newSocket,
+            Face targetWorldFace,
+            out Vector3 rotation,
+            out int legacyRotation)
+        {
+            rotation = new Vector3(0, 0, 0);
+            legacyRotation = 0;
+
+            // Alle 24 möglichen 90°-Orientierungen durchprobieren
+            for (int x = 0; x < 4; x++)
+            {
+                for (int y = 0; y < 4; y++)
+                {
+                    for (int z = 0; z < 4; z++)
+                    {
+                        Vector3 candidate = new Vector3(x * 90, y * 90, z * 90);
+
+                        Face effective = FaceHelper.RotateFace3D(
+                            newSocket.Face,
+                            candidate);
+
+                        if (effective == targetWorldFace)
+                        {
+                            rotation = candidate;
+                            // Legacy-Rotation (nur Z) für ältere 2D-Logik
+                            legacyRotation = z * 90;
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Platziert das aktuell in der Toolbox ausgewählte Bauteil
+        /// an den nächstgelegenen Socket des angeklickten Bauteils.
+        /// </summary>
+        /// <summary>
+        /// Platziert das aktuell ausgewählte Toolbox-Bauteil
+        /// an den nächstgelegenen Socket des angeklickten Bauteils.
+        /// </summary>
+        /// <summary>
+        /// Platziert das Toolbox-Bauteil an den nächstgelegenen Socket
+        /// des angeklickten Bauteils.
+        /// </summary>
+        /// <summary>
+/// Platziert das Toolbox-Bauteil an einem freien Socket
+/// des angeklickten Bauteils.
+/// </summary>
+private void PlaceSelectedPartAtSocket(
+    PlacedPart targetPart,
+    Point3D hitPointInWorld)
+{
+    if (selectedPart == null)
+    {
+        StatusText.Text = "Kein Bauteil in der Toolbox ausgewählt";
+        return;
+    }
+
+    if (targetPart == null)
+        return;
+
+    // --------------------------------------------------------
+    // 1. Alle Sockets des Ziels sammeln (freie bevorzugt)
+    // --------------------------------------------------------
+    List<Socket> candidateSockets = targetPart.Sockets
+        .OrderBy(s => s.IsConnected ? 1 : 0)   // freie zuerst
+        .ToList();
+
+    if (candidateSockets.Count == 0)
+    {
+        StatusText.Text = "Zielbauteil hat keine Sockets";
+        return;
+    }
+
+    // --------------------------------------------------------
+    // 2. Jeden Socket ausprobieren, bis eine freie Position gefunden wird
+    // --------------------------------------------------------
+    PlacedPart bestPlaced = null;
+    Vector3 bestPosition = null;
+    double bestDistance = double.MaxValue;
+
+    foreach (Socket targetSocket in candidateSockets)
+    {
+        // Effektive Face des Ziel-Sockets
+        Face targetWorldFace = FaceHelper.RotateFace(
+            targetSocket.Face,
+            targetPart.Rotation);
+
+        targetWorldFace = FaceHelper.RotateFace3D(
+            targetWorldFace,
+            targetPart.Transform.Rotation);
+
+        Face requiredFace = GetOppositeFace(targetWorldFace);
+
+        // Neues Bauteil vorbereiten
+        PlacedPart candidate = new PlacedPart
+        {
+            Part = selectedPart,
+            Transform = new PlastiCAD.Models.Transform(),
+            Sockets = selectedPart.CreateSockets(),
+            Rotation = 0
+        };
+
+        // Passende Orientierung suchen
+        Socket bestNewSocket = null;
+        Vector3 bestRotation = new Vector3(0, 0, 0);
+        int bestLegacyRotation = 0;
+        bool orientationFound = false;
+
+        foreach (Socket newSocket in candidate.Sockets)
+        {
+            if (TryFindOrientationForSocket(
+                    selectedPart,
+                    newSocket,
+                    requiredFace,
+                    out Vector3 rotation,
+                    out int legacyRot))
+            {
+                bestNewSocket = newSocket;
+                bestRotation = rotation;
+                bestLegacyRotation = legacyRot;
+                orientationFound = true;
+                break;
+            }
+        }
+
+        if (!orientationFound || bestNewSocket == null)
+            continue;
+
+        candidate.Transform.Rotation = bestRotation;
+        candidate.Rotation = bestLegacyRotation;
+
+        // Idealposition berechnen
+        double halfCell = Grider.CellSize / 2.0;
+
+        Vector3 targetSocketMm = SnapEngine.GetSocketWorldPosition(
+            targetPart,
+            targetSocket,
+            Scale);
+
+        Vector3 offsetFromCenter = GetSocketOffsetFromCenter(
+            bestNewSocket,
+            candidate);
+
+        double newCenterX = targetSocketMm.X - offsetFromCenter.X;
+        double newCenterY = targetSocketMm.Y - offsetFromCenter.Y;
+        double newCenterZ = targetSocketMm.Z - offsetFromCenter.Z;
+
+        double posX = (newCenterX - halfCell) * Scale;
+        double posY = (newCenterY - halfCell) * Scale;
+        double posZ = newCenterZ;
+
+        // Auf Raster runden
+        double grid = Grider.CellSize * Scale;
+        posX = Math.Round(posX / grid) * grid;
+        posY = Math.Round(posY / grid) * grid;
+        posZ = Math.Round(posZ / Grider.CellSize) * Grider.CellSize;
+
+        Vector3 idealPos = new Vector3(posX, posY, posZ);
+
+        // Ist die Idealposition frei?
+        if (IsPositionFree(idealPos, candidate))
+        {
+            // Abstand zum Klickpunkt (für „nächster freier Socket“)
+            double dist = DistanceToHit(idealPos, hitPointInWorld);
+
+            if (dist < bestDistance)
+            {
+                bestDistance = dist;
+                bestPosition = idealPos;
+                bestPlaced = candidate;
+                bestPlaced.Transform.Position = idealPos;
+            }
+        }
+    }
+
+    // --------------------------------------------------------
+    // 3. Falls kein Socket eine freie Idealposition hatte:
+    //    räumlich um den besten Kandidaten suchen
+    // --------------------------------------------------------
+    if (bestPlaced == null)
+    {
+        // Nimm den ersten Socket und suche räumlich
+        Socket fallbackSocket = candidateSockets[0];
+
+        Face targetWorldFace = FaceHelper.RotateFace(
+            fallbackSocket.Face,
+            targetPart.Rotation);
+        targetWorldFace = FaceHelper.RotateFace3D(
+            targetWorldFace,
+            targetPart.Transform.Rotation);
+
+        Face requiredFace = GetOppositeFace(targetWorldFace);
+
+        bestPlaced = new PlacedPart
+        {
+            Part = selectedPart,
+            Transform = new PlastiCAD.Models.Transform(),
+            Sockets = selectedPart.CreateSockets(),
+            Rotation = 0
+        };
+
+        Socket bestNewSocket = null;
+        foreach (Socket newSocket in bestPlaced.Sockets)
+        {
+            if (TryFindOrientationForSocket(
+                    selectedPart,
+                    newSocket,
+                    requiredFace,
+                    out Vector3 rotation,
+                    out int legacyRot))
+            {
+                bestNewSocket = newSocket;
+                bestPlaced.Transform.Rotation = rotation;
+                bestPlaced.Rotation = legacyRot;
+                break;
+            }
+        }
+
+        if (bestNewSocket == null)
+        {
+            StatusText.Text = "Keine passende Orientierung gefunden";
+            return;
+        }
+
+        double halfCell = Grider.CellSize / 2.0;
+        Vector3 targetSocketMm = SnapEngine.GetSocketWorldPosition(
+            targetPart, fallbackSocket, Scale);
+        Vector3 offset = GetSocketOffsetFromCenter(bestNewSocket, bestPlaced);
+
+        double posX = (targetSocketMm.X - offset.X - halfCell) * Scale;
+        double posY = (targetSocketMm.Y - offset.Y - halfCell) * Scale;
+        double posZ = targetSocketMm.Z - offset.Z;
+
+        double grid = Grider.CellSize * Scale;
+        posX = Math.Round(posX / grid) * grid;
+        posY = Math.Round(posY / grid) * grid;
+        posZ = Math.Round(posZ / Grider.CellSize) * Grider.CellSize;
+
+        bestPosition = FindNearestFreePosition(
+            new Vector3(posX, posY, posZ),
+            bestPlaced);
+
+        bestPlaced.Transform.Position = bestPosition;
+    }
+
+    // --------------------------------------------------------
+    // 4. Einfügen
+    // --------------------------------------------------------
+    SaveUndoState();
+
+    assembly.PlacedParts.Add(bestPlaced);
+
+    selectedParts.Clear();
+    selectedParts.Add(bestPlaced);
+
+    int connections = ConnectSelectedParts();
+
+    StatusText.Text = connections > 0
+        ? $"Bauteil eingefügt – {connections} Verbindung(en)"
+        : "Bauteil eingefügt";
+
+    RedrawScene();
+}
+
+/// <summary>
+/// Grober Abstand der Rasterposition zum 3D-Klickpunkt
+/// (nur zur Auswahl des „nächsten“ freien Sockets).
+/// </summary>
+private double DistanceToHit(Vector3 position, Point3D hitPoint)
+{
+    double wx = (position.X / Scale + Grider.CellSize / 2.0) / 100.0;
+    double wy = -(position.Y / Scale + Grider.CellSize / 2.0) / 100.0;
+    double wz = position.Z / 100.0;
+
+    double dx = wx - hitPoint.X;
+    double dy = wy - hitPoint.Y;
+    double dz = wz - hitPoint.Z;
+
+    return Math.Sqrt(dx * dx + dy * dy + dz * dz);
+}
+        /// <summary>
+        /// Liefert den Offset eines Sockets vom Zellen-Mittelpunkt
+        /// in Modell-mm, unter Berücksichtigung der aktuellen Orientierung.
+        /// </summary>
+        private Vector3 GetSocketOffsetFromCenter(
+            Socket socket,
+            PlacedPart placed)
+        {
+            double r = Grider.CellSize / 2.0;   // 13.75
+
+            Face face = FaceHelper.RotateFace(
+                socket.Face,
+                placed.Rotation);
+
+            face = FaceHelper.RotateFace3D(
+                face,
+                placed.Transform.Rotation);
+
+            switch (face)
+            {
+                case Face.Left: return new Vector3(-r, 0, 0);
+                case Face.Right: return new Vector3(r, 0, 0);
+                case Face.Top: return new Vector3(0, -r, 0);
+                case Face.Bottom: return new Vector3(0, r, 0);
+                case Face.Front: return new Vector3(0, 0, r);
+                case Face.Back: return new Vector3(0, 0, -r);
+                default: return new Vector3(0, 0, 0);
+            }
+        }
 
 
+        private Socket FindNearestSocket(PlacedPart placed, Point3D hitPointInWorld)
+        {
+            // Vorerst: einfach den ersten freien Socket nehmen
+            // oder den, der am weitesten „nach außen“ zeigt.
+            // Später können wir den echten Hit-Punkt nutzen.
+
+            if (placed?.Sockets == null || placed.Sockets.Count == 0)
+                return null;
+
+            // Bevorzugt einen noch nicht verbundenen Socket
+            Socket free = placed.Sockets.FirstOrDefault(s => !s.IsConnected);
+            if (free != null)
+                return free;
+
+            return placed.Sockets[0];
+        }
 
 
+        /// <summary>
+        /// Sucht die nächstliegende freie Rasterposition.
+        /// Beginnt bei der Idealposition und prüft spiralförmig
+        /// die umliegenden Zellen (inkl. Z-Ebenen).
+        /// </summary>
+        /// <summary>
+        /// Sucht die nächstliegende freie Rasterposition.
+        /// Beginnt bei der Idealposition und erweitert den Radius
+        /// so lange, bis eine freie Zelle gefunden wird.
+        /// </summary>
+        private Vector3 FindNearestFreePosition(
+            Vector3 idealPosition,
+            PlacedPart newPart)
+        {
+            double grid = Grider.CellSize * Scale;   // Canvas-Einheiten in X/Y
+            double gridZ = Grider.CellSize;          // Z in mm
 
+            // Idealposition zuerst prüfen
+            if (IsPositionFree(idealPosition, newPart))
+                return idealPosition;
 
+            // Radius so lange erhöhen, bis etwas frei ist
+            int radius = 1;
 
+            while (true)
+            {
+                for (int dx = -radius; dx <= radius; dx++)
+                {
+                    for (int dy = -radius; dy <= radius; dy++)
+                    {
+                        for (int dz = -radius; dz <= radius; dz++)
+                        {
+                            // Nur die äußere Schale dieses Radius prüfen
+                            if (Math.Max(Math.Max(Math.Abs(dx), Math.Abs(dy)), Math.Abs(dz)) != radius)
+                                continue;
 
+                            Vector3 candidate = new Vector3(
+                                idealPosition.X + dx * grid,
+                                idealPosition.Y + dy * grid,
+                                idealPosition.Z + dz * gridZ);
 
+                            if (IsPositionFree(candidate, newPart))
+                                return candidate;
+                        }
+                    }
+                }
 
+                radius++;
+            }
+        }
+
+        /// <summary>
+        /// Prüft, ob an dieser Position bereits ein (nicht-Overlay-)Bauteil liegt.
+        /// </summary>
+        private bool IsPositionFree(Vector3 position, PlacedPart newPart)
+        {
+            const double tolerance = 0.5;
+
+            foreach (PlacedPart existing in assembly.PlacedParts)
+            {
+                // Overlay-Teile (Platten etc.) dürfen sich mit Strukturteilen überlappen
+                bool existingIsOverlay = existing.Part is Plate || existing.Part is BigPlate;
+                bool newIsOverlay = newPart.Part is Plate || newPart.Part is BigPlate;
+
+                if (existingIsOverlay != newIsOverlay)
+                    continue;   // unterschiedliche Typen dürfen dieselbe Zelle teilen
+
+                if (Math.Abs(existing.Transform.Position.X - position.X) < tolerance &&
+                    Math.Abs(existing.Transform.Position.Y - position.Y) < tolerance &&
+                    Math.Abs(existing.Transform.Position.Z - position.Z) < tolerance)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
 
 
 
