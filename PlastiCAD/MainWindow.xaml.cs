@@ -6485,302 +6485,145 @@ namespace PlastiCAD
                 DisconnectPart(placed);
             }
 
-
             // ------------------------------------------------------------
             // TATSÄCHLICHE MITTELPUNKTE ERMITTELN
             // ------------------------------------------------------------
-
             Dictionary<PlacedPart, Vector3> actualPositions =
                 new Dictionary<PlacedPart, Vector3>();
 
             foreach (PlacedPart placed in selectedParts)
             {
-                Vector3 position =
-                    new Vector3(
-                        placed.Transform.Position.X / Scale,
-                        placed.Transform.Position.Y / Scale,
-                        placed.Transform.Position.Z);
+                Vector3 position = new Vector3(
+                    placed.Transform.Position.X / Scale,
+                    placed.Transform.Position.Y / Scale,
+                    placed.Transform.Position.Z);
 
                 if (placed.Part is Plate)
                 {
-                    Vector3 plateOffset =
-                        GetPlateGridOffset(placed);
-
+                    Vector3 plateOffset = GetPlateGridOffset(placed);
                     position.X += plateOffset.X;
                     position.Y += plateOffset.Y;
                     position.Z += plateOffset.Z;
                 }
 
-                actualPositions[placed] =
-                    position;
+                actualPositions[placed] = position;
             }
 
-
             // ------------------------------------------------------------
-            // AUSWAHLART
+            // RASTERKONFORMER DREHPUNKT
             // ------------------------------------------------------------
+            Vector3 pivot = GetRotationPivot(selectedParts);
 
-            bool onlyPlates =
-                selectedParts.All(
-                    p => p.Part is Plate);
-
-            bool noPlates =
-                selectedParts.All(
-                    p => !(p.Part is Plate));
+            double centerX = pivot.X;
+            double centerY = pivot.Y;
+            double centerZ = pivot.Z;
 
             bool selectionContainsPlate =
-                selectedParts.Any(
-                    p => p.Part is Plate);
-
-
-            // ------------------------------------------------------------
-            // DREHPUNKT
-            // ------------------------------------------------------------
-
-            double centerX;
-            double centerY;
-            double centerZ;
-
-
-            // Reine Auswahl ohne Platten:
-            // Rasteranker benutzen.
-            if (noPlates)
-            {
-                PlacedPart reference =
-                    selectedParts[0];
-
-                centerX =
-                    reference.Transform.Position.X
-                    / Scale;
-
-                centerY =
-                    reference.Transform.Position.Y
-                    / Scale;
-
-                centerZ =
-                    reference.Transform.Position.Z;
-            }
-
-            // Ungerade reine Plattenauswahl
-            else if (onlyPlates &&
-         selectedParts.Count % 2 == 1)
-            {
-                PlacedPart reference =
-                    selectedParts[
-                        selectedParts.Count / 2];
-
-                // WICHTIG:
-                // Bei einer einzelnen bzw. ungeraden Plattenauswahl
-                // den RASTERANKER als Drehpunkt verwenden.
-                //
-                // Dadurch bleibt Transform.Position auf dem
-                // normalen 27,5-mm-Raster.
-                centerX =
-                    reference.Transform.Position.X
-                    / Scale;
-
-                centerY =
-                    reference.Transform.Position.Y
-                    / Scale;
-
-                centerZ =
-                    reference.Transform.Position.Z;
-            }
-
-            // Gemischte Auswahl oder gerade Plattenauswahl
-            else
-            {
-                centerX =
-                    actualPositions.Values.Average(
-                        position => position.X);
-
-                centerY =
-                    actualPositions.Values.Average(
-                        position => position.Y);
-
-                centerZ =
-                    actualPositions.Values.Average(
-                        position => position.Z);
-            }
-
+                selectedParts.Any(p => p.Part is Plate);
 
             // ------------------------------------------------------------
             // BAUTEILE DREHEN
             // ------------------------------------------------------------
-
             foreach (PlacedPart placed in selectedParts)
             {
-                Vector3 actualPosition =
-                    actualPositions[placed];
+                Vector3 actualPosition = actualPositions[placed];
 
-                Vector3 relativePosition =
-                    new Vector3(
-                        actualPosition.X - centerX,
-                        actualPosition.Y - centerY,
-                        actualPosition.Z - centerZ);
+                Vector3 relativePosition = new Vector3(
+                    actualPosition.X - centerX,
+                    actualPosition.Y - centerY,
+                    actualPosition.Z - centerZ);
 
                 Vector3 rotatedPosition;
-
 
                 switch (axis)
                 {
                     case 'X':
-
-                        rotatedPosition =
-                            relativePosition.RotateX90();
+                        rotatedPosition = relativePosition.RotateX90();
 
                         if (placed.Part is Plate)
-                        {
-                            RotatePlateOrientationWorld(
-                                placed,
-                                'X');
-                        }
+                            RotatePlateOrientationWorld(placed, 'X');
                         else
-                        {
                             placed.Transform.RotateWorldX90();
-                        }
-
                         break;
-
 
                     case 'Y':
-
-                        rotatedPosition =
-                            relativePosition.RotateY90();
+                        rotatedPosition = relativePosition.RotateY90();
 
                         if (placed.Part is Plate)
-                        {
-                            RotatePlateOrientationWorld(
-                                placed,
-                                'Y');
-                        }
+                            RotatePlateOrientationWorld(placed, 'Y');
                         else
-                        {
                             placed.Transform.RotateWorldY90();
-                        }
-
                         break;
-
 
                     case 'Z':
-
-                        rotatedPosition =
-                            relativePosition.RotateZ90();
+                        rotatedPosition = relativePosition.RotateZ90();
 
                         if (placed.Part is Plate)
-                        {
-                            RotatePlateOrientationWorld(
-                                placed,
-                                'Z');
-                        }
+                            RotatePlateOrientationWorld(placed, 'Z');
                         else
-                        {
                             placed.Transform.RotateWorldZ90();
-                        }
-
                         break;
-
 
                     default:
                         return;
                 }
 
-
-                // Tatsächlicher Mittelpunkt nach der Drehung
-                double newActualX =
-                    centerX + rotatedPosition.X;
-
-                double newActualY =
-                    centerY + rotatedPosition.Y;
-
-                double newActualZ =
-                    centerZ + rotatedPosition.Z;
-
+                // Neuer tatsächlicher Mittelpunkt nach der Drehung
+                double newActualX = centerX + rotatedPosition.X;
+                double newActualY = centerY + rotatedPosition.Y;
+                double newActualZ = centerZ + rotatedPosition.Z;
 
                 // --------------------------------------------------------
                 // PLATTEN
                 // --------------------------------------------------------
-
                 if (placed.Part is Plate)
                 {
-                    Vector3 newPlateOffset =
-                        GetPlateGridOffset(placed);
+                    Vector3 newPlateOffset = GetPlateGridOffset(placed);
 
                     placed.Transform.Position.X =
-                        (newActualX - newPlateOffset.X)
-                        * Scale;
+                        (newActualX - newPlateOffset.X) * Scale;
 
                     placed.Transform.Position.Y =
-                        (newActualY - newPlateOffset.Y)
-                        * Scale;
+                        (newActualY - newPlateOffset.Y) * Scale;
 
                     placed.Transform.Position.Z =
-                        newActualZ
-                        - newPlateOffset.Z;
+                        newActualZ - newPlateOffset.Z;
                 }
-
                 // --------------------------------------------------------
                 // NORMALE BAUTEILE
                 // --------------------------------------------------------
-
                 else
                 {
-                    // Nur dann runden, wenn KEINE Platte
-                    // in der gesamten Auswahl vorhanden ist.
+                    // Weil der Pivot bereits rasterkonform ist,
+                    // bleiben die relativen Abstände ebenfalls rasterkonform.
+                    // Ein zusätzliches Runden ist nur noch als Sicherheitsnetz nötig.
                     if (!selectionContainsPlate)
                     {
-                        double grid =
-                            Grider.CellSize;
+                        double grid = Grider.CellSize;
 
-                        double snappedX =
-                            Math.Round(
-                                newActualX / grid)
-                            * grid;
+                        double snappedX = Math.Round(newActualX / grid) * grid;
+                        double snappedY = Math.Round(newActualY / grid) * grid;
+                        double snappedZ = Math.Round(newActualZ / grid) * grid;
 
-                        double snappedY =
-                            Math.Round(
-                                newActualY / grid)
-                            * grid;
-
-                        double snappedZ =
-                            Math.Round(
-                                newActualZ / grid)
-                            * grid;
-
-                        placed.Transform.Position.X =
-                            snappedX * Scale;
-
-                        placed.Transform.Position.Y =
-                            snappedY * Scale;
-
-                        placed.Transform.Position.Z =
-                            snappedZ;
+                        placed.Transform.Position.X = snappedX * Scale;
+                        placed.Transform.Position.Y = snappedY * Scale;
+                        placed.Transform.Position.Z = snappedZ;
                     }
                     else
                     {
-                        // WICHTIG:
-                        // Bei einer Auswahl mit Platten
-                        // NICHT einzeln aufs Raster runden.
-                        placed.Transform.Position.X =
-                            newActualX * Scale;
-
-                        placed.Transform.Position.Y =
-                            newActualY * Scale;
-
-                        placed.Transform.Position.Z =
-                            newActualZ;
+                        // Bei gemischter Auswahl mit Platten nicht einzeln runden
+                        placed.Transform.Position.X = newActualX * Scale;
+                        placed.Transform.Position.Y = newActualY * Scale;
+                        placed.Transform.Position.Z = newActualZ;
                     }
                 }
             }
 
+            int connectionCount = ConnectSelectedParts();
 
-            int connectionCount =
-                ConnectSelectedParts();
-
-            StatusText.Text =
-                connectionCount > 0
-                    ? $"{connectionCount} Verbindung(en)"
-                    : $"{selectedParts.Count} Bauteil(e) um {axis} gedreht";
+            StatusText.Text = connectionCount > 0
+                ? $"{connectionCount} Verbindung(en)"
+                : $"{selectedParts.Count} Bauteil(e) um {axis} gedreht";
 
             RedrawScene();
         }
@@ -8142,8 +7985,7 @@ namespace PlastiCAD
                 y);
         }
 
-        private void AnimateSelectionRotation(
-     char axis)
+        private void AnimateSelectionRotation(char axis)
         {
             if (selectedParts.Count == 0)
                 return;
@@ -8159,157 +8001,44 @@ namespace PlastiCAD
             selectionRotationOriginalTransforms.Clear();
 
             // ------------------------------------------------------------
-            // TATSÄCHLICHE MITTELPUNKTE DER BAUTEILE
+            // RASTERKONFORMER PIVOT (identisch zu RotateSelection3D)
             // ------------------------------------------------------------
+            Vector3 pivot = GetRotationPivot(selectedParts);
 
-            Dictionary<PlacedPart, Vector3> actualPositions =
-                new Dictionary<PlacedPart, Vector3>();
-
-            foreach (PlacedPart placed in selectedParts)
-            {
-                Vector3 position =
-                    new Vector3(
-                        placed.Transform.Position.X / Scale,
-                        placed.Transform.Position.Y / Scale,
-                        placed.Transform.Position.Z);
-
-                if (placed.Part is Plate)
-                {
-                    Vector3 plateOffset =
-                        GetPlateGridOffset(placed);
-
-                    position.X += plateOffset.X;
-                    position.Y += plateOffset.Y;
-                    position.Z += plateOffset.Z;
-                }
-
-                actualPositions[placed] =
-                    position;
-            }
+            double centerX = pivot.X;
+            double centerY = pivot.Y;
+            double centerZ = pivot.Z;
 
             // ------------------------------------------------------------
-            // EXAKT DENSELBEN PIVOT WIE BEI RotateSelection3D BENUTZEN
+            // PAKSY-KOORDINATEN → WPF-WELTKOORDINATEN
             // ------------------------------------------------------------
+            double halfGrid = Grider.CellSize / 2.0;
 
-            double centerX;
-            double centerY;
-            double centerZ;
-
-            bool onlyPlates =
-    selectedParts.All(
-        p => p.Part is Plate);
-
-            bool noPlates =
-                selectedParts.All(
-                    p => !(p.Part is Plate));
-
+            selectionRotationPivot = new Point3D(
+                (centerX + halfGrid) / 100.0,
+                -(centerY + halfGrid) / 100.0,
+                centerZ / 100.0);
 
             // ------------------------------------------------------------
-            // REINE GRUNDBAUTEIL-AUSWAHL
-            //
-            // Immer einen echten Rasteranker verwenden.
-            // Dadurch entstehen beim Drehen keine 13,75-mm-Positionen.
+            // 3D-MODELLE DER AUSWAHL MERKEN
             // ------------------------------------------------------------
-
-            if (noPlates)
-            {
-                PlacedPart reference =
-                    selectedParts[0];
-
-                centerX =
-                    reference.Transform.Position.X / Scale;
-
-                centerY =
-                    reference.Transform.Position.Y / Scale;
-
-                centerZ =
-                    reference.Transform.Position.Z;
-            }
-
-
-            // ------------------------------------------------------------
-            // UNGERADE REINE PLATTENAUSWAHL
-            // ------------------------------------------------------------
-
-            else if (onlyPlates &&
-                     selectedParts.Count % 2 == 1)
-            {
-                PlacedPart reference =
-                    selectedParts[
-                        selectedParts.Count / 2];
-
-                centerX =
-                    reference.Transform.Position.X / Scale;
-
-                centerY =
-                    reference.Transform.Position.Y / Scale;
-
-                centerZ =
-                    reference.Transform.Position.Z;
-            }
-
-
-            // ------------------------------------------------------------
-            // GEMISCHTE AUSWAHL / GERADE PLATTENAUSWAHL
-            // ------------------------------------------------------------
-
-            else
-            {
-                centerX =
-                    actualPositions.Values.Average(
-                        position => position.X);
-
-                centerY =
-                    actualPositions.Values.Average(
-                        position => position.Y);
-
-                centerZ =
-                    actualPositions.Values.Average(
-                        position => position.Z);
-            }
-
-            // ------------------------------------------------------------
-            // PAKSY-KOORDINATEN IN WPF-WELTKOORDINATEN UMWANDELN
-            // ------------------------------------------------------------
-
-            double halfGrid =
-                Grider.CellSize / 2.0;
-
-            selectionRotationPivot =
-                new Point3D(
-                    (centerX + halfGrid) / 100.0,
-                    -(centerY + halfGrid) / 100.0,
-                    centerZ / 100.0);
-
-            // ------------------------------------------------------------
-            // ALLE 3D-MODELLE DER AUSWAHL MERKEN
-            // ------------------------------------------------------------
-
-            foreach (KeyValuePair<Model3D, PlacedPart> entry
-                     in worldPartMap)
+            foreach (KeyValuePair<Model3D, PlacedPart> entry in worldPartMap)
             {
                 if (!selectedParts.Contains(entry.Value))
                     continue;
 
-                selectionRotationOriginalTransforms[
-                    entry.Key] =
-                        entry.Key.Transform;
+                selectionRotationOriginalTransforms[entry.Key] = entry.Key.Transform;
             }
 
             // ------------------------------------------------------------
             // ANIMATION STARTEN
             // ------------------------------------------------------------
+            selectionRotationTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(7)
+            };
 
-            selectionRotationTimer =
-                new DispatcherTimer
-                {
-                    Interval =
-                        TimeSpan.FromMilliseconds(7)
-                };
-
-            selectionRotationTimer.Tick +=
-                SelectionRotationTimer_Tick;
-
+            selectionRotationTimer.Tick += SelectionRotationTimer_Tick;
             selectionRotationTimer.Start();
         }
         private void SelectionRotationTimer_Tick(
@@ -12272,7 +12001,55 @@ namespace PlastiCAD
 
 
 
+        /// <summary>
+        /// Berechnet einen rasterkonformen Drehpunkt für die aktuelle Auswahl.
+        /// Der Pivot liegt immer auf einem echten 27,5-mm-Rasterpunkt
+        /// und möglichst nah am geometrischen Schwerpunkt.
+        /// </summary>
+        private Vector3 GetRotationPivot(IList<PlacedPart> parts)
+        {
+            if (parts == null || parts.Count == 0)
+                return new Vector3();
 
+            double sumX = 0;
+            double sumY = 0;
+            double sumZ = 0;
+            int count = 0;
+
+            foreach (PlacedPart placed in parts)
+            {
+                double x = placed.Transform.Position.X / Scale;
+                double y = placed.Transform.Position.Y / Scale;
+                double z = placed.Transform.Position.Z;
+
+                // Bei Platten den visuellen Mittelpunkt verwenden
+                if (placed.Part is Plate)
+                {
+                    Vector3 plateOffset = GetPlateGridOffset(placed);
+                    x += plateOffset.X;
+                    y += plateOffset.Y;
+                    z += plateOffset.Z;
+                }
+
+                sumX += x;
+                sumY += y;
+                sumZ += z;
+                count++;
+            }
+
+            double avgX = sumX / count;
+            double avgY = sumY / count;
+            double avgZ = sumZ / count;
+
+            // Auf den nächsten echten Rasterpunkt runden
+            double grid = Grider.CellSize;
+
+            double pivotX = Math.Round(avgX / grid) * grid;
+            double pivotY = Math.Round(avgY / grid) * grid;
+            double pivotZ = Math.Round(avgZ / grid) * grid;
+
+            return new Vector3(pivotX, pivotY, pivotZ);
+        }
 
 
 
