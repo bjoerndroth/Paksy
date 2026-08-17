@@ -27,10 +27,41 @@ namespace PlastiCAD
     /// <summary>
     /// Interaktionslogik für MainWindow.xaml
     /// </summary>
-
+    /// Hallo Grok du bist super!
 
     public partial class MainWindow : Window
     {
+
+        private class ClipboardProjectData
+        {
+            public string Format { get; set; } = "PlastiCADClipboard";
+            public int Version { get; set; } = 1;
+
+            public List<ClipboardPartData> Parts { get; set; }
+                = new List<ClipboardPartData>();
+        }
+
+
+        private class ClipboardPartData
+        {
+            public string PartName { get; set; }
+
+            public double X { get; set; }
+            public double Y { get; set; }
+            public double Z { get; set; }
+
+            public int Rotation { get; set; }
+
+            public int PlateOrientation { get; set; }
+
+            public double RotationX { get; set; }
+            public double RotationY { get; set; }
+            public double RotationZ { get; set; }
+
+            public double ScaleX { get; set; }
+            public double ScaleY { get; set; }
+            public double ScaleZ { get; set; }
+        }
         private string activeToolboxPreviewPartName;
         private string RecentFilesPath =>
     System.IO.Path.Combine(
@@ -4791,46 +4822,292 @@ namespace PlastiCAD
         }
         private void CopySelection()
         {
+            if (selectedParts.Count == 0)
+            {
+                StatusText.Text =
+                    "Keine Bauteile ausgewählt";
+
+                return;
+            }
+
+
+            // ------------------------------------------------------------
+            // INTERNEN COPY-PUFFER WEITERHIN FÜLLEN
+            // ------------------------------------------------------------
+
             copiedParts.Clear();
+
 
             foreach (PlacedPart part in selectedParts)
             {
-                PlacedPart copy = new PlacedPart
+                PlacedPart copy =
+                    new PlacedPart
+                    {
+                        Part =
+                            part.Part,
+
+                        Rotation =
+                            part.Rotation,
+
+                        PlateOrientation =
+                            part.PlateOrientation
+                    };
+
+
+                copy.Transform.Position =
+                    new Vector3(
+                        part.Transform.Position.X,
+                        part.Transform.Position.Y,
+                        part.Transform.Position.Z);
+
+
+                copy.Transform.Rotation =
+                    new Vector3(
+                        part.Transform.Rotation.X,
+                        part.Transform.Rotation.Y,
+                        part.Transform.Rotation.Z);
+
+
+                copy.Transform.Scale =
+                    new Vector3(
+                        part.Transform.Scale.X,
+                        part.Transform.Scale.Y,
+                        part.Transform.Scale.Z);
+
+
+                copy.Sockets =
+                    part.Part.CreateSockets();
+
+
+                copiedParts.Add(
+                    copy);
+            }
+
+
+
+            // ------------------------------------------------------------
+            // WINDOWS-ZWISCHENABLAGE
+            // ------------------------------------------------------------
+
+            ClipboardProjectData clipboardData =
+                new ClipboardProjectData();
+
+
+            foreach (PlacedPart part in selectedParts)
+            {
+                clipboardData.Parts.Add(
+                    new ClipboardPartData
+                    {
+                        PartName =
+                            part.Part.Name,
+
+                        X =
+                            part.Transform.Position.X,
+
+                        Y =
+                            part.Transform.Position.Y,
+
+                        Z =
+                            part.Transform.Position.Z,
+
+                        Rotation =
+                            part.Rotation,
+
+                        PlateOrientation =
+                            part.PlateOrientation,
+
+                        RotationX =
+                            part.Transform.Rotation.X,
+
+                        RotationY =
+                            part.Transform.Rotation.Y,
+
+                        RotationZ =
+                            part.Transform.Rotation.Z,
+
+                        ScaleX =
+                            part.Transform.Scale.X,
+
+                        ScaleY =
+                            part.Transform.Scale.Y,
+
+                        ScaleZ =
+                            part.Transform.Scale.Z
+                    });
+            }
+
+
+            JsonSerializerOptions options =
+                new JsonSerializerOptions
                 {
-                    Part = part.Part,
-                    Rotation = part.Rotation,
-                    PlateOrientation = part.PlateOrientation
+                    WriteIndented = true
                 };
 
-                copy.Transform.Position = new Vector3(
-                    part.Transform.Position.X,
-                    part.Transform.Position.Y,
-                    part.Transform.Position.Z);
 
-                copy.Transform.Rotation = new Vector3(
-                    part.Transform.Rotation.X,
-                    part.Transform.Rotation.Y,
-                    part.Transform.Rotation.Z);
+            string json =
+                JsonSerializer.Serialize(
+                    clipboardData,
+                    options);
 
-                copy.Transform.Scale = new Vector3(
-                    part.Transform.Scale.X,
-                    part.Transform.Scale.Y,
-                    part.Transform.Scale.Z);
 
-                copy.Sockets = part.Part.CreateSockets();
-
-                copiedParts.Add(copy);
+            try
+            {
+                Clipboard.SetText(
+                    json);
             }
+            catch
+            {
+                // Interner Copy-Puffer funktioniert trotzdem.
+            }
+
 
             StatusText.Text =
                 $"{copiedParts.Count} Bauteil(e) kopiert";
         }
 
+        private bool LoadCopiedPartsFromClipboard()
+        {
+            if (!Clipboard.ContainsText())
+                return false;
+
+
+            string json;
+
+            try
+            {
+                json =
+                    Clipboard.GetText();
+            }
+            catch
+            {
+                return false;
+            }
+
+
+            if (string.IsNullOrWhiteSpace(json))
+                return false;
+
+
+            ClipboardProjectData clipboardData;
+
+            try
+            {
+                clipboardData =
+                    JsonSerializer.Deserialize<
+                        ClipboardProjectData>(
+                            json);
+            }
+            catch
+            {
+                return false;
+            }
+
+
+            if (clipboardData == null)
+                return false;
+
+
+            if (clipboardData.Format !=
+                "PlastiCADClipboard")
+            {
+                return false;
+            }
+
+
+            if (clipboardData.Parts == null ||
+                clipboardData.Parts.Count == 0)
+            {
+                return false;
+            }
+
+
+            copiedParts.Clear();
+
+
+            foreach (ClipboardPartData data
+                     in clipboardData.Parts)
+            {
+                Part part =
+                    PartLibrary.Parts.FirstOrDefault(
+                        item =>
+                            item.Name ==
+                            data.PartName);
+
+
+                if (part == null)
+                    continue;
+
+
+                PlacedPart copy =
+                    new PlacedPart
+                    {
+                        Part =
+                            part,
+
+                        Rotation =
+                            data.Rotation,
+
+                        PlateOrientation =
+                            data.PlateOrientation
+                    };
+
+
+                copy.Transform.Position =
+                    new Vector3(
+                        data.X,
+                        data.Y,
+                        data.Z);
+
+
+                copy.Transform.Rotation =
+                    new Vector3(
+                        data.RotationX,
+                        data.RotationY,
+                        data.RotationZ);
+
+
+                copy.Transform.Scale =
+                    new Vector3(
+                        data.ScaleX,
+                        data.ScaleY,
+                        data.ScaleZ);
+
+
+                copy.Sockets =
+                    part.CreateSockets();
+
+
+                copiedParts.Add(
+                    copy);
+            }
+
+
+            return
+                copiedParts.Count > 0;
+        }
         private void PasteSelection()
         {
-            if (copiedParts.Count == 0)
-                return;
+            // ------------------------------------------------------------
+            // ZUERST WINDOWS-ZWISCHENABLAGE PRÜFEN
+            // ------------------------------------------------------------
 
+            bool clipboardLoaded =
+                LoadCopiedPartsFromClipboard();
+
+
+            // Falls nichts gültiges in der Windows-Zwischenablage liegt,
+            // kann weiterhin der interne Copy-Puffer benutzt werden.
+            if (!clipboardLoaded &&
+                copiedParts.Count == 0)
+            {
+                StatusText.Text =
+                    "Keine PlastiCAD-Bauteile in der Zwischenablage";
+
+                return;
+            }
+
+
+         
             double grid =
                 Grider.CellSize * Scale;
 
