@@ -31,6 +31,12 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+
+        // Socket-Auswahl für 3D-Platzierung
+        private PlacedPart socketTargetPart = null;
+        private List<Socket> socketTargetCandidates = new List<Socket>();
+        private int socketTargetIndex = -1;
+        private ModelVisual3D socketMarkerVisual = null;
         private Point3D? lastWorldHitPoint = null;
         private class ClipboardProjectData
         {
@@ -3009,6 +3015,17 @@ namespace PlastiCAD
                 FitWorldCamera();
                 worldCameraInitialized = true;
             }
+
+            // am Ende von RedrawWorld():
+            if (socketTargetPart != null &&
+                socketTargetIndex >= 0 &&
+                socketTargetIndex < socketTargetCandidates.Count)
+            {
+                ShowSocketMarker(
+                    socketTargetPart,
+                    socketTargetCandidates[socketTargetIndex]);
+            }
+
         }
         private void DrawBallConnector3D(
     PlacedPart placed,
@@ -5737,13 +5754,28 @@ namespace PlastiCAD
         }
 
         private void WorldViewport_MouseRightButtonUp(
-            object sender,
-            MouseButtonEventArgs e)
+       object sender,
+       MouseButtonEventArgs e)
         {
-            isWorldOrbiting = false;
+            // Orbit beenden, falls aktiv
+            if (isWorldOrbiting)
+            {
+                isWorldOrbiting = false;
+                Mouse.Capture(null);
+                e.Handled = true;
+                return;
+            }
+
+            // Socket wählen / wechseln
+            if (selectedPart != null && worldMouseDownPart != null)
+            {
+                Point3D hitPoint = lastWorldHitPoint ?? new Point3D(0, 0, 0);
+                HandleSocketSelectionClick(worldMouseDownPart, hitPoint);
+                e.Handled = true;
+                return;
+            }
 
             Mouse.Capture(null);
-
             e.Handled = true;
         }
 
@@ -6007,27 +6039,28 @@ namespace PlastiCAD
         }
 
         private void WorldViewport_MouseDown(
-    object sender,
-    MouseButtonEventArgs e)
+     object sender,
+     MouseButtonEventArgs e)
         {
-
             if (showMoveGrid)
             {
                 HideDragGrid();
                 showMoveGrid = false;
             }
+
             bool ctrlPressed =
-    Keyboard.Modifiers.HasFlag(
-        ModifierKeys.Control);
-            if (e.ChangedButton == MouseButton.Left)
+                Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
+
+            // ============================================================
+            // LINKS- oder RECHTSKLICK → Hit-Test
+            // ============================================================
+            if (e.ChangedButton == MouseButton.Left ||
+                e.ChangedButton == MouseButton.Right)
             {
-                Point mousePosition =
-                    e.GetPosition(WorldViewport);
+                Point mousePosition = e.GetPosition(WorldViewport);
 
                 HitTestResult result =
-                    VisualTreeHelper.HitTest(
-                        WorldViewport,
-                        mousePosition);
+                    VisualTreeHelper.HitTest(WorldViewport, mousePosition);
 
                 RayMeshGeometry3DHitTestResult hit =
                     result as RayMeshGeometry3DHitTestResult;
@@ -6037,19 +6070,20 @@ namespace PlastiCAD
 
                 if (hit != null &&
                     hit.ModelHit != null &&
-                    worldPartMap.TryGetValue(
-                        hit.ModelHit,
-                        out PlacedPart placed))
+                    worldPartMap.TryGetValue(hit.ModelHit, out PlacedPart placed))
                 {
                     lastWorldHitPoint = hit.PointHit;
                     worldMouseDownPart = placed;
+                }
 
-                    // Wenn das Teil bereits zur Auswahl gehört,
-                    // bewegen wir die komplette vorhandene Auswahl.
-                    //
-                    // Ist es NICHT ausgewählt, wird es erst bei
-                    // MouseUp zur neuen Auswahl.
-                    if (selectedParts.Contains(placed))
+                // --------------------------------------------------------
+                // Nur bei LINKSKLICK: Drag vorbereiten
+                // --------------------------------------------------------
+                if (e.ChangedButton == MouseButton.Left &&
+                    worldMouseDownPart != null)
+                {
+                    // Wenn das Teil bereits zur Auswahl gehört → ganze Auswahl bewegen
+                    if (selectedParts.Contains(worldMouseDownPart))
                     {
                         SaveUndoState();
 
@@ -6058,8 +6092,7 @@ namespace PlastiCAD
 
                         worldPartDragStartMouse = mousePosition;
 
-                        PlacedPart referencePart =
-    selectedParts[0];
+                        PlacedPart referencePart = selectedParts[0];
 
                         double planeY =
                             -(
@@ -6068,9 +6101,7 @@ namespace PlastiCAD
                              ) / 100.0;
 
                         worldPartDragStartPoint =
-                            GetMousePointOnWorldPlane(
-                                mousePosition,
-                                planeY);
+                            GetMousePointOnWorldPlane(mousePosition, planeY);
 
                         worldPartDragStartPositions.Clear();
 
@@ -6084,96 +6115,99 @@ namespace PlastiCAD
                         }
 
                         isWorldPartDragging = true;
-
                         dragGridPlaneY = planeY;
                         dragGridReferencePart = referencePart;
-                        
+
                         Mouse.Capture((IInputElement)sender);
                     }
 
                     e.Handled = true;
                 }
 
+                // Rechtsklick: nur Hit-Test speichern, Rest macht MouseUp
+                if (e.ChangedButton == MouseButton.Right)
+                {
+                    e.Handled = true;
+                }
+
                 return;
             }
 
-            if (e.ChangedButton != MouseButton.Middle)
-                return;
-            if (!ctrlPressed)
-                return;
-            isWorldPanning = true;
+            // ============================================================
+            // MITTELKLICK + Ctrl → Pan
+            // ============================================================
+            if (e.ChangedButton == MouseButton.Middle)
+            {
+                if (!ctrlPressed)
+                    return;
 
-            worldLastMousePosition =
-                e.GetPosition(WorldViewport);
-
-            Mouse.Capture((IInputElement)sender);
-
-            e.Handled = true;
+                isWorldPanning = true;
+                worldLastMousePosition = e.GetPosition(WorldViewport);
+                Mouse.Capture((IInputElement)sender);
+                e.Handled = true;
+            }
         }
 
         private void WorldViewport_MouseUp(
-            object sender,
-            MouseButtonEventArgs e)
+    object sender,
+    MouseButtonEventArgs e)
         {
             bool ctrlPressed =
-    Keyboard.Modifiers.HasFlag(
-        ModifierKeys.Control);
+                Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
+
+            // ============================================================
+            // RECHTSKLICK → Socket wählen / wechseln
+            // ============================================================
+            if (e.ChangedButton == MouseButton.Right)
+            {
+                if (selectedPart != null && worldMouseDownPart != null)
+                {
+                    Point3D hitPoint = lastWorldHitPoint ?? new Point3D(0, 0, 0);
+                    HandleSocketSelectionClick(worldMouseDownPart, hitPoint);
+                    e.Handled = true;
+                    return;
+                }
+
+                // kein Socket-Modus → ggf. bestehende Rechtsklick-Logik
+                e.Handled = true;
+                return;
+            }
+
+            // ============================================================
+            // LINKSKLICK
+            // ============================================================
             if (e.ChangedButton == MouseButton.Left)
             {
                 if (isWorldPartDragging)
                 {
-                   isWorldPartDragging = false;
+                    isWorldPartDragging = false;
                     HideDragGrid();
                     Mouse.Capture(null);
 
                     if (worldPartWasDragged)
                     {
-                        int connectionCount =
-                            ConnectSelectedParts();
+                        int connectionCount = ConnectSelectedParts();
 
-                        StatusText.Text =
-                            connectionCount > 0
-                                ? $"{connectionCount} Verbindung(en)"
-                                : $"{selectedParts.Count} Bauteil(e) verschoben";
+                        StatusText.Text = connectionCount > 0
+                            ? $"{connectionCount} Verbindung(en)"
+                            : $"{selectedParts.Count} Bauteil(e) verschoben";
                     }
                 }
 
-                // Kein Drag -> normaler Klick
-                // Kein Drag -> normaler Klick
+                // Kein Drag → normaler Klick
                 if (!worldPartWasDragged && worldMouseDownPart != null)
                 {
-                    // --------------------------------------------------------
-                    // NEU: Wenn ein Toolbox-Bauteil ausgewählt ist → platzieren
-                    // --------------------------------------------------------
-                    if (selectedPart != null)
+                    // Toolbox aktiv + Socket gewählt → platzieren
+                    if (selectedPart != null &&
+                        socketTargetPart != null &&
+                        socketTargetIndex >= 0)
                     {
-                        // Hit-Punkt in Weltkoordinaten holen
-                        // (vereinfacht: wir nehmen den Mittelpunkt des getroffenen Teils
-                        //  oder den exakten Hit-Punkt, falls verfügbar)
-                        Point3D hitPoint = new Point3D(0, 0, 0);
-
-                        // Besser: den echten Hit-Punkt aus dem vorherigen HitTest merken
-                        // (dazu musst du in MouseDown den hit.PointHit speichern)
-                        if (lastWorldHitPoint.HasValue)
-                            hitPoint = lastWorldHitPoint.Value;
-                        else
-                        {
-                            // Fallback: Zellenmitte des angeklickten Teils
-                            Vector3 center = GetCellCenter(worldMouseDownPart);
-                            hitPoint = new Point3D(
-                                (center.X / Scale) / 100.0,
-                                -(center.Y / Scale) / 100.0,
-                                worldMouseDownPart.Transform.Position.Z / 100.0);
-                        }
-
-                        PlaceSelectedPartAtSocket(worldMouseDownPart, hitPoint);
+                        ConfirmSocketPlacement();
                         e.Handled = true;
                         return;
                     }
 
-                    // --------------------------------------------------------
-                    // Bestehende Auswahl-Logik (Ctrl etc.)
-                    // --------------------------------------------------------
+                    // Normale Auswahl
                     if (ctrlPressed)
                     {
                         if (selectedParts.Contains(worldMouseDownPart))
@@ -6187,35 +6221,29 @@ namespace PlastiCAD
                         selectedParts.Add(worldMouseDownPart);
                     }
 
-                }
-
-
-
-                StatusText.Text =
+                    StatusText.Text =
                         $"{selectedParts.Count} Bauteil(e) ausgewählt";
-                
+                }
 
                 worldPartDragStartPositions.Clear();
                 worldMouseDownPart = null;
                 worldPartWasDragged = false;
 
                 RedrawScene();
-
                 e.Handled = true;
                 return;
             }
 
-            if (e.ChangedButton != MouseButton.Middle)
-                return;
-
-            isWorldPanning = false;
-
-            Mouse.Capture(null);
-
-            e.Handled = true;
+            // ============================================================
+            // MITTELKLICK → Pan beenden
+            // ============================================================
+            if (e.ChangedButton == MouseButton.Middle)
+            {
+                isWorldPanning = false;
+                Mouse.Capture(null);
+                e.Handled = true;
+            }
         }
-
-
         private void MainWindow_PreviewKeyDown(
      object sender,
      KeyEventArgs e)
@@ -6223,7 +6251,19 @@ namespace PlastiCAD
             bool controlPressed =
     (Keyboard.Modifiers & ModifierKeys.Control)
     == ModifierKeys.Control;
+            // Socket-Auswahl bestätigen
+            if (e.Key == Key.Enter || e.Key == Key.Return)
+            {
+                if (socketTargetPart != null && selectedPart != null)
+                {
+                    ConfirmSocketPlacement();
+                    e.Handled = true;
+                    return;
+                }
+            }
 
+            // Socket-Auswahl abbrechen
+            
             if (e.Key == Key.Add ||
    e.Key == Key.OemPlus)
             {
@@ -6334,8 +6374,17 @@ namespace PlastiCAD
             }
 
 
-
             if (e.Key == Key.Escape)
+            {
+                if (socketTargetPart != null)
+                {
+                    CancelSocketSelection();
+                    e.Handled = true;
+                    return;
+                }
+
+                // ... bestehende Escape-Logik ...
+            
             {
                 selectedPart = null;
 
@@ -6362,8 +6411,8 @@ namespace PlastiCAD
                 e.Handled = true;
                 return;
             }
-
-           double moveStep = Grider.CellSize * Scale;
+            }
+            double moveStep = Grider.CellSize * Scale;
 
             
             if (controlPressed &&
@@ -12404,17 +12453,14 @@ private double DistanceToHit(Vector3 position, Point3D hitPoint)
         /// in Modell-mm, unter Berücksichtigung der aktuellen Orientierung.
         /// </summary>
         private Vector3 GetSocketOffsetFromCenter(
-            Socket socket,
-            PlacedPart placed)
+    Socket socket,
+    PlacedPart placed)
         {
             double r = Grider.CellSize / 2.0;   // 13.75
 
-            Face face = FaceHelper.RotateFace(
+            // Nur Transform.Rotation – nicht zusätzlich Legacy-Rotation
+            Face face = FaceHelper.RotateFace3D(
                 socket.Face,
-                placed.Rotation);
-
-            face = FaceHelper.RotateFace3D(
-                face,
                 placed.Transform.Rotation);
 
             switch (face)
@@ -12525,6 +12571,389 @@ private double DistanceToHit(Vector3 position, Point3D hitPoint)
 
             return true;
         }
+
+        /// <summary>
+        /// Startet oder wechselt die Socket-Auswahl am angeklickten Bauteil.
+        /// Jeder weitere Linksklick auf dasselbe Teil wählt den nächsten freien Socket.
+        /// </summary>
+        private void HandleSocketSelectionClick(PlacedPart clickedPart, Point3D hitPoint)
+        {
+            // Verbindungen aktuell halten
+            RebuildConnections();
+
+            // Auswahl aufheben – Socket-Modus aktiv
+            selectedParts.Clear();
+
+            // Neues Zielbauteil?
+            if (socketTargetPart != clickedPart)
+            {
+                HideSocketMarker();
+
+                socketTargetPart = clickedPart;
+
+                socketTargetCandidates = clickedPart.Sockets
+                    .Where(s => !s.IsConnected)
+                    .ToList();
+
+                if (socketTargetCandidates.Count == 0)
+                {
+                    StatusText.Text = "Dieses Bauteil hat keine freien Anschlüsse";
+                    socketTargetPart = null;
+                    socketTargetIndex = -1;
+                    RedrawScene();   // Auswahl-Highlight entfernen
+                    return;
+                }
+
+                socketTargetIndex = FindNearestSocketIndex(clickedPart, hitPoint);
+            }
+            else
+            {
+                socketTargetCandidates = clickedPart.Sockets
+                    .Where(s => !s.IsConnected)
+                    .ToList();
+
+                if (socketTargetCandidates.Count == 0)
+                {
+                    HideSocketMarker();
+                    StatusText.Text = "Keine freien Anschlüsse mehr";
+                    socketTargetPart = null;
+                    socketTargetIndex = -1;
+                    RedrawScene();
+                    return;
+                }
+
+                socketTargetIndex = (socketTargetIndex + 1) % socketTargetCandidates.Count;
+            }
+
+            Socket currentSocket = socketTargetCandidates[socketTargetIndex];
+
+            ShowSocketMarker(clickedPart, currentSocket);
+
+            // Szene neu zeichnen, damit die alte Auswahl-Markierung verschwindet,
+            // der gelbe Zylinder aber erhalten bleibt (am Ende von RedrawWorld neu setzen)
+            RedrawScene();
+
+            StatusText.Text =
+                $"Freier Socket {socketTargetIndex + 1}/{socketTargetCandidates.Count} " +
+                $"({currentSocket.Name ?? currentSocket.Face.ToString()}) – " +
+                "Linksklick = platzieren, Rechtsklick = nächster freier Socket, Esc = Abbruch";
+        }
+
+        /// <summary>
+        /// Findet den Index des freien Sockets, der dem 3D-Klickpunkt am nächsten liegt.
+        /// </summary>
+        private int FindNearestSocketIndex(PlacedPart part, Point3D hitPoint)
+        {
+            int bestIndex = 0;
+            double bestDistance = double.MaxValue;
+
+            for (int i = 0; i < socketTargetCandidates.Count; i++)
+            {
+                Socket socket = socketTargetCandidates[i];
+
+                Vector3 socketMm = SnapEngine.GetSocketWorldPosition(part, socket, Scale);
+
+                // Modell-mm → WPF-Weltkoordinaten (wie im Rest des Programms)
+                double wx = (socketMm.X) / 100.0;   // GetSocketWorldPosition liefert schon in Modell-mm
+                double wy = -(socketMm.Y) / 100.0;
+                double wz = socketMm.Z / 100.0;
+
+                // Korrektur: GetSocketWorldPosition arbeitet mit Zellenmitte
+                // → wir nehmen die gleiche Umrechnung wie beim Pivot
+                double halfGrid = Grider.CellSize / 2.0;
+                wx = (socketMm.X) / 100.0;
+                wy = -(socketMm.Y) / 100.0;
+                wz = socketMm.Z / 100.0;
+
+                double dx = wx - hitPoint.X;
+                double dy = wy - hitPoint.Y;
+                double dz = wz - hitPoint.Z;
+
+                double distance = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    bestIndex = i;
+                }
+            }
+
+            return bestIndex;
+        }
+
+        /// <summary>
+        /// Zeigt einen gelben Zylinder (1 cm = Verbindungsglied) am gewählten Socket.
+        /// </summary>
+        private void ShowSocketMarker(PlacedPart part, Socket socket)
+        {
+            HideSocketMarker();
+
+            // Socket-Position in Modell-mm
+            Vector3 socketMm = SnapEngine.GetSocketWorldPosition(part, socket, Scale);
+
+            // Effektive Face → Richtung nach außen
+            Face worldFace = FaceHelper.RotateFace(socket.Face, part.Rotation);
+            worldFace = FaceHelper.RotateFace3D(worldFace, part.Transform.Rotation);
+
+            Vector3D direction = GetDirectionVector(worldFace);
+
+            // Weltkoordinaten (WPF): X = mm/100, Y = -mm/100, Z = mm/100
+            Point3D start = new Point3D(
+                socketMm.X / 100.0,
+                -socketMm.Y / 100.0,
+                socketMm.Z / 100.0);
+
+            // 1 cm = 0.01 in WPF-Einheiten rausstehen lassen
+            const double length = 0.10;   // 1 cm
+            const double radius = 0.04;   // Ø 8 mm  // ca. 2,5 mm Radius (sieht nach Verbindungsglied aus)
+
+            Point3D end = new Point3D(
+                start.X + direction.X * length,
+                start.Y + direction.Y * length,
+                start.Z + direction.Z * length);
+
+            Brush yellow = new SolidColorBrush(Color.FromRgb(255, 200, 0));
+            yellow.Freeze();
+
+            GeometryModel3D cylinder = CreatePreviewCylinder(start, end, radius, yellow);
+
+            if (cylinder == null)
+                return;
+
+            socketMarkerVisual = new ModelVisual3D
+            {
+                Content = cylinder
+            };
+
+            WorldViewport.Children.Add(socketMarkerVisual);
+        }
+
+        /// <summary>
+        /// Entfernt den gelben Socket-Marker.
+        /// </summary>
+        private void HideSocketMarker()
+        {
+            if (socketMarkerVisual != null)
+            {
+                WorldViewport.Children.Remove(socketMarkerVisual);
+                socketMarkerVisual = null;
+            }
+        }
+
+        /// <summary>
+        /// Liefert die Weltrichtung einer Face als Vector3D (für den Zylinder).
+        /// Beachte: Y ist in WPF gespiegelt.
+        /// </summary>
+        private Vector3D GetDirectionVector(Face face)
+        {
+            switch (face)
+            {
+                case Face.Left: return new Vector3D(-1, 0, 0);
+                case Face.Right: return new Vector3D(1, 0, 0);
+                case Face.Top: return new Vector3D(0, 1, 0);  // WPF-Y zeigt nach oben → Top = +Y
+                case Face.Bottom: return new Vector3D(0, -1, 0);
+                case Face.Front: return new Vector3D(0, 0, 1);
+                case Face.Back: return new Vector3D(0, 0, -1);
+                default: return new Vector3D(1, 0, 0);
+            }
+        }
+
+        /// <summary>
+        /// Platziert das aktuell in der Toolbox gewählte Bauteil
+        /// am gerade markierten Socket.
+        /// </summary>
+        private void ConfirmSocketPlacement()
+        {
+            if (socketTargetPart == null ||
+                socketTargetIndex < 0 ||
+                socketTargetIndex >= socketTargetCandidates.Count ||
+                selectedPart == null)
+            {
+                return;
+            }
+
+            Socket targetSocket = socketTargetCandidates[socketTargetIndex];
+
+            PlaceSelectedPartAtSpecificSocket(socketTargetPart, targetSocket);
+
+            // Aufräumen
+            HideSocketMarker();
+            socketTargetPart = null;
+            socketTargetCandidates.Clear();
+            socketTargetIndex = -1;
+        }
+
+        /// <summary>
+        /// Bricht die Socket-Auswahl ab.
+        /// </summary>
+        private void CancelSocketSelection()
+        {
+            HideSocketMarker();
+            socketTargetPart = null;
+            socketTargetCandidates.Clear();
+            socketTargetIndex = -1;
+            StatusText.Text = "Socket-Auswahl abgebrochen";
+        }
+
+
+        /// <summary>
+        /// Platziert das aktuell in der Toolbox ausgewählte Bauteil
+        /// genau an den angegebenen Socket des Zielbauteils.
+        /// </summary>
+        private void PlaceSelectedPartAtSpecificSocket(
+            PlacedPart targetPart,
+            Socket targetSocket)
+        {
+            if (selectedPart == null)
+            {
+                StatusText.Text = "Kein Bauteil in der Toolbox ausgewählt";
+                return;
+            }
+
+            if (targetPart == null || targetSocket == null)
+                return;
+
+            // --------------------------------------------------------
+            // 1. Effektive Welt-Face des Ziel-Sockets
+            // --------------------------------------------------------
+            Face targetWorldFace = FaceHelper.RotateFace(
+                targetSocket.Face,
+                targetPart.Rotation);
+
+            targetWorldFace = FaceHelper.RotateFace3D(
+                targetWorldFace,
+                targetPart.Transform.Rotation);
+
+            // Das neue Bauteil braucht die gegenüberliegende Face
+            Face requiredFace = GetOppositeFace(targetWorldFace);
+
+            // --------------------------------------------------------
+            // 2. Neues Bauteil anlegen und passende Orientierung suchen
+            // --------------------------------------------------------
+            PlacedPart newPlaced = new PlacedPart
+            {
+                Part = selectedPart,
+                Transform = new PlastiCAD.Models.Transform(),
+                Sockets = selectedPart.CreateSockets(),
+                Rotation = 0
+            };
+
+            Socket matchingSocket = null;
+            Vector3 foundRotation = new Vector3(0, 0, 0);
+            int foundLegacyRotation = 0;
+            bool orientationFound = false;
+
+            foreach (Socket newSocket in newPlaced.Sockets)
+            {
+                if (TryFindOrientationForSocket(
+                        selectedPart,
+                        newSocket,
+                        requiredFace,
+                        out Vector3 rotation,
+                        out int legacyRot))
+                {
+                    matchingSocket = newSocket;
+                    foundRotation = rotation;
+                    foundLegacyRotation = legacyRot;
+                    orientationFound = true;
+                    break;
+                }
+            }
+
+            if (!orientationFound || matchingSocket == null)
+            {
+                StatusText.Text = "Keine passende Orientierung für diesen Socket gefunden";
+                return;
+            }
+
+            newPlaced.Transform.Rotation = foundRotation;
+            newPlaced.Rotation = foundLegacyRotation;
+
+            // --------------------------------------------------------
+            // 3. Idealposition berechnen
+            // --------------------------------------------------------
+            double halfCell = Grider.CellSize / 2.0;
+
+            // Weltposition des Ziel-Sockets (in Modell-mm)
+            Vector3 targetSocketMm = SnapEngine.GetSocketWorldPosition(
+                targetPart,
+                targetSocket,
+                Scale);
+
+            // Offset des Matching-Sockets vom Zellenmittelpunkt des neuen Teils
+            Vector3 offsetFromCenter = GetSocketOffsetFromCenter(
+                matchingSocket,
+                newPlaced);
+
+            // Zellenmittelpunkt des neuen Teils so legen,
+            // dass sein Socket genau auf dem Ziel-Socket liegt
+            double newCenterX = targetSocketMm.X - offsetFromCenter.X;
+            double newCenterY = targetSocketMm.Y - offsetFromCenter.Y;
+            double newCenterZ = targetSocketMm.Z - offsetFromCenter.Z;
+
+            // Transform.Position speichert die Zellen-Ecke (nicht die Mitte)
+            double posX = (newCenterX - halfCell) * Scale;
+            double posY = (newCenterY - halfCell) * Scale;
+            double posZ = newCenterZ;
+
+            // Auf Raster runden
+            double grid = Grider.CellSize * Scale;
+            posX = Math.Round(posX / grid) * grid;
+            posY = Math.Round(posY / grid) * grid;
+            posZ = Math.Round(posZ / Grider.CellSize) * Grider.CellSize;
+
+            Vector3 idealPosition = new Vector3(posX, posY, posZ);
+
+            // --------------------------------------------------------
+            // 4. Freie Position finden (Ideal oder nächste freie Zelle)
+            // --------------------------------------------------------
+            Vector3 finalPosition;
+
+            if (IsPositionFree(idealPosition, newPlaced))
+            {
+                finalPosition = idealPosition;
+            }
+            else
+            {
+                finalPosition = FindNearestFreePosition(idealPosition, newPlaced);
+            }
+
+            newPlaced.Transform.Position = finalPosition;
+
+            // --------------------------------------------------------
+            // 5. Einfügen und verbinden
+            // --------------------------------------------------------
+            SaveUndoState();
+
+            assembly.PlacedParts.Add(newPlaced);
+
+            selectedParts.Clear();
+            selectedParts.Add(newPlaced);
+
+            int connections = ConnectSelectedParts();
+
+            StatusText.Text = connections > 0
+                ? $"Bauteil eingefügt – {connections} Verbindung(en)"
+                : "Bauteil eingefügt";
+
+            // Toolbox-Auswahl optional zurücksetzen
+            // (auskommentieren, wenn du mehrere Teile hintereinander setzen willst)
+            // selectedPart = null;
+            // if (selectedPartToolButton != null) { ... Reset-Button-Style ... }
+
+            RedrawScene();
+        }
+
+
+
+
+
+
+
+
+
+
+
 
 
 
