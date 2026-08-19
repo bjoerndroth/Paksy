@@ -4360,30 +4360,83 @@ namespace PlastiCAD
         }
         private void MainWindow_KeyDown(object sender, KeyEventArgs e)
         {
+            string? partName = e.Key switch
+            {
+                Key.D1 or Key.NumPad1 => "Rohr 27,5 mm",
+                Key.D2 or Key.NumPad2 => "90° Winkel",
+                Key.D3 or Key.NumPad3 => "T-Stück",
+                Key.D4 or Key.NumPad4 => "Kreuz",
+                Key.D5 or Key.NumPad5 => "Corner",
+                Key.D6 or Key.NumPad6 => "Edge",
+                Key.D7 or Key.NumPad7 => "Stand",
+                Key.D8 or Key.NumPad8 => "SpaceCross",
+                _ => null
+            };
 
-            bool controlPressed = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+            if (partName != null)
+            {
+                Part? part = PartLibrary.Parts.FirstOrDefault(p => p.Name == partName);
 
-           
-            
-            // if (e.Key == Key.R)
-            // {
-            //   int angle =
-            // (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift
-            //            ? -90
-            //           : 90;
+                if (part != null)
+                {
+                    selectedPart = part;
+                    StatusText.Text = "Ausgewählt: " + selectedPart.Name;
 
-            //            RotateSelection(angle);
+                    // Passenden Toolbox-Button finden und aktivieren
+                    Button? toolButton = FindPartToolButton(partName);
+                    if (toolButton != null)
+                    {
+                        UpdatePartToolSelection(toolButton);
+                    }
+                }
+                else
+                {
+                    StatusText.Text = "Bauteil nicht gefunden: " + partName;
+                }
 
-            //            e.Handled = true;
-            //return;
-            //}
-
-
-
+                e.Handled = true;
+                return;
+            }
         }
 
+        /// <summary>
+        /// Sucht den Toolbox-Button anhand des Tag-Werts.
+        /// </summary>
+        private Button? FindPartToolButton(string partName)
+        {
+            // Durchsuche die gesamte Fenster-Hierarchie nach dem passenden Button
+            return FindVisualChildren<Button>(this)
+                .FirstOrDefault(b =>
+                    b.Tag is string tag &&
+                    tag == partName);
+        }
 
+        /// <summary>
+        /// Hilfsmethode: findet alle visuellen Kinder eines bestimmten Typs.
+        /// </summary>
+        private static IEnumerable<T> FindVisualChildren<T>(DependencyObject parent)
+            where T : DependencyObject
+        {
+            if (parent == null)
+                yield break;
 
+            int count = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                DependencyObject child = VisualTreeHelper.GetChild(parent, i);
+
+                if (child is T typed)
+                    yield return typed;
+
+                foreach (T descendant in FindVisualChildren<T>(child))
+                    yield return descendant;
+            }
+        }
+        
+        
+    
+        
+        
         private void DrawArm(
     Vector3 center,
     Face face,
