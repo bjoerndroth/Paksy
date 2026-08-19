@@ -6331,29 +6331,48 @@ namespace PlastiCAD
             if (selectedPart == null)
                 return;
 
-            // Schnitt mit der Ebene Y = 0 (Boden in der 3D-Ansicht)
-            Point3D? hit = GetMousePointOnWorldPlane(mousePosition, 0.0);
+            double posX;
+            double posY;
+            double posZ = 0.0;
 
-            if (hit == null)
+            // --------------------------------------------------------
+            // ERSTES BAUTEIL → fest in die Mitte des 2D-Editors
+            // --------------------------------------------------------
+            if (assembly.PlacedParts.Count == 0)
             {
-                StatusText.Text = "Klickpunkt nicht auf der Arbeitsebene";
-                return;
+                // Gewünschte Mittelposition im 2D-Editor
+                posX = 550.0;
+                posY = 275.0;
+
+                // Auf das nächste Raster runden
+                double grid = Grider.CellSize * Scale;
+                posX = Math.Round(posX / grid) * grid;
+                posY = Math.Round(posY / grid) * grid;
             }
+            else
+            {
+                // --------------------------------------------------------
+                // WEITERE BAUTEILE → wie bisher an der 3D-Klickposition
+                // --------------------------------------------------------
+                Point3D? hit = GetMousePointOnWorldPlane(mousePosition, 0.0);
 
-            Point3D world = hit.Value;
+                if (hit == null)
+                {
+                    StatusText.Text = "Klickpunkt nicht auf der Arbeitsebene";
+                    return;
+                }
 
-            // WPF-Welt → Modell-mm (Zellenmitte)
-            // world.X = mm/100, world.Y = -mm/100, world.Z = mm/100
-            double centerXmm = world.X * 100.0;
-            double centerYmm = -world.Y * 100.0;
+                Point3D world = hit.Value;
 
-            double halfCell = Grider.CellSize / 2.0;
-            double grid = Grider.CellSize * Scale;
+                double centerXmm = world.X * 100.0;
+                double centerYmm = -world.Y * 100.0;
 
-            // Zellen-Ecke, auf Raster runden
-            double posX = Math.Round((centerXmm - halfCell) * Scale / grid) * grid;
-            double posY = Math.Round((centerYmm - halfCell) * Scale / grid) * grid;
-            double posZ = 0.0;   // immer Z = 0
+                double halfCell = Grider.CellSize / 2.0;
+                double grid = Grider.CellSize * Scale;
+
+                posX = Math.Round((centerXmm - halfCell) * Scale / grid) * grid;
+                posY = Math.Round((centerYmm - halfCell) * Scale / grid) * grid;
+            }
 
             PlacedPart placed = new PlacedPart
             {
@@ -6366,7 +6385,7 @@ namespace PlastiCAD
                 Rotation = 0
             };
 
-            // Optional: nächste freie Zelle, falls belegt
+            // Nächste freie Zelle, falls belegt
             if (!IsPositionFree(placed.Transform.Position, placed))
             {
                 placed.Transform.Position =
