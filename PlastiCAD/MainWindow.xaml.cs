@@ -6178,6 +6178,7 @@ namespace PlastiCAD
             // ============================================================
             if (e.ChangedButton == MouseButton.Left)
             {
+                // Drag beenden (wie bisher)
                 if (isWorldPartDragging)
                 {
                     isWorldPartDragging = false;
@@ -6187,27 +6188,51 @@ namespace PlastiCAD
                     if (worldPartWasDragged)
                     {
                         int connectionCount = ConnectSelectedParts();
-
                         StatusText.Text = connectionCount > 0
                             ? $"{connectionCount} Verbindung(en)"
                             : $"{selectedParts.Count} Bauteil(e) verschoben";
                     }
                 }
 
-                // Kein Drag → normaler Klick
+                // In WorldViewport_MouseUp, Left-Zweig, nach dem Drag-Block:
+
+                // ------------------------------------------------------------
+                // Socket-Modus → bestätigen (egal wohin)
+                // ------------------------------------------------------------
+                if (selectedPart != null &&
+                    socketTargetPart != null &&
+                    socketTargetIndex >= 0 &&
+                    !worldPartWasDragged)
+                {
+                    ConfirmSocketPlacement();
+                    worldPartDragStartPositions.Clear();
+                    worldMouseDownPart = null;
+                    worldPartWasDragged = false;
+                    e.Handled = true;
+                    return;
+                }
+
+                // ------------------------------------------------------------
+                // Toolbox aktiv, leerer Klick (kein Bauteil getroffen)
+                // → erstes Bauteil bei Z = 0 an Mausposition
+                // ------------------------------------------------------------
+                if (selectedPart != null &&
+                    !worldPartWasDragged &&
+                    worldMouseDownPart == null)
+                {
+                    PlaceSelectedPartAtMouse(e.GetPosition(WorldViewport));
+                    worldPartDragStartPositions.Clear();
+                    worldPartWasDragged = false;
+                    e.Handled = true;
+                    return;
+                }
+
+                // ... danach normale Auswahl-Logik ...
+                // ------------------------------------------------------------
+                // Normale Auswahl (nur wenn kein Socket-Modus)
+                // ------------------------------------------------------------
                 if (!worldPartWasDragged && worldMouseDownPart != null)
                 {
-                    // Toolbox aktiv + Socket gewählt → platzieren
-                    if (selectedPart != null &&
-                        socketTargetPart != null &&
-                        socketTargetIndex >= 0)
-                    {
-                        ConfirmSocketPlacement();
-                        e.Handled = true;
-                        return;
-                    }
-
-                    // Normale Auswahl
                     if (ctrlPressed)
                     {
                         if (selectedParts.Contains(worldMouseDownPart))
@@ -6243,6 +6268,72 @@ namespace PlastiCAD
                 Mouse.Capture(null);
                 e.Handled = true;
             }
+        }
+
+        /// <summary>
+        /// Setzt das Toolbox-Bauteil auf Z = 0 an der Mausposition (Raster).
+        /// </summary>
+        private void PlaceSelectedPartAtMouse(Point mousePosition)
+        {
+            if (selectedPart == null)
+                return;
+
+            // Schnitt mit der Ebene Y = 0 (Boden in der 3D-Ansicht)
+            Point3D? hit = GetMousePointOnWorldPlane(mousePosition, 0.0);
+
+            if (hit == null)
+            {
+                StatusText.Text = "Klickpunkt nicht auf der Arbeitsebene";
+                return;
+            }
+
+            Point3D world = hit.Value;
+
+            // WPF-Welt → Modell-mm (Zellenmitte)
+            // world.X = mm/100, world.Y = -mm/100, world.Z = mm/100
+            double centerXmm = world.X * 100.0;
+            double centerYmm = -world.Y * 100.0;
+
+            double halfCell = Grider.CellSize / 2.0;
+            double grid = Grider.CellSize * Scale;
+
+            // Zellen-Ecke, auf Raster runden
+            double posX = Math.Round((centerXmm - halfCell) * Scale / grid) * grid;
+            double posY = Math.Round((centerYmm - halfCell) * Scale / grid) * grid;
+            double posZ = 0.0;   // immer Z = 0
+
+            PlacedPart placed = new PlacedPart
+            {
+                Part = selectedPart,
+                Transform = new PlastiCAD.Models.Transform
+                {
+                    Position = new Vector3(posX, posY, posZ)
+                },
+                Sockets = selectedPart.CreateSockets(),
+                Rotation = 0
+            };
+
+            // Optional: nächste freie Zelle, falls belegt
+            if (!IsPositionFree(placed.Transform.Position, placed))
+            {
+                placed.Transform.Position =
+                    FindNearestFreePosition(placed.Transform.Position, placed);
+            }
+
+            SaveUndoState();
+
+            assembly.PlacedParts.Add(placed);
+
+            selectedParts.Clear();
+            selectedParts.Add(placed);
+
+            int connections = ConnectSelectedParts();
+
+            StatusText.Text = connections > 0
+                ? $"Bauteil gesetzt – {connections} Verbindung(en)"
+                : "Bauteil bei Z = 0 gesetzt";
+
+            RedrawScene();
         }
         private void MainWindow_PreviewKeyDown(
      object sender,
