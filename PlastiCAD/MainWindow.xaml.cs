@@ -5158,199 +5158,100 @@ namespace PlastiCAD
         }
         private void PasteSelection()
         {
-            // ------------------------------------------------------------
-            // ZUERST WINDOWS-ZWISCHENABLAGE PRÜFEN
-            // ------------------------------------------------------------
+            bool clipboardLoaded = LoadCopiedPartsFromClipboard();
 
-            bool clipboardLoaded =
-                LoadCopiedPartsFromClipboard();
-
-
-            // Falls nichts gültiges in der Windows-Zwischenablage liegt,
-            // kann weiterhin der interne Copy-Puffer benutzt werden.
-            if (!clipboardLoaded &&
-                copiedParts.Count == 0)
+            if (!clipboardLoaded && copiedParts.Count == 0)
             {
-                StatusText.Text =
-                    "Keine PlastiCAD-Bauteile in der Zwischenablage";
-
+                StatusText.Text = "Keine PlastiCAD-Bauteile in der Zwischenablage";
                 return;
             }
 
+            double grid = Grider.CellSize * Scale;   // 55.0 bei Scale = 2
+            double cellZ = Grider.CellSize;         // 27.5
 
-         
-            double grid =
-                Grider.CellSize * Scale;
-
-            // ------------------------------------------------------------
-            // REFERENZPUNKT DER KOPIERTEN GRUPPE
-            //
-            // NICHT minX/minY auf das Raster zwingen.
-            // Wir verwenden den ersten kopierten Teil als Anker.
-            // Seine eventuelle Halb-Raster-Position bleibt dadurch erhalten.
-            // ------------------------------------------------------------
-
-            PlacedPart anchor =
-                copiedParts[0];
-
-            double anchorX =
-                anchor.Transform.Position.X;
-
-            double anchorY =
-                anchor.Transform.Position.Y;
-
-
-            // ------------------------------------------------------------
-            // MAUSPOSITION AUF RASTER
-            // ------------------------------------------------------------
-
-            double targetX =
-                Math.Round(
-                    lastMousePosition.X / grid)
-                * grid;
-
-            double targetY =
-                Math.Round(
-                    lastMousePosition.Y / grid)
-                * grid;
-
-
-            // ------------------------------------------------------------
-            // NUR GANZE RASTERSCHRITTE VERSCHIEBEN
-            //
-            // Das ist der wichtige Teil:
-            // Der ursprüngliche Rasterrest der gesamten Konstruktion
-            // bleibt exakt erhalten.
-            // ------------------------------------------------------------
-
-            double rawOffsetX =
-                targetX - anchorX;
-
-            double rawOffsetY =
-                targetY - anchorY;
-
-            double offsetX =
-                Math.Round(
-                    rawOffsetX / grid)
-                * grid;
-
-            double offsetY =
-                Math.Round(
-                    rawOffsetY / grid)
-                * grid;
-
-
-            // ------------------------------------------------------------
-            // PRÜFEN, OB ALLE ZIELPOSITIONEN FREI SIND
-            // ------------------------------------------------------------
-
-            foreach (PlacedPart source in copiedParts)
+            // Mögliche Offsets – nur eine Achse, möglichst nah am Original
+            Vector3[] candidateOffsets =
             {
-                double newX =
-                    source.Transform.Position.X
-                    + offsetX;
+        new Vector3( grid,  0,  0),   // +X
+        new Vector3(-grid,  0,  0),   // -X
+        new Vector3( 0,  grid,  0),   // +Y
+        new Vector3( 0, -grid,  0),   // -Y
+        new Vector3( 0,  0,  cellZ),  // +Z
+        new Vector3( 0,  0, -cellZ),  // -Z
+    };
 
-                double newY =
-                    source.Transform.Position.Y
-                    + offsetY;
+            Vector3 offsetToUse = null;
+            bool found = false;
 
-                double newZ =
-                    source.Transform.Position.Z;
+            foreach (Vector3 offset in candidateOffsets)
+            {
+                bool allFree = true;
 
-                if (IsPositionOccupied(
-                    newX,
-                    newY,
-                    newZ,
-                    source.Part))
+                foreach (PlacedPart source in copiedParts)
                 {
-                    StatusText.Text =
-                        "Einfügen nicht möglich: Position ist belegt";
+                    double newX = source.Transform.Position.X + offset.X;
+                    double newY = source.Transform.Position.Y + offset.Y;
+                    double newZ = source.Transform.Position.Z + offset.Z;
 
-                    return;
+                    if (IsPositionOccupied(newX, newY, newZ, source.Part))
+                    {
+                        allFree = false;
+                        break;
+                    }
+                }
+
+                if (allFree)
+                {
+                    offsetToUse = offset;
+                    found = true;
+                    break;
                 }
             }
 
+            if (!found || offsetToUse == null)
+            {
+                StatusText.Text = "Einfügen nicht möglich: alle Nachbarpositionen belegt";
+                return;
+            }
 
             SaveUndoState();
-
             selectedParts.Clear();
-
-
-            // ------------------------------------------------------------
-            // KOPIEN ERZEUGEN
-            // ------------------------------------------------------------
 
             foreach (PlacedPart source in copiedParts)
             {
-                PlacedPart pasted =
-                    new PlacedPart
-                    {
-                        Part =
-                            source.Part,
+                PlacedPart pasted = new PlacedPart
+                {
+                    Part = source.Part,
+                    Rotation = source.Rotation,
+                    PlateOrientation = source.PlateOrientation
+                };
 
-                        Rotation =
-                            source.Rotation,
+                pasted.Transform.Position = new Vector3(
+                    source.Transform.Position.X + offsetToUse.X,
+                    source.Transform.Position.Y + offsetToUse.Y,
+                    source.Transform.Position.Z + offsetToUse.Z);
 
-                        PlateOrientation =
-                            source.PlateOrientation
-                    };
+                pasted.Transform.Rotation = new Vector3(
+                    source.Transform.Rotation.X,
+                    source.Transform.Rotation.Y,
+                    source.Transform.Rotation.Z);
 
+                pasted.Transform.Scale = new Vector3(
+                    source.Transform.Scale.X,
+                    source.Transform.Scale.Y,
+                    source.Transform.Scale.Z);
 
-                // Position:
-                // Alle Teile bekommen EXAKT denselben Rasterversatz.
-                pasted.Transform.Position =
-                    new Vector3(
-                        source.Transform.Position.X
-                            + offsetX,
+                pasted.Sockets = source.Part.CreateSockets();
 
-                        source.Transform.Position.Y
-                            + offsetY,
-
-                        source.Transform.Position.Z);
-
-
-                // Echte 3D-Rotation vollständig kopieren
-                pasted.Transform.Rotation =
-                    new Vector3(
-                        source.Transform.Rotation.X,
-                        source.Transform.Rotation.Y,
-                        source.Transform.Rotation.Z);
-
-
-                // Skalierung vollständig kopieren
-                pasted.Transform.Scale =
-                    new Vector3(
-                        source.Transform.Scale.X,
-                        source.Transform.Scale.Y,
-                        source.Transform.Scale.Z);
-
-
-                pasted.Sockets =
-                    source.Part.CreateSockets();
-
-
-                assembly.PlacedParts.Add(
-                    pasted);
-
-                selectedParts.Add(
-                    pasted);
+                assembly.PlacedParts.Add(pasted);
+                selectedParts.Add(pasted);
             }
 
+            int connectionCount = ConnectSelectedParts();
 
-            // ------------------------------------------------------------
-            // VERBINDUNGEN NEU AUFBAUEN
-            // ------------------------------------------------------------
-
-            int connectionCount =
-                ConnectSelectedParts();
-
-
-            StatusText.Text =
-                connectionCount > 0
-                    ? $"{selectedParts.Count} Bauteil(e) eingefügt, " +
-                      $"{connectionCount} Verbindung(en)"
-                    : $"{selectedParts.Count} Bauteil(e) eingefügt";
-
+            StatusText.Text = connectionCount > 0
+                ? $"{selectedParts.Count} Bauteil(e) eingefügt, {connectionCount} Verbindung(en)"
+                : $"{selectedParts.Count} Bauteil(e) eingefügt";
 
             RedrawScene();
         }
