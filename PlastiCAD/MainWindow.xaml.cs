@@ -5166,18 +5166,106 @@ namespace PlastiCAD
                 return;
             }
 
-            double grid = Grider.CellSize * Scale;   // 55.0 bei Scale = 2
-            double cellZ = Grider.CellSize;         // 27.5
+            // 3D-Ansicht aktiv?
+            bool isWorldView =
+                MainTabs != null &&
+                MainTabs.SelectedItem == WorldTab;
 
-            // Mögliche Offsets – nur eine Achse, möglichst nah am Original
+            if (isWorldView)
+                PasteSelection3D();
+            else
+                PasteSelection2D();
+        }
+
+        /// <summary>
+        /// Alte 2D-Logik: Einfügen an der letzten Mausposition im Plan.
+        /// </summary>
+        private void PasteSelection2D()
+        {
+            double grid = Grider.CellSize * Scale;
+
+            PlacedPart anchor = copiedParts[0];
+
+            double anchorX = anchor.Transform.Position.X;
+            double anchorY = anchor.Transform.Position.Y;
+
+            double targetX = Math.Round(lastMousePosition.X / grid) * grid;
+            double targetY = Math.Round(lastMousePosition.Y / grid) * grid;
+
+            double offsetX = Math.Round((targetX - anchorX) / grid) * grid;
+            double offsetY = Math.Round((targetY - anchorY) / grid) * grid;
+
+            foreach (PlacedPart source in copiedParts)
+            {
+                double newX = source.Transform.Position.X + offsetX;
+                double newY = source.Transform.Position.Y + offsetY;
+                double newZ = source.Transform.Position.Z;
+
+                if (IsPositionOccupied(newX, newY, newZ, source.Part))
+                {
+                    StatusText.Text = "Einfügen nicht möglich: Position ist belegt";
+                    return;
+                }
+            }
+
+            SaveUndoState();
+            selectedParts.Clear();
+
+            foreach (PlacedPart source in copiedParts)
+            {
+                PlacedPart pasted = new PlacedPart
+                {
+                    Part = source.Part,
+                    Rotation = source.Rotation,
+                    PlateOrientation = source.PlateOrientation
+                };
+
+                pasted.Transform.Position = new Vector3(
+                    source.Transform.Position.X + offsetX,
+                    source.Transform.Position.Y + offsetY,
+                    source.Transform.Position.Z);
+
+                pasted.Transform.Rotation = new Vector3(
+                    source.Transform.Rotation.X,
+                    source.Transform.Rotation.Y,
+                    source.Transform.Rotation.Z);
+
+                pasted.Transform.Scale = new Vector3(
+                    source.Transform.Scale.X,
+                    source.Transform.Scale.Y,
+                    source.Transform.Scale.Z);
+
+                pasted.Sockets = source.Part.CreateSockets();
+
+                assembly.PlacedParts.Add(pasted);
+                selectedParts.Add(pasted);
+            }
+
+            int connectionCount = ConnectSelectedParts();
+
+            StatusText.Text = connectionCount > 0
+                ? $"{selectedParts.Count} Bauteil(e) eingefügt, {connectionCount} Verbindung(en)"
+                : $"{selectedParts.Count} Bauteil(e) eingefügt";
+
+            RedrawScene();
+        }
+
+        /// <summary>
+        /// Neue 3D-Logik: möglichst nah am Original, nur eine Achse verschieben.
+        /// </summary>
+        private void PasteSelection3D()
+        {
+            double grid = Grider.CellSize * Scale;
+            double cellZ = Grider.CellSize;
+
             Vector3[] candidateOffsets =
             {
-        new Vector3( grid,  0,  0),   // +X
-        new Vector3(-grid,  0,  0),   // -X
-        new Vector3( 0,  grid,  0),   // +Y
-        new Vector3( 0, -grid,  0),   // -Y
-        new Vector3( 0,  0,  cellZ),  // +Z
-        new Vector3( 0,  0, -cellZ),  // -Z
+        new Vector3( grid,  0,  0),
+        new Vector3(-grid,  0,  0),
+        new Vector3( 0,  grid,  0),
+        new Vector3( 0, -grid,  0),
+        new Vector3( 0,  0,  cellZ),
+        new Vector3( 0,  0, -cellZ),
     };
 
             Vector3 offsetToUse = null;
