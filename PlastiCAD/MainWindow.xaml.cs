@@ -5253,52 +5253,65 @@ namespace PlastiCAD
         /// <summary>
         /// Neue 3D-Logik: möglichst nah am Original, nur eine Achse verschieben.
         /// </summary>
+        /// <summary>
+        /// 3D-Einfügen: möglichst nah am Original, nur ganze Rasterschritte.
+        /// Sucht mit steigendem Abstand (1, 2, 3 …), bis alles frei ist.
+        /// </summary>
+        /// <summary>
+        /// 3D-Einfügen: nur eine Achse (X oder Y oder Z),
+        /// Abstand 1, 2, 3 … Raster, bis eine freie Position gefunden wird.
+        /// </summary>
         private void PasteSelection3D()
         {
-            double grid = Grider.CellSize * Scale;
-            double cellZ = Grider.CellSize;
-
-            Vector3[] candidateOffsets =
-            {
-        new Vector3( grid,  0,  0),
-        new Vector3(-grid,  0,  0),
-        new Vector3( 0,  grid,  0),
-        new Vector3( 0, -grid,  0),
-        new Vector3( 0,  0,  cellZ),
-        new Vector3( 0,  0, -cellZ),
-    };
+            double grid = Grider.CellSize * Scale;   // X/Y
+            double cellZ = Grider.CellSize;         // Z
 
             Vector3 offsetToUse = null;
             bool found = false;
 
-            foreach (Vector3 offset in candidateOffsets)
+            // Abstand 1, 2, 3 … (Begrenzung, damit es nicht ewig sucht)
+            for (int distance = 1; distance <= 50 && !found; distance++)
             {
-                bool allFree = true;
-
-                foreach (PlacedPart source in copiedParts)
+                // Nur reine Achsen-Offsets (jeweils + und −)
+                Vector3[] candidates =
                 {
-                    double newX = source.Transform.Position.X + offset.X;
-                    double newY = source.Transform.Position.Y + offset.Y;
-                    double newZ = source.Transform.Position.Z + offset.Z;
+            new Vector3( distance * grid,  0,  0),   // +X
+            new Vector3(-distance * grid,  0,  0),   // -X
+            new Vector3( 0,  distance * grid,  0),   // +Y
+            new Vector3( 0, -distance * grid,  0),   // -Y
+            new Vector3( 0,  0,  distance * cellZ),  // +Z
+            new Vector3( 0,  0, -distance * cellZ),  // -Z
+        };
 
-                    if (IsPositionOccupied(newX, newY, newZ, source.Part))
+                foreach (Vector3 offset in candidates)
+                {
+                    bool allFree = true;
+
+                    foreach (PlacedPart source in copiedParts)
                     {
-                        allFree = false;
+                        double newX = source.Transform.Position.X + offset.X;
+                        double newY = source.Transform.Position.Y + offset.Y;
+                        double newZ = source.Transform.Position.Z + offset.Z;
+
+                        if (IsPositionOccupied(newX, newY, newZ, source.Part))
+                        {
+                            allFree = false;
+                            break;
+                        }
+                    }
+
+                    if (allFree)
+                    {
+                        offsetToUse = offset;
+                        found = true;
                         break;
                     }
-                }
-
-                if (allFree)
-                {
-                    offsetToUse = offset;
-                    found = true;
-                    break;
                 }
             }
 
             if (!found || offsetToUse == null)
             {
-                StatusText.Text = "Einfügen nicht möglich: alle Nachbarpositionen belegt";
+                StatusText.Text = "Einfügen nicht möglich: keine freie Position in der Nähe gefunden";
                 return;
             }
 
