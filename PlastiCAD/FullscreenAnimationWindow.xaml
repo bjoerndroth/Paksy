@@ -1,0 +1,21 @@
+﻿<Window x:Class="PlastiCAD.FullscreenAnimationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PlastiCAD"
+        WindowStyle="None"
+        WindowState="Maximized"
+        ResizeMode="NoResize"
+        Topmost="True"
+        Background="Black"
+        Cursor="None"
+        KeyDown="Window_KeyDown"
+        MouseDown="Window_MouseDown">
+
+    <Viewport3D x:Name="AnimationViewport">
+        <Viewport3D.Camera>
+            <PerspectiveCamera x:Name="AnimationCamera"
+                               FieldOfView="45"
+                               UpDirection="0,1,0"/>
+        </Viewport3D.Camera>
+    </Viewport3D>
+</Window>

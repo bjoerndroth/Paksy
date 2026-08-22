@@ -250,23 +250,33 @@
 
 
             <MenuItem Header="_Bearbeiten">
+                <MenuItem Header="_Rückgängig"
+              InputGestureText="Strg+Z"
+              Click="MenuUndo_Click"/>
+                <MenuItem Header="_Wiederherstellen"
+              InputGestureText="Strg+Y"
+              Click="MenuRedo_Click"/>
+                <Separator/>
+                <MenuItem Header="_Ausschneiden"
+              InputGestureText="Strg+X"
+              Click="MenuCut_Click"/>
                 <MenuItem Header="_Kopieren"
-                          InputGestureText="Strg+C"
-                          Click="MenuCopy_Click"/>
+              InputGestureText="Strg+C"
+              Click="MenuCopy_Click"/>
                 <MenuItem Header="_Einfügen"
-                          InputGestureText="Strg+V"
-                          Click="MenuPaste_Click"/>
+              InputGestureText="Strg+V"
+              Click="MenuPaste_Click"/>
                 <Separator/>
                 <MenuItem Header="_Löschen"
-                          InputGestureText="Entf"
-                          Click="MenuDelete_Click"/>
+              InputGestureText="Entf"
+              Click="MenuDelete_Click"/>
                 <Separator/>
                 <MenuItem Header="_Alles markieren"
-                          InputGestureText="Strg+A"
-                          Click="MenuSelectAll_Click"/>
+              InputGestureText="Strg+A"
+              Click="MenuSelectAll_Click"/>
                 <MenuItem Header="_Nichts markieren"
-                          InputGestureText="Esc"
-                          Click="MenuSelectNone_Click"/>
+              InputGestureText="Esc"
+              Click="MenuSelectNone_Click"/>
             </MenuItem>
 
             <MenuItem Header="_Transformation">
@@ -314,6 +324,14 @@
                           InputGestureText="Strg+Mausrad runter"
                           Click="MenuZoomOut_Click"/>
                 <Separator/>
+
+                <MenuItem Header="_Vollbildanimation"
+                          InputGestureText="F11"
+                       
+                          Click="MenuFullscreenAnimation_Click"/>
+
+                <Separator/>
+
                 <MenuItem Header="Kamera drehen"
                           InputGestureText="Strg+rechte Maustaste"
                           Click="MenuCameraRotate_Click"/>

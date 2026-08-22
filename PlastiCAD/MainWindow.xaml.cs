@@ -31,6 +31,18 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+        private bool isFullscreenAnimation = false;
+        private DispatcherTimer fullscreenAnimationTimer;
+        private Point3D fullscreenOrbitTarget;
+        private double fullscreenOrbitDistance;
+        private double fullscreenOrbitHeight;
+        private double fullscreenOrbitAngle;
+
+        private WindowState fullscreenSavedWindowState;
+        private WindowStyle fullscreenSavedWindowStyle;
+        private ResizeMode fullscreenSavedResizeMode;
+        private GridLength fullscreenSavedToolboxWidth;
+
 
         // Socket-Auswahl für 3D-Platzierung
         private PlacedPart socketTargetPart = null;
@@ -6413,9 +6425,41 @@ namespace PlastiCAD
      object sender,
      KeyEventArgs e)
         {
+
+
             bool controlPressed =
     (Keyboard.Modifiers & ModifierKeys.Control)
     == ModifierKeys.Control;
+
+
+
+            if (e.Key == Key.Escape && isFullscreenAnimation)
+            {
+                StopFullscreenAnimation();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.F11)
+            {
+                if (isFullscreenAnimation)
+                    StopFullscreenAnimation();
+                else
+                    StartFullscreenAnimation();
+
+                e.Handled = true;
+                return;
+            }
+
+
+
+
+
+
+
+
+
+
             // Socket-Auswahl bestätigen
             if (e.Key == Key.Enter || e.Key == Key.Return)
             {
@@ -6510,6 +6554,13 @@ namespace PlastiCAD
             {
                 DeleteSelection();
 
+                e.Handled = true;
+                return;
+            }
+
+            if (controlPressed && e.Key == Key.X)
+            {
+                CutSelection();
                 e.Handled = true;
                 return;
             }
@@ -13110,9 +13161,195 @@ private double DistanceToHit(Vector3 position, Point3D hitPoint)
         }
 
 
+        private void MenuFullscreenAnimation_Click(object sender, RoutedEventArgs e)
+        {
+            StartFullscreenAnimation();
+        }
 
+        private void StartFullscreenAnimation()
+        {
+            if (assembly.PlacedParts.Count == 0)
+            {
+                StatusText.Text = "Kein Modell für die Vollbildanimation";
+                return;
+            }
 
+            MainTabs.SelectedItem = WorldTab;
+            RedrawWorld();
 
+            GetFullscreenOrbit(out Point3D target, out double distance, out double height);
+
+            FullscreenAnimationWindow window = new FullscreenAnimationWindow();
+            window.Owner = this;
+            window.Closed += (s, e) =>
+            {
+                RedrawWorld();
+                StatusText.Text = "Vollbildanimation beendet";
+            };
+
+            window.Show();
+            window.Start(WorldViewport, target, distance, height);
+        }
+
+        private void GetFullscreenOrbit(
+            out Point3D target,
+            out double distance,
+            out double height)
+        {
+            double minX = double.MaxValue, minY = double.MaxValue, minZ = double.MaxValue;
+            double maxX = double.MinValue, maxY = double.MinValue, maxZ = double.MinValue;
+            double half = (Grider.CellSize / 2.0) / 100.0;
+
+            foreach (PlacedPart placed in assembly.PlacedParts)
+            {
+                double x = (placed.Transform.Position.X / Scale + Grider.CellSize / 2.0) / 100.0;
+                double y = -(placed.Transform.Position.Y / Scale + Grider.CellSize / 2.0) / 100.0;
+                double z = placed.Transform.Position.Z / 100.0;
+
+                minX = Math.Min(minX, x - half);
+                maxX = Math.Max(maxX, x + half);
+                minY = Math.Min(minY, y - half);
+                maxY = Math.Max(maxY, y + half);
+                minZ = Math.Min(minZ, z - half);
+                maxZ = Math.Max(maxZ, z + half);
+            }
+
+            target = new Point3D(
+                (minX + maxX) / 2.0,
+                (minY + maxY) / 2.0,
+                (minZ + maxZ) / 2.0);
+
+            double sizeX = Math.Max(maxX - minX, 0.2);
+            double sizeY = Math.Max(maxY - minY, 0.2);
+            double sizeZ = Math.Max(maxZ - minZ, 0.2);
+
+            double radius = 0.5 * Math.Sqrt(sizeX * sizeX + sizeY * sizeY + sizeZ * sizeZ);
+
+            // 45° FOV im Vollbildfenster, Modell so groß wie möglich
+            double fov = 45.0 * Math.PI / 180.0;
+            distance = radius / Math.Tan(fov / 2.0) * 1.05;
+            height = radius * 0.12;
+        }
+        private void StopFullscreenAnimation()
+        {
+            if (!isFullscreenAnimation)
+                return;
+
+            if (fullscreenAnimationTimer != null)
+            {
+                fullscreenAnimationTimer.Stop();
+                fullscreenAnimationTimer.Tick -= FullscreenAnimationTimer_Tick;
+                fullscreenAnimationTimer = null;
+            }
+
+            Topmost = false;
+            WindowStyle = fullscreenSavedWindowStyle;
+            ResizeMode = fullscreenSavedResizeMode;
+            WindowState = fullscreenSavedWindowState;
+
+            if (FileMenu.Parent is FrameworkElement menuBar)
+                menuBar.Visibility = Visibility.Collapsed;
+
+            if (PlanToolbar != null &&
+                PlanToolbar.Parent is FrameworkElement toolbar)
+                toolbar.Visibility = Visibility.Collapsed;
+
+            StatusText.Visibility = Visibility.Collapsed;
+
+            if (StatusText.Parent is FrameworkElement statusBar)
+                statusBar.Visibility = Visibility.Collapsed;
+
+            ((Grid)Content).ColumnDefinitions[0].Width = fullscreenSavedToolboxWidth;
+            Grid.SetColumn(MainTabs, 1);
+            Grid.SetColumnSpan(MainTabs, 1);
+            MainTabs.Margin = new Thickness(5);
+            MainTabs.ItemContainerStyle = null;
+
+            isFullscreenAnimation = false;
+            StatusText.Text = "Vollbildanimation beendet";
+        }
+
+        private void FitWorldCameraFullscreen()
+        {
+            if (assembly.PlacedParts.Count == 0)
+                return;
+
+            double minX = double.MaxValue, minY = double.MaxValue, minZ = double.MaxValue;
+            double maxX = double.MinValue, maxY = double.MinValue, maxZ = double.MinValue;
+            double half = (Grider.CellSize / 2.0) / 100.0;
+
+            foreach (PlacedPart placed in assembly.PlacedParts)
+            {
+                double x = (placed.Transform.Position.X / Scale + Grider.CellSize / 2.0) / 100.0;
+                double y = -(placed.Transform.Position.Y / Scale + Grider.CellSize / 2.0) / 100.0;
+                double z = placed.Transform.Position.Z / 100.0;
+
+                minX = Math.Min(minX, x - half);
+                maxX = Math.Max(maxX, x + half);
+                minY = Math.Min(minY, y - half);
+                maxY = Math.Max(maxY, y + half);
+                minZ = Math.Min(minZ, z - half);
+                maxZ = Math.Max(maxZ, z + half);
+            }
+
+            double centerX = (minX + maxX) / 2.0;
+            double centerY = (minY + maxY) / 2.0;
+            double centerZ = (minZ + maxZ) / 2.0;
+
+            double sizeX = Math.Max(maxX - minX, 0.2);
+            double sizeY = Math.Max(maxY - minY, 0.2);
+            double sizeZ = Math.Max(maxZ - minZ, 0.2);
+
+            // Bounding-Sphere, damit das Modell beim Drehen nicht abgeschnitten wird
+            double radius = 0.5 * Math.Sqrt(sizeX * sizeX + sizeY * sizeY + sizeZ * sizeZ);
+
+            double width = Math.Max(WorldViewport.ActualWidth, 1);
+            double height = Math.Max(WorldViewport.ActualHeight, 1);
+            double aspect = width / height;
+
+            double verticalFov = WorldCamera.FieldOfView * Math.PI / 180.0;
+            double horizontalFov = 2.0 * Math.Atan(Math.Tan(verticalFov / 2.0) * aspect);
+            double limitingFov = Math.Min(verticalFov, horizontalFov);
+
+            // So nah wie möglich, mit 6 % Rand
+            double distance = radius / Math.Tan(limitingFov / 2.0) * 1.06;
+
+            fullscreenOrbitTarget = new Point3D(centerX, centerY, centerZ);
+            fullscreenOrbitDistance = distance;
+            fullscreenOrbitHeight = radius * 0.18;
+            fullscreenOrbitAngle = Math.PI * 0.25;
+
+            Point3D position = new Point3D(
+                centerX + Math.Cos(fullscreenOrbitAngle) * distance,
+                centerY + fullscreenOrbitHeight,
+                centerZ + Math.Sin(fullscreenOrbitAngle) * distance);
+
+            WorldCamera.Position = position;
+            WorldCamera.LookDirection = fullscreenOrbitTarget - position;
+            WorldCamera.UpDirection = new Vector3D(0, 1, 0);
+        }
+
+        private void PrepareFullscreenOrbit()
+        {
+            Vector3D offset = WorldCamera.Position - fullscreenOrbitTarget;
+            fullscreenOrbitDistance = Math.Sqrt(offset.X * offset.X + offset.Z * offset.Z);
+            fullscreenOrbitHeight = offset.Y;
+            fullscreenOrbitAngle = Math.Atan2(offset.Z, offset.X);
+        }
+
+        private void FullscreenAnimationTimer_Tick(object sender, EventArgs e)
+        {
+            fullscreenOrbitAngle += 0.0065;
+
+            Point3D position = new Point3D(
+                fullscreenOrbitTarget.X + Math.Cos(fullscreenOrbitAngle) * fullscreenOrbitDistance,
+                fullscreenOrbitTarget.Y + fullscreenOrbitHeight,
+                fullscreenOrbitTarget.Z + Math.Sin(fullscreenOrbitAngle) * fullscreenOrbitDistance);
+
+            WorldCamera.Position = position;
+            WorldCamera.LookDirection = fullscreenOrbitTarget - position;
+            WorldCamera.UpDirection = new Vector3D(0, 1, 0);
+        }
 
 
 

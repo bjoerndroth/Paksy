@@ -39,14 +39,28 @@ namespace PlastiCAD
         private void MenuCopy_Click(object sender, RoutedEventArgs e) => CopySelection();
         private void MenuPaste_Click(object sender, RoutedEventArgs e) => PasteSelection();
         private void MenuDelete_Click(object sender, RoutedEventArgs e) => DeleteSelection();
-
+        private void MenuUndo_Click(object sender, RoutedEventArgs e) => Undo();
+        private void MenuRedo_Click(object sender, RoutedEventArgs e) => Redo();
+        private void MenuCut_Click(object sender, RoutedEventArgs e) => CutSelection();
         private void MenuSaveAs_Click(
     object sender,
     RoutedEventArgs e)
         {
             SaveProjectAs();
         }
+        private void CutSelection()
+        {
+            if (selectedParts.Count == 0)
+            {
+                StatusText.Text = "Keine Bauteile ausgewählt";
+                return;
+            }
 
+            CopySelection();
+            DeleteSelection();
+
+            StatusText.Text = "Bauteile ausgeschnitten";
+        }
         private void MenuSelectAll_Click(object sender, RoutedEventArgs e)
         {
             selectedParts.Clear();
