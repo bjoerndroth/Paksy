@@ -13,10 +13,12 @@ namespace PlastiCAD
         private readonly List<Visual3D> borrowedVisuals = new List<Visual3D>();
         private Viewport3D sourceViewport;
         private DispatcherTimer timer;
+
         private Point3D orbitTarget;
-        private double orbitDistance;
-        private double orbitHeight;
-        private double orbitAngle;
+        private Vector3D orbitOffset;
+        private Vector3D orbitUp = new Vector3D(0, 1, 0);
+        private char orbitAxis = 'Y';
+        private const double OrbitSpeedDegrees = 0.37;
 
         public FullscreenAnimationWindow()
         {
@@ -31,9 +33,16 @@ namespace PlastiCAD
         {
             sourceViewport = source;
             orbitTarget = target;
-            orbitDistance = Math.Max(distance, 0.3);
-            orbitHeight = height;
-            orbitAngle = Math.PI * 0.25;
+            orbitAxis = 'Y';
+            orbitUp = new Vector3D(0, 1, 0);
+
+            double startAngle = Math.PI * 0.25;
+            double safeDistance = Math.Max(distance, 0.3);
+
+            orbitOffset = new Vector3D(
+                Math.Cos(startAngle) * safeDistance,
+                height,
+                Math.Sin(startAngle) * safeDistance);
 
             BorrowVisuals();
             ApplyCamera();
@@ -44,14 +53,44 @@ namespace PlastiCAD
             };
             timer.Tick += Timer_Tick;
             timer.Start();
+            ShowHelpBriefly();
         }
+        private DispatcherTimer helpTimer;
 
+        private void ShowHelpBriefly()
+        {
+            HelpText.Opacity = 1;
+            HelpText.Visibility = Visibility.Visible;
+
+            helpTimer?.Stop();
+            helpTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(4)
+            };
+            helpTimer.Tick += (s, e) =>
+            {
+                helpTimer.Stop();
+
+                var fade = new System.Windows.Media.Animation.DoubleAnimation
+                {
+                    From = 1,
+                    To = 0,
+                    Duration = TimeSpan.FromSeconds(0.8)
+                };
+                fade.Completed += (s2, e2) =>
+                {
+                    HelpText.Visibility = Visibility.Collapsed;
+                };
+
+                HelpText.BeginAnimation(OpacityProperty, fade);
+            };
+            helpTimer.Start();
+        }
         private void BorrowVisuals()
         {
             if (sourceViewport == null)
                 return;
 
-            // Licht + Modelle aus der World-Ansicht übernehmen
             while (sourceViewport.Children.Count > 0)
             {
                 Visual3D visual = sourceViewport.Children[0];
@@ -77,23 +116,30 @@ namespace PlastiCAD
 
         private void ApplyCamera()
         {
-            Point3D position = GetCameraPosition();
+            Point3D position = orbitTarget + orbitOffset;
             AnimationCamera.Position = position;
             AnimationCamera.LookDirection = orbitTarget - position;
-            AnimationCamera.UpDirection = new Vector3D(0, 1, 0);
-        }
-
-        private Point3D GetCameraPosition()
-        {
-            return new Point3D(
-                orbitTarget.X + Math.Cos(orbitAngle) * orbitDistance,
-                orbitTarget.Y + orbitHeight,
-                orbitTarget.Z + Math.Sin(orbitAngle) * orbitDistance);
+            AnimationCamera.UpDirection = orbitUp;
         }
 
         private void Timer_Tick(object sender, EventArgs e)
         {
-            orbitAngle += 0.0065;
+            Vector3D axis = orbitAxis switch
+            {
+                'X' => new Vector3D(1, 0, 0),
+                'Z' => new Vector3D(0, 0, 1),
+                _ => new Vector3D(0, 1, 0)
+            };
+
+            RotateTransform3D rotation = new RotateTransform3D(
+                new AxisAngleRotation3D(axis, OrbitSpeedDegrees));
+
+            orbitOffset = rotation.Transform(orbitOffset);
+            orbitUp = rotation.Transform(orbitUp);
+
+            if (orbitUp.Length > 0)
+                orbitUp.Normalize();
+
             ApplyCamera();
         }
 
@@ -113,7 +159,20 @@ namespace PlastiCAD
         private void Window_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Escape || e.Key == Key.F11)
+            {
                 Stop();
+                return;
+            }
+
+            if (e.Key == Key.X)
+                orbitAxis = 'X';
+            else if (e.Key == Key.Y)
+                orbitAxis = 'Y';
+            else if (e.Key == Key.Z)
+                orbitAxis = 'Z';
+
+            if (e.Key == Key.H)
+                ShowHelpBriefly();
         }
 
         private void Window_MouseDown(object sender, MouseButtonEventArgs e)
@@ -133,5 +192,21 @@ namespace PlastiCAD
             ReturnVisuals();
             base.OnClosed(e);
         }
+
+        private void Window_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            double factor = e.Delta > 0 ? 0.9 : 1.1;
+
+            Vector3D newOffset = orbitOffset * factor;
+            double length = newOffset.Length;
+
+            // Nicht zu nah und nicht zu weit
+            if (length < 0.25 || length > 80)
+                return;
+
+            orbitOffset = newOffset;
+            ApplyCamera();
+        }
+
     }
 }

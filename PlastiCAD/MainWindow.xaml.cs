@@ -13339,7 +13339,7 @@ private double DistanceToHit(Vector3 position, Point3D hitPoint)
 
         private void FullscreenAnimationTimer_Tick(object sender, EventArgs e)
         {
-            fullscreenOrbitAngle += 0.0065;
+            fullscreenOrbitAngle += 0.0025;
 
             Point3D position = new Point3D(
                 fullscreenOrbitTarget.X + Math.Cos(fullscreenOrbitAngle) * fullscreenOrbitDistance,

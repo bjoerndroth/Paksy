@@ -6,16 +6,29 @@
         WindowState="Maximized"
         ResizeMode="NoResize"
         Topmost="True"
-        Background="Black"
+        Background="White"
         Cursor="None"
         KeyDown="Window_KeyDown"
-        MouseDown="Window_MouseDown">
+        MouseDown="Window_MouseDown"
+        MouseWheel="Window_MouseWheel">
 
-    <Viewport3D x:Name="AnimationViewport">
-        <Viewport3D.Camera>
-            <PerspectiveCamera x:Name="AnimationCamera"
-                               FieldOfView="45"
-                               UpDirection="0,1,0"/>
-        </Viewport3D.Camera>
-    </Viewport3D>
+    <Grid>
+        <Viewport3D x:Name="AnimationViewport">
+            <Viewport3D.Camera>
+                <PerspectiveCamera x:Name="AnimationCamera"
+                                   FieldOfView="45"
+                                   UpDirection="0,1,0"/>
+            </Viewport3D.Camera>
+        </Viewport3D>
+
+        <TextBlock x:Name="HelpText"
+                   Margin="24,20,0,0"
+                   HorizontalAlignment="Left"
+                   VerticalAlignment="Top"
+                   FontFamily="Segoe UI"
+                   FontSize="16"
+                   Foreground="#DD000000"
+                   IsHitTestVisible="False"
+                   Text="X  Y  Z    Drehachse wechseln&#x0a;Mausrad      Zoomen&#x0a;Esc / Klick  Beenden"/>
+    </Grid>
 </Window>
