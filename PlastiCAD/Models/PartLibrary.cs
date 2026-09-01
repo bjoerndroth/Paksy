@@ -33,9 +33,18 @@ namespace PlastiCAD.Models
             AddBallConnector();
             AddBigPlates();
             AddPlates();
+            AddHolePlates();
+            AddSlatPlates();
         }
-
         
+        private static void AddSlatPlates()
+        {
+            Parts.Add(new SlatPlate());
+        }
+        private static void AddHolePlates()
+        {
+            Parts.Add(new HolePlate());
+        }
         private static void AddBigWheels()
         {
             Parts.Add(new BigWheel());

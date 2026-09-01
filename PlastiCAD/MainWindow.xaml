@@ -8,7 +8,8 @@
         mc:Ignorable="d"
         Title="PlastiCAD" Height="450" Width="800"
         SizeChanged="MainWindow_SizeChanged"
-        WindowState="Maximized">
+        WindowState="Maximized"
+        Closing="MainWindow_Closing">
 
     <Window.Resources>
 
@@ -316,7 +317,17 @@
                           Click="MenuPlan_Click"/>
                 <MenuItem Header="_3D"
                           Click="MenuWorld_Click"/>
+
                 <Separator/>
+                <MenuItem x:Name="MenuHalfGrid"
+          Header="Raster _halbieren"
+          IsCheckable="True"
+          IsChecked="False"
+          Click="MenuHalfGrid_Click"/>
+                <Separator/>
+                
+                
+                
                 <MenuItem Header="Zoom _+"
                           InputGestureText="Strg+Mausrad hoch"
                           Click="MenuZoomIn_Click"/>
@@ -580,7 +591,16 @@ Fill="Transparent"/>
 
                     <Separator Margin="3,2"/>
 
-
+                    <ToggleButton x:Name="HalfGridToggle"
+Width="32"
+Height="32"
+Margin="3"
+Click="HalfGridToggle_Click"
+ToolTip="Raster halbieren (13,75 mm)">
+                        <TextBlock Text="½" FontSize="16"/>
+                    </ToggleButton>
+                    
+                    
                     <!-- ================================================= -->
                     <!-- NUR 2D                                            -->
                     <!-- ================================================= -->
@@ -664,6 +684,7 @@ Fill="Transparent"/>
                                FontSize="12"
                                FontWeight="Bold"/>
                         </Button>
+                        
 
                     </StackPanel>
 
@@ -1129,12 +1150,48 @@ Fill="Transparent"/>
 
                         </Button>
 
-                    
 
-                       
-                       
 
-                   
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+        Tag="Lochplatte"
+        ToolTip="Lochplatte 9,6 mm"
+        Click="PartToolButton_Click"
+        MouseEnter="ToolboxPreview_MouseEnter"
+        MouseLeave="ToolboxPreview_MouseLeave">
+                            <Border Background="{StaticResource WorldBackgroundBrush}">
+                                <Viewport3D Style="{StaticResource Toolbox3DPreviewStyle}"
+                    Camera="{StaticResource ToolboxPreviewCamera}">
+                                    <ModelVisual3D Content="{StaticResource ToolboxPreviewLights}"/>
+                                    <ModelVisual3D>
+                                        <ModelVisual3D.Content>
+                                            <Model3DGroup x:Name="HolePlatePreviewModel"/>
+                                        </ModelVisual3D.Content>
+                                    </ModelVisual3D>
+                                </Viewport3D>
+                            </Border>
+                        </Button>
+
+                        <Button Style="{StaticResource PartToolButtonStyle}"
+Tag="Streifenplatte"
+ToolTip="Streifenplatte"
+Click="PartToolButton_Click"
+MouseEnter="ToolboxPreview_MouseEnter"
+MouseLeave="ToolboxPreview_MouseLeave">
+                            <Border Background="{StaticResource WorldBackgroundBrush}">
+                                <Viewport3D Style="{StaticResource Toolbox3DPreviewStyle}"
+            Camera="{StaticResource ToolboxPreviewCamera}">
+                                    <ModelVisual3D Content="{StaticResource ToolboxPreviewLights}"/>
+                                    <ModelVisual3D>
+                                        <ModelVisual3D.Content>
+                                            <Model3DGroup x:Name="SlatPlatePreviewModel"/>
+                                        </ModelVisual3D.Content>
+                                    </ModelVisual3D>
+                                </Viewport3D>
+                            </Border>
+                        </Button>
+
+                        
 
 
                         <!-- RAD -->

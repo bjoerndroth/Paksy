@@ -1,0 +1,27 @@
+{
+  "Version": 1,
+  "Parts": [
+    {
+      "PartName": "Rohr 27,5 mm",
+      "X": 0,
+      "Y": 0,
+      "Z": 0,
+      "Rotation": 0,
+      "PlateOrientation": 0,
+      "RotationX": 0,
+      "RotationY": 0,
+      "RotationZ": 0
+    },
+    {
+      "PartName": "90° Winkel",
+      "X": 55,
+      "Y": 0,
+      "Z": 0,
+      "Rotation": 0,
+      "PlateOrientation": 0,
+      "RotationX": 0,
+      "RotationY": 0,
+      "RotationZ": 0
+    }
+  ]
+}

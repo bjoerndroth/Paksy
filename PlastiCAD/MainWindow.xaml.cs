@@ -1,25 +1,25 @@
 ﻿using Microsoft.Win32;
-    using PlastiCAD.Core;
-    using PlastiCAD.Models;
-    using System;
-    using System.Collections.Generic;
+using PlastiCAD.Core;
+using PlastiCAD.Models;
+using System;
+using System.Collections.Generic;
 using System.IO;
-    using System.Linq;
+using System.Linq;
 
 using System.Runtime.CompilerServices;
-    using System.Text;
+using System.Text;
 using System.Text.Json;
-    using System.Threading.Tasks;
-    using System.Windows;
-    using System.Windows.Controls;
-    using System.Windows.Data;
-    using System.Windows.Documents;
-    using System.Windows.Input;
-    using System.Windows.Media;
-    using System.Windows.Media.Imaging;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Media.Media3D;
-    using System.Windows.Navigation;
-    using System.Windows.Shapes;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
 using System.Windows.Threading;
 
 namespace PlastiCAD
@@ -31,6 +31,7 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+        private bool isProjectDirty = false;
         private bool isFullscreenAnimation = false;
         private DispatcherTimer fullscreenAnimationTimer;
         private Point3D fullscreenOrbitTarget;
@@ -52,7 +53,7 @@ namespace PlastiCAD
         private Point3D? lastWorldHitPoint = null;
         private class ClipboardProjectData
         {
-            
+
             public string Format { get; set; } = "PlastiCADClipboard";
             public int Version { get; set; } = 1;
 
@@ -140,7 +141,7 @@ namespace PlastiCAD
         private ModelVisual3D dragGridVisual;
         private double? dragGridPlaneY;
         private PlacedPart dragGridReferencePart;
-        
+
         Brush lineBrush =
     new SolidColorBrush(
         Color.FromArgb(
@@ -154,6 +155,10 @@ namespace PlastiCAD
             235,
             45,
             45));
+
+        private static readonly Brush PaksyYellow =
+    new SolidColorBrush(Color.FromRgb(245, 190, 35));
+
         private Point3D? worldPartDragStartPoint = null;
         private PlacedPart worldMouseDownPart = null;
         private bool worldPartWasDragged = false;
@@ -185,7 +190,7 @@ namespace PlastiCAD
 
         private Rectangle selectionRectangle;
 
-        private Dictionary<PlacedPart, Vector3> dragStartPositions= new Dictionary<PlacedPart, Vector3>();
+        private Dictionary<PlacedPart, Vector3> dragStartPositions = new Dictionary<PlacedPart, Vector3>();
 
         private Point dragStartMousePosition;
         private Assembly assembly = new Assembly();
@@ -213,7 +218,7 @@ namespace PlastiCAD
 
             //test
             InitializeComponent();
-
+            Application.Current.SessionEnding += MainWindow_SessionEnding;
             PartLibrary.Initialize();
 
             CreateToolboxPreviews();
@@ -226,8 +231,41 @@ namespace PlastiCAD
             Loaded += MainWindow_Loaded;
             KeyDown += MainWindow_KeyDown;
         }
-      
 
+        private bool ConfirmSaveIfDirty()
+        {
+            if (!isProjectDirty)
+                return true;
+
+            MessageBoxResult result = MessageBox.Show(
+                "Das Projekt wurde geändert. Speichern?",
+                "PlastiCAD",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Cancel)
+                return false;
+
+            if (result == MessageBoxResult.Yes)
+            {
+                SaveProject();
+                return !isProjectDirty; // Speichern-unter abgebrochen?
+            }
+
+            return true; // Nein = verwerfen
+        }
+
+        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (!ConfirmSaveIfDirty())
+                e.Cancel = true;
+        }
+
+        private void MainWindow_SessionEnding(object sender, SessionEndingCancelEventArgs e)
+        {
+            if (!ConfirmSaveIfDirty())
+                e.Cancel = true;
+        }
         private void CreateStructuralToolboxPreview(
     string partName,
     Model3DGroup previewModel)
@@ -671,11 +709,11 @@ namespace PlastiCAD
         }
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            
+
             RedrawScene();
             LoadRecentFiles();
         }
-        
+
 
         private void BuildArea_MouseMove(object sender, MouseEventArgs e)
         {
@@ -709,7 +747,7 @@ namespace PlastiCAD
                 return;
             }
 
-            double grid = Grider.CellSize * Scale;
+            double grid = Grider.StepSize * Scale;
 
             double deltaX = p.X - dragStartMousePosition.X;
             double deltaY = p.Y - dragStartMousePosition.Y;
@@ -737,7 +775,7 @@ namespace PlastiCAD
     start.Z,
     part.Part,
     selectedParts))
-                
+
                 {
                     positionIsValid = false;
                     break;
@@ -877,7 +915,7 @@ namespace PlastiCAD
                 e.GetPosition(BuildArea);
 
             double grid =
-                Grider.CellSize * Scale;
+                Grider.StepSize * Scale;
 
             lastMousePosition = p;
 
@@ -1207,7 +1245,7 @@ namespace PlastiCAD
     BigPlate plate)
         {
             int plane =
-                placed.PlateOrientation % 3;    
+                placed.PlateOrientation % 3;
 
             bool isCurrentLayer =
                 Math.Abs(
@@ -1339,7 +1377,8 @@ namespace PlastiCAD
 
             // In der vollständigen Draufsicht zusätzlich
             // die kleinere Rückseite andeuten.
-            if (plane == 0){
+            if (plane == 0)
+            {
                 Rectangle innerShape =
                     new Rectangle
                     {
@@ -1413,7 +1452,7 @@ namespace PlastiCAD
     1.0 / 100.0;
 
 
-   
+
 
             switch (plane)
             {
@@ -1821,7 +1860,7 @@ namespace PlastiCAD
             double holeDiameter =
                 cube.HoleDiameter * Scale;
 
-            
+
 
             Rectangle body =
                 new Rectangle
@@ -1876,8 +1915,8 @@ namespace PlastiCAD
                     placed.Transform.Position.Z - currentPlanZ)
                 < 0.001;
 
-           
-          
+
+
 
             Vector3 cellCenter =
                 GetCellCenter(placed);
@@ -2137,7 +2176,7 @@ namespace PlastiCAD
                     2.0,
                     plate.Thickness * Scale);
 
-            
+
 
             if (selectedParts.Contains(placed))
             {
@@ -2229,8 +2268,57 @@ namespace PlastiCAD
 
             BuildArea.Children.Add(
                 plateShape);
-        }
 
+            if (plate is HolePlate holePlate && placed.PlateOrientation == 0)
+            {
+                double holeSize = holePlate.HoleDiameter * Scale;
+
+                Ellipse hole = new Ellipse
+                {
+                    Width = holeSize,
+                    Height = holeSize,
+                    Fill = Brushes.WhiteSmoke,
+                    Stroke = Brushes.DarkRed,
+                    StrokeThickness = 0.8,
+                    IsHitTestVisible = false
+                };
+
+                Canvas.SetLeft(hole, centerX - holeSize / 2.0);
+                Canvas.SetTop(hole, centerY - holeSize / 2.0);
+                BuildArea.Children.Add(hole);
+            }
+
+        }
+        private void DrawPlateHole3D(Point3D center, HolePlate holePlate, int orientation)
+        {
+            double radius = (holePlate.HoleDiameter / 2.0) / 100.0;
+            double length = (holePlate.Thickness / 100.0) + 0.004;
+
+            Point3D start;
+            Point3D end;
+
+            switch (orientation)
+            {
+                case 1: // XZ → Loch in Y
+                    start = new Point3D(center.X, center.Y - length / 2, center.Z);
+                    end = new Point3D(center.X, center.Y + length / 2, center.Z);
+                    break;
+                case 2: // YZ → Loch in X
+                    start = new Point3D(center.X - length / 2, center.Y, center.Z);
+                    end = new Point3D(center.X + length / 2, center.Y, center.Z);
+                    break;
+                default: // XY → Loch in Z
+                    start = new Point3D(center.X, center.Y, center.Z - length / 2);
+                    end = new Point3D(center.X, center.Y, center.Z + length / 2);
+                    break;
+            }
+
+            GeometryModel3D hole = CreatePreviewCylinder(start, end, radius, Brushes.WhiteSmoke);
+            if (hole == null)
+                return;
+
+            WorldViewport.Children.Add(new ModelVisual3D { Content = hole });
+        }
         private void DrawWindow2D(
     PlacedPart placed,
     WindowPlate windowPlate)
@@ -2404,7 +2492,7 @@ namespace PlastiCAD
                     placed.Transform.Position.Z - currentPlanZ)
                 < 0.001;
 
-           
+
 
             Vector3 cellCenter = GetCellCenter(placed);
 
@@ -2616,7 +2704,7 @@ namespace PlastiCAD
                 wheelCenter.Y - hubShape.Height / 2.0);
 
             BuildArea.Children.Add(hubShape);
-            
+
         }
 
         private void DrawWheelFromFront(
@@ -2664,7 +2752,7 @@ namespace PlastiCAD
             BuildArea.Children.Add(holeShape);
         }
 
-        
+
         private void RedrawWorld()
         {
             worldPartMap.Clear();
@@ -2672,7 +2760,7 @@ namespace PlastiCAD
             while (WorldViewport.Children.Count > 1)
                 WorldViewport.Children.RemoveAt(1);
 
-            
+
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
 
@@ -2687,193 +2775,193 @@ namespace PlastiCAD
                 }
 
 
-                        if (placed.Part is Wheel wheel)
+                if (placed.Part is Wheel wheel)
+                {
+                    double wx =
+                        (placed.Transform.Position.X / Scale
+                        + Grider.CellSize / 2.0) / 100.0;
+
+                    double wy =
+                        -(placed.Transform.Position.Y / Scale
+                        + Grider.CellSize / 2.0) / 100.0;
+
+                    double wz =
+                        placed.Transform.Position.Z / 100.0;
+
+                    Point3D cellCenter =
+                        new Point3D(
+                            wx,
+                            wy,
+                            wz);
+
+                    // Das Rad zeigt zunächst nach rechts.
+                    // placed.Rotation wählt wie bei einem einarmigen Teil
+                    // den gewünschten Arm.
+                    Face wheelFace =
+                        FaceHelper.RotateFace(
+                            Face.Right,
+                            placed.Rotation);
+
+                    Vector3 direction =
+                        GetDirectionFromFace(wheelFace);
+
+                    direction =
+                        placed.Transform.ApplyRotation(direction);
+
+                    double halfWidth =
+                        wheel.Width / 200.0;
+
+                    double wheelRadius =
+                        wheel.OuterDiameter / 200.0;
+
+                    // Außenkante des Rades liegt ungefähr am Ende des Arms.
+                    double armEndDistance =
+                        (Grider.CellSize / 2.0) / 100.0;
+
+                    double wheelCenterDistance =
+                        armEndDistance - halfWidth;
+
+                    Point3D wheelCenter =
+                        new Point3D(
+                            cellCenter.X
+                                + direction.X * wheelCenterDistance,
+
+                            cellCenter.Y
+                                - direction.Y * wheelCenterDistance,
+
+                            cellCenter.Z
+                                + direction.Z * wheelCenterDistance);
+
+                    Point3D start =
+                        new Point3D(
+                            wheelCenter.X
+                                - direction.X * halfWidth,
+
+                            wheelCenter.Y
+                                + direction.Y * halfWidth,
+
+                            wheelCenter.Z
+                                - direction.Z * halfWidth);
+
+                    Point3D end =
+                        new Point3D(
+                            wheelCenter.X
+                                + direction.X * halfWidth,
+
+                            wheelCenter.Y
+                                - direction.Y * halfWidth,
+
+                            wheelCenter.Z
+                                + direction.Z * halfWidth);
+
+                    // Schwarzer Reifen
+                    double tubeRadius =
+    wheel.TireThickness / 2.0 / 100.0;
+
+                    double majorRadius =
+                        (wheel.OuterDiameter - wheel.TireThickness)
+                        / 2.0 / 100.0;
+
+                    Brush tireBrush =
+    selectedParts.Contains(placed)
+        ? new SolidColorBrush(
+            Color.FromRgb(70, 70, 70))
+        : Brushes.Black;
+
+                    AddTorus(
+                        wheelCenter,
+                        direction,
+                        majorRadius,
+                        tubeRadius,
+                        placed,
+                        tireBrush);
+
+
+                    // Rote Felge
+                    double rimRadius =
+                        wheel.RimDiameter / 200.0;
+
+                    double rimHalfWidth =
+                        wheel.Width * 0.35 / 100.0;
+
+                    Point3D rimStart = new Point3D(
+                        wheelCenter.X - direction.X * rimHalfWidth,
+                        wheelCenter.Y + direction.Y * rimHalfWidth,
+                        wheelCenter.Z - direction.Z * rimHalfWidth);
+
+                    Point3D rimEnd = new Point3D(
+                        wheelCenter.X + direction.X * rimHalfWidth,
+                        wheelCenter.Y - direction.Y * rimHalfWidth,
+                        wheelCenter.Z + direction.Z * rimHalfWidth);
+
+                    double rimOuterRadius =
+    wheel.RimDiameter / 200.0;
+
+                    double rimHoleRadius =
+                        wheel.HoleDiameter / 200.0;
+
+                    rimHalfWidth =
+                        wheel.Width * 0.42 / 100.0;
+
+                    Brush rimBrush = PaksyRed;
+
+                    if (selectedParts.Contains(placed))
                     {
-                        double wx =
-                            (placed.Transform.Position.X / Scale
-                            + Grider.CellSize / 2.0) / 100.0;
-
-                        double wy =
-                            -(placed.Transform.Position.Y / Scale
-                            + Grider.CellSize / 2.0) / 100.0;
-
-                        double wz =
-                            placed.Transform.Position.Z / 100.0;
-
-                        Point3D cellCenter =
-                            new Point3D(
-                                wx,
-                                wy,
-                                wz);
-
-                        // Das Rad zeigt zunächst nach rechts.
-                        // placed.Rotation wählt wie bei einem einarmigen Teil
-                        // den gewünschten Arm.
-                        Face wheelFace =
-                            FaceHelper.RotateFace(
-                                Face.Right,
-                                placed.Rotation);
-
-                        Vector3 direction =
-                            GetDirectionFromFace(wheelFace);
-
-                        direction =
-                            placed.Transform.ApplyRotation(direction);
-
-                        double halfWidth =
-                            wheel.Width / 200.0;
-
-                        double wheelRadius =
-                            wheel.OuterDiameter / 200.0;
-
-                        // Außenkante des Rades liegt ungefähr am Ende des Arms.
-                        double armEndDistance =
-                            (Grider.CellSize / 2.0) / 100.0;
-
-                        double wheelCenterDistance =
-                            armEndDistance - halfWidth;
-
-                        Point3D wheelCenter =
-                            new Point3D(
-                                cellCenter.X
-                                    + direction.X * wheelCenterDistance,
-
-                                cellCenter.Y
-                                    - direction.Y * wheelCenterDistance,
-
-                                cellCenter.Z
-                                    + direction.Z * wheelCenterDistance);
-
-                        Point3D start =
-                            new Point3D(
-                                wheelCenter.X
-                                    - direction.X * halfWidth,
-
-                                wheelCenter.Y
-                                    + direction.Y * halfWidth,
-
-                                wheelCenter.Z
-                                    - direction.Z * halfWidth);
-
-                        Point3D end =
-                            new Point3D(
-                                wheelCenter.X
-                                    + direction.X * halfWidth,
-
-                                wheelCenter.Y
-                                    - direction.Y * halfWidth,
-
-                                wheelCenter.Z
-                                    + direction.Z * halfWidth);
-
-                        // Schwarzer Reifen
-                        double tubeRadius =
-        wheel.TireThickness / 2.0 / 100.0;
-
-                        double majorRadius =
-                            (wheel.OuterDiameter - wheel.TireThickness)
-                            / 2.0 / 100.0;
-
-                        Brush tireBrush =
-        selectedParts.Contains(placed)
-            ? new SolidColorBrush(
-                Color.FromRgb(70, 70, 70))
-            : Brushes.Black;
-
-                        AddTorus(
-                            wheelCenter,
-                            direction,
-                            majorRadius,
-                            tubeRadius,
-                            placed,
-                            tireBrush);
-
-
-                        // Rote Felge
-                        double rimRadius =
-                            wheel.RimDiameter / 200.0;
-
-                        double rimHalfWidth =
-                            wheel.Width * 0.35 / 100.0;
-
-                        Point3D rimStart = new Point3D(
-                            wheelCenter.X - direction.X * rimHalfWidth,
-                            wheelCenter.Y + direction.Y * rimHalfWidth,
-                            wheelCenter.Z - direction.Z * rimHalfWidth);
-
-                        Point3D rimEnd = new Point3D(
-                            wheelCenter.X + direction.X * rimHalfWidth,
-                            wheelCenter.Y - direction.Y * rimHalfWidth,
-                            wheelCenter.Z + direction.Z * rimHalfWidth);
-
-                        double rimOuterRadius =
-        wheel.RimDiameter / 200.0;
-
-                        double rimHoleRadius =
-                            wheel.HoleDiameter / 200.0;
-
-                        rimHalfWidth =
-                            wheel.Width * 0.42 / 100.0;
-                    
-                        Brush rimBrush = PaksyRed;
-
-                        if (selectedParts.Contains(placed))
-                        {
-                            rimBrush = HighlightBrush(rimBrush);
-                        }
-
-
-                        AddRim(
-                            wheelCenter,
-                            direction,
-                            rimOuterRadius,
-                            rimHoleRadius,
-                            rimHalfWidth,
-                            placed,
-                            rimBrush);// Kleine rote Nabe
-
-
-
-                        double hubRadius =
-                            wheel.HoleDiameter / 200.0;
-
-                        double hubHalfWidth =
-                            (wheel.Width + 2.0) / 200.0;
-
-                        Point3D hubStart =
-                            new Point3D(
-                                wheelCenter.X
-                                    - direction.X * hubHalfWidth,
-
-                                wheelCenter.Y
-                                    + direction.Y * hubHalfWidth,
-
-                                wheelCenter.Z
-                                    - direction.Z * hubHalfWidth);
-
-                        Point3D hubEnd =
-                            new Point3D(
-                                wheelCenter.X
-                                    + direction.X * hubHalfWidth,
-
-                                wheelCenter.Y
-                                    - direction.Y * hubHalfWidth,
-
-                                wheelCenter.Z
-                                    + direction.Z * hubHalfWidth);
-
-           
-                        AddRim(
-                            wheelCenter,
-                            direction,
-                            rimOuterRadius,
-                            rimHoleRadius,
-                            rimHalfWidth,
-                            placed,
-                            rimBrush);
-
-                        continue;
+                        rimBrush = HighlightBrush(rimBrush);
                     }
+
+
+                    AddRim(
+                        wheelCenter,
+                        direction,
+                        rimOuterRadius,
+                        rimHoleRadius,
+                        rimHalfWidth,
+                        placed,
+                        rimBrush);// Kleine rote Nabe
+
+
+
+                    double hubRadius =
+                        wheel.HoleDiameter / 200.0;
+
+                    double hubHalfWidth =
+                        (wheel.Width + 2.0) / 200.0;
+
+                    Point3D hubStart =
+                        new Point3D(
+                            wheelCenter.X
+                                - direction.X * hubHalfWidth,
+
+                            wheelCenter.Y
+                                + direction.Y * hubHalfWidth,
+
+                            wheelCenter.Z
+                                - direction.Z * hubHalfWidth);
+
+                    Point3D hubEnd =
+                        new Point3D(
+                            wheelCenter.X
+                                + direction.X * hubHalfWidth,
+
+                            wheelCenter.Y
+                                - direction.Y * hubHalfWidth,
+
+                            wheelCenter.Z
+                                + direction.Z * hubHalfWidth);
+
+
+                    AddRim(
+                        wheelCenter,
+                        direction,
+                        rimOuterRadius,
+                        rimHoleRadius,
+                        rimHalfWidth,
+                        placed,
+                        rimBrush);
+
+                    continue;
+                }
 
                 if (placed.Part is EndCap endCap)
                 {
@@ -2886,7 +2974,7 @@ namespace PlastiCAD
 
                 if (placed.Part is WindowPlate windowPlate)
                 {
-                    
+
                     continue;
                 }
 
@@ -2898,7 +2986,11 @@ namespace PlastiCAD
 
                     continue;
                 }
-
+                if (placed.Part is SlatPlate slatPlate)
+                {
+                    DrawSlatPlate3D(placed, slatPlate);
+                    continue;
+                }
                 if (placed.Part is Plate plate)
                 {
                     DrawPlate3D(
@@ -2916,7 +3008,7 @@ namespace PlastiCAD
 
                     continue;
                 }
-                
+
 
                 if (placed.Part is BallConnector ball)
                 {
@@ -2927,7 +3019,7 @@ namespace PlastiCAD
                     continue;
                 }
 
-                
+
 
                 if (!(placed.Part is StructuralPart part))
                     continue;
@@ -2998,9 +3090,9 @@ namespace PlastiCAD
                 }
 
                 // Transparente Fenster immer zuletzt zeichnen
-               
 
-                
+
+
             }
             foreach (PlacedPart placed2 in assembly.PlacedParts)
             {
@@ -3119,6 +3211,9 @@ namespace PlastiCAD
                 holeRadius,
                 placed);
         }
+
+
+       
         private void AddBallHole(
     Point3D ballCenter,
     Vector3D outwardDirection,
@@ -4304,69 +4399,73 @@ namespace PlastiCAD
 
         private void DrawGrid()
         {
-            double grid =
-                Grider.CellSize * Scale;
+            double fullGrid = Grider.CellSize * Scale;
+            double step = Grider.StepSize * Scale;
 
-            double cross = 3;
+            double width = BuildArea.ActualWidth;
+            double height = BuildArea.ActualHeight;
 
-            double width =
-                BuildArea.ActualWidth;
-
-            double height =
-                BuildArea.ActualHeight;
-
-            // Beim ersten Layout kann ActualWidth/Height
-            // noch 0 sein.
             if (width <= 0)
                 width = BuildArea.Width;
-
             if (height <= 0)
                 height = BuildArea.Height;
 
-            if (width <= 0 ||
-                height <= 0)
-            {
+            if (width <= 0 || height <= 0)
                 return;
+
+            const double cross = 3;
+            const double tolerance = 0.01;
+
+            bool IsFullCell(double value)
+            {
+                double m = Math.Abs(value / fullGrid);
+                return Math.Abs(m - Math.Round(m)) < tolerance;
             }
 
-            for (double x = 0;
-                 x < width;
-                 x += grid)
+            for (double x = 0; x < width; x += step)
             {
-                for (double y = 0;
-                     y < height;
-                     y += grid)
+                for (double y = 0; y < height; y += step)
                 {
-                    Line h =
-                        new Line
+                    bool full = IsFullCell(x) && IsFullCell(y);
+
+                    if (full)
+                    {
+                        BuildArea.Children.Add(new Line
                         {
                             X1 = x - cross,
                             Y1 = y,
                             X2 = x + cross,
                             Y2 = y,
-
                             Stroke = Brushes.LightGray,
                             StrokeThickness = 1,
-
                             Tag = "Grid"
-                        };
+                        });
 
-                    Line v =
-                        new Line
+                        BuildArea.Children.Add(new Line
                         {
                             X1 = x,
                             Y1 = y - cross,
                             X2 = x,
                             Y2 = y + cross,
-
                             Stroke = Brushes.LightGray,
                             StrokeThickness = 1,
-
+                            Tag = "Grid"
+                        });
+                    }
+                    else if (Grider.UseHalfGrid)
+                    {
+                        Rectangle dot = new Rectangle
+                        {
+                            Width = 1,
+                            Height = 1,
+                            Fill = Brushes.Gray,
                             Tag = "Grid"
                         };
 
-                    BuildArea.Children.Add(h);
-                    BuildArea.Children.Add(v);
+                        Canvas.SetLeft(dot, x);
+                        Canvas.SetTop(dot, y);
+                        BuildArea.Children.Add(dot);
+                    }
                 }
             }
         }
@@ -4444,11 +4543,11 @@ namespace PlastiCAD
                     yield return descendant;
             }
         }
-        
-        
-    
-        
-        
+
+
+
+
+
         private void DrawArm(
     Vector3 center,
     Face face,
@@ -4620,7 +4719,7 @@ namespace PlastiCAD
             return connectionCount;
         }
 
-   
+
         private void DrawStructuralPart(
       PlacedPart placed,
       StructuralPart part)
@@ -4681,8 +4780,7 @@ namespace PlastiCAD
                 rotatedFaces.Contains(Face.Back);
 
             bool depthSymbolDrawn = false;
-            Face? depthFace = null;
-            bool hasFrontArm = false;
+             bool hasFrontArm = false;
 
             foreach (Socket socket in placed.Sockets)
             {
@@ -4732,7 +4830,7 @@ namespace PlastiCAD
                     center,
                     part.OuterDiameter);
             }
-           
+
         }
 
         private void DrawThroughDepthSocket(
@@ -5194,7 +5292,7 @@ namespace PlastiCAD
         /// </summary>
         private void PasteSelection2D()
         {
-            double grid = Grider.CellSize * Scale;
+            double grid = Grider.StepSize * Scale;
 
             PlacedPart anchor = copiedParts[0];
 
@@ -5275,8 +5373,8 @@ namespace PlastiCAD
         /// </summary>
         private void PasteSelection3D()
         {
-            double grid = Grider.CellSize * Scale;   // X/Y
-            double cellZ = Grider.CellSize;         // Z
+            double grid = Grider.StepSize * Scale;   // X/Y
+            double cellZ = Grider.StepSize;         // Z
 
             Vector3 offsetToUse = null;
             bool found = false;
@@ -5379,6 +5477,8 @@ namespace PlastiCAD
 
             SaveProjectToFile(
                 currentProjectFileName);
+            isProjectDirty = false;
+            UpdateWindowTitle();
         }
 
         private void SaveProjectAs()
@@ -5521,7 +5621,7 @@ namespace PlastiCAD
                     Z = placed.Transform.Position.Z,
 
                     Rotation = placed.Rotation,
-                    
+
                     PlateOrientation = placed.PlateOrientation,
 
                     RotationX = placed.Transform.Rotation.X,
@@ -5555,6 +5655,7 @@ namespace PlastiCAD
                 return;
 
             LoadProjectFromFile(dialog.FileName);
+            isProjectDirty = false;
         }
 
         private void RebuildConnections()
@@ -5676,6 +5777,8 @@ namespace PlastiCAD
             // Sobald etwas Neues geändert wird,
             // ist die alte Redo-Kette ungültig.
             redoStack.Clear();
+            isProjectDirty = true;
+            UpdateWindowTitle();
         }
 
         private void Undo()
@@ -5763,7 +5866,7 @@ namespace PlastiCAD
             }
 
             double step =
-                Grider.CellSize * Scale;
+                Grider.StepSize * Scale;
 
             double deltaY =
                 e.Delta > 0
@@ -5923,13 +6026,13 @@ namespace PlastiCAD
                     worldDelta.Z
                     * 100.0
                     * PartDragSensitivity;
-                
+
 
                 double gridX =
-                    Grider.CellSize * Scale;
+                    Grider.StepSize * Scale;
 
                 double gridZ =
-                    Grider.CellSize;
+                    Grider.StepSize;
 
                 // Rasterung
                 double deltaX =
@@ -6359,7 +6462,7 @@ namespace PlastiCAD
                 posY = 275.0;
 
                 // Auf das nächste Raster runden
-                double grid = Grider.CellSize * Scale;
+                double grid = Grider.StepSize * Scale;
                 posX = Math.Round(posX / grid) * grid;
                 posY = Math.Round(posY / grid) * grid;
             }
@@ -6382,7 +6485,7 @@ namespace PlastiCAD
                 double centerYmm = -world.Y * 100.0;
 
                 double halfCell = Grider.CellSize / 2.0;
-                double grid = Grider.CellSize * Scale;
+                double grid = Grider.StepSize * Scale;
 
                 posX = Math.Round((centerXmm - halfCell) * Scale / grid) * grid;
                 posY = Math.Round((centerYmm - halfCell) * Scale / grid) * grid;
@@ -6472,11 +6575,11 @@ namespace PlastiCAD
             }
 
             // Socket-Auswahl abbrechen
-            
+
             if (e.Key == Key.Add ||
    e.Key == Key.OemPlus)
             {
-                currentPlanZ += Grider.CellSize;
+                currentPlanZ += Grider.StepSize;
 
                 StatusText.Text =
                     $"Bearbeitungsebene Z = {currentPlanZ:0.##} mm";
@@ -6490,7 +6593,7 @@ namespace PlastiCAD
             if (e.Key == Key.Subtract ||
                 e.Key == Key.OemMinus)
             {
-                currentPlanZ -= Grider.CellSize;
+                currentPlanZ -= Grider.StepSize;
 
                 StatusText.Text =
                     $"Bearbeitungsebene Z = {currentPlanZ:0.##} mm";
@@ -6548,7 +6651,7 @@ namespace PlastiCAD
                 return;
             }
 
-            
+
 
             if (e.Key == Key.Delete)
             {
@@ -6600,37 +6703,37 @@ namespace PlastiCAD
                 }
 
                 // ... bestehende Escape-Logik ...
-            
-            {
-                selectedPart = null;
 
-                selectedParts.Clear();
-
-                if (selectedPartToolButton != null)
                 {
-                    selectedPartToolButton.Background =
-                        new SolidColorBrush(Color.FromRgb(244, 244, 244));
+                    selectedPart = null;
 
-                    selectedPartToolButton.BorderBrush =
-                        new SolidColorBrush(Color.FromRgb(181, 181, 181));
+                    selectedParts.Clear();
 
-                    selectedPartToolButton.BorderThickness =
-                        new Thickness(1);
+                    if (selectedPartToolButton != null)
+                    {
+                        selectedPartToolButton.Background =
+                            new SolidColorBrush(Color.FromRgb(244, 244, 244));
 
-                    selectedPartToolButton = null;
+                        selectedPartToolButton.BorderBrush =
+                            new SolidColorBrush(Color.FromRgb(181, 181, 181));
+
+                        selectedPartToolButton.BorderThickness =
+                            new Thickness(1);
+
+                        selectedPartToolButton = null;
+                    }
+
+                    StatusText.Text = "Bereit";
+
+                    RedrawScene();
+
+                    e.Handled = true;
+                    return;
                 }
-
-                StatusText.Text = "Bereit";
-
-                RedrawScene();
-
-                e.Handled = true;
-                return;
             }
-            }
-            double moveStep = Grider.CellSize * Scale;
+            double moveStep = Grider.StepSize * Scale;
 
-            
+
             if (controlPressed &&
                 e.Key == Key.A)
             {
@@ -6707,7 +6810,7 @@ namespace PlastiCAD
                 return;
             }
 
-           
+
             if (selectedParts.Count == 0)
                 return;
 
@@ -6752,7 +6855,7 @@ namespace PlastiCAD
 
                 foreach (PlacedPart placed in selectedParts)
                 {
-                    placed.Transform.Position.Z += Grider.CellSize;
+                    placed.Transform.Position.Z += Grider.StepSize;
                 }
 
                 RedrawScene();
@@ -6765,7 +6868,7 @@ namespace PlastiCAD
 
                 foreach (PlacedPart placed in selectedParts)
                 {
-                    placed.Transform.Position.Z -= Grider.CellSize;
+                    placed.Transform.Position.Z -= Grider.StepSize;
                 }
 
                 RedrawScene();
@@ -6900,7 +7003,7 @@ namespace PlastiCAD
                     // Ein zusätzliches Runden ist nur noch als Sicherheitsnetz nötig.
                     if (!selectionContainsPlate)
                     {
-                        double grid = Grider.CellSize;
+                        double grid = Grider.StepSize;
 
                         double snappedX = Math.Round(newActualX / grid) * grid;
                         double snappedY = Math.Round(newActualY / grid) * grid;
@@ -7580,8 +7683,8 @@ namespace PlastiCAD
         }
 
         private void DrawPlate3D(
-    PlacedPart placed,
-    Plate plate)
+       PlacedPart placed,
+       Plate plate)
         {
             double x =
                 (placed.Transform.Position.X / Scale
@@ -7594,118 +7697,191 @@ namespace PlastiCAD
             double z =
                 placed.Transform.Position.Z / 100.0;
 
-            double halfGrid =
-                (Grider.CellSize / 2.0) / 100.0;
-
-            double width =
-                plate.Width / 100.0;
-
-            double height =
-                plate.Height / 100.0;
-
-            double thickness =
-                plate.Thickness / 100.0;
+            double width = plate.Width / 100.0;
+            double height = plate.Height / 100.0;
+            double thickness = plate.Thickness / 100.0;
 
             Brush plateBrush =
                 selectedParts.Contains(placed)
                     ? HighlightBrush(PaksyRed)
                     : PaksyRed;
 
-            Point3D baseCenter =
-                new Point3D(
-                    x,
-                    y,
-                    z);
-
+            Point3D baseCenter = new Point3D(x, y, z);
             Point3D center;
+            Vector3D holeNormal;
+            Vector3D holeWidthAxis;
+            double boxX, boxY, boxZ;
 
-            switch (placed.PlateOrientation)
+            switch (placed.PlateOrientation % 3)
             {
-                // XY-Ebene
-                case 0:
-                    {
-                        Vector3 offset =
-                            new Vector3(
-                                Grider.CellSize / 2.0,
-                                Grider.CellSize / 2.0,
-                                0);
+                case 1: // XZ, dünn in Y
+                    center = new Point3D(
+                        baseCenter.X + (Grider.CellSize / 2.0) / 100.0,
+                        baseCenter.Y,
+                        baseCenter.Z + (Grider.CellSize / 2.0) / 100.0);
+                    boxX = width;
+                    boxY = thickness;
+                    boxZ = height;
+                    holeNormal = new Vector3D(0, 1, 0);
+                    holeWidthAxis = new Vector3D(1, 0, 0);
+                    break;
 
-                        center =
-                            new Point3D(
-                                baseCenter.X + offset.X / 100.0,
-                                baseCenter.Y - offset.Y / 100.0,
-                                baseCenter.Z);
+                case 2: // YZ, dünn in X
+                    center = new Point3D(
+                        baseCenter.X,
+                        baseCenter.Y - (Grider.CellSize / 2.0) / 100.0,
+                        baseCenter.Z + (Grider.CellSize / 2.0) / 100.0);
+                    boxX = thickness;
+                    boxY = width;
+                    boxZ = height;
+                    holeNormal = new Vector3D(1, 0, 0);
+                    holeWidthAxis = new Vector3D(0, 1, 0);
+                    break;
 
-                        AddBox(
-                            center,
-                            width,
-                            height,
-                            thickness,
-                            placed,
-                            plateBrush);
+                default: // XY, dünn in Z
+                    center = new Point3D(
+                        baseCenter.X + (Grider.CellSize / 2.0) / 100.0,
+                        baseCenter.Y - (Grider.CellSize / 2.0) / 100.0,
+                        baseCenter.Z);
+                    boxX = width;
+                    boxY = height;
+                    boxZ = thickness;
+                    holeNormal = new Vector3D(0, 0, 1);
+                    holeWidthAxis = new Vector3D(1, 0, 0);
+                    break;
+            }
 
-                        break;
-                    }
+            if (plate is HolePlate holePlate)
+            {
+                GeometryModel3D holePlateModel = CreateRectangularPlateWithHole(
+                    center,
+                    holeNormal,
+                    holeWidthAxis,
+                    width,
+                    height,
+                    thickness,
+                    (holePlate.HoleDiameter / 2.0) / 100.0,
+                    plateBrush);
 
-                // XZ-Ebene
-                case 1:
-                    {
-                        Vector3 offset =
-                            new Vector3(
-                                Grider.CellSize / 2.0,
-                                0,
-                                Grider.CellSize / 2.0);
-
-                        center =
-                            new Point3D(
-                                baseCenter.X + offset.X / 100.0,
-                                baseCenter.Y,
-                                baseCenter.Z + offset.Z / 100.0);
-
-                        AddBox(
-                            center,
-                            width,
-                            thickness,
-                            height,
-                            placed,
-                            plateBrush);
-
-                        break;
-                    }
-
-                // YZ-Ebene
-                case 2:
-                    {
-                        Vector3 offset =
-                            new Vector3(
-                                0,
-                                Grider.CellSize / 2.0,
-                                Grider.CellSize / 2.0);
-
-                        center =
-                            new Point3D(
-                                baseCenter.X,
-                                baseCenter.Y - offset.Y / 100.0,
-                                baseCenter.Z + offset.Z / 100.0);
-
-                        AddBox(
-                            center,
-                            thickness,
-                            width,
-                            height,
-                            placed,
-                            plateBrush);
-
-                        break;
-                    }
-
-                default:
-                    placed.PlateOrientation = 0;
-                    return;
+                if (holePlateModel != null)
+                {
+                    worldPartMap[holePlateModel] = placed;
+                    WorldViewport.Children.Add(new ModelVisual3D { Content = holePlateModel }); 
+                }
+            }
+            else
+            {
+                AddBox(center, boxX, boxY, boxZ, placed, plateBrush);
             }
         }
+        private GeometryModel3D CreateRectangularPlateWithHole(
+    Point3D center,
+    Vector3D normal,
+    Vector3D widthAxis,
+    double width,
+    double height,
+    double thickness,
+    double holeRadius,
+    Brush brush)
+        {
+            const int segments = 48;
 
+            if (normal.Length == 0 || widthAxis.Length == 0)
+                return null;
 
+            normal.Normalize();
+            widthAxis.Normalize();
+
+            Vector3D heightAxis = Vector3D.CrossProduct(normal, widthAxis);
+            if (heightAxis.Length == 0)
+                return null;
+            heightAxis.Normalize();
+
+            double hx = width / 2.0;
+            double hy = height / 2.0;
+            double hz = thickness / 2.0;
+
+            MeshGeometry3D mesh = new MeshGeometry3D();
+
+            // Innenkreis oben/unten
+            for (int i = 0; i < segments; i++)
+            {
+                double a = 2.0 * Math.PI * i / segments;
+                Vector3D radial =
+                    widthAxis * Math.Cos(a) * holeRadius +
+                    heightAxis * Math.Sin(a) * holeRadius;
+
+                mesh.Positions.Add(center + radial + normal * hz); // oben innen
+                mesh.Positions.Add(center + radial - normal * hz); // unten innen
+            }
+
+            // Außenrechteck: Strahl Kreiswinkel → Quadrat
+            for (int i = 0; i < segments; i++)
+            {
+                double a = 2.0 * Math.PI * i / segments;
+                double cx = Math.Cos(a);
+                double cy = Math.Sin(a);
+
+                double scale = Math.Min(
+                    hx / Math.Max(Math.Abs(cx), 1e-6),
+                    hy / Math.Max(Math.Abs(cy), 1e-6));
+
+                Vector3D radial = widthAxis * (cx * scale) + heightAxis * (cy * scale);
+
+                mesh.Positions.Add(center + radial + normal * hz); // oben außen
+                mesh.Positions.Add(center + radial - normal * hz); // unten außen
+            }
+
+            int innerTop(int i) => (i % segments) * 2;
+            int innerBot(int i) => (i % segments) * 2 + 1;
+            int outerTop(int i) => segments * 2 + (i % segments) * 2;
+            int outerBot(int i) => segments * 2 + (i % segments) * 2 + 1;
+
+            for (int i = 0; i < segments; i++)
+            {
+                int n = i + 1;
+
+                // Deckfläche oben
+                mesh.TriangleIndices.Add(innerTop(i));
+                mesh.TriangleIndices.Add(outerTop(i));
+                mesh.TriangleIndices.Add(outerTop(n));
+                mesh.TriangleIndices.Add(innerTop(i));
+                mesh.TriangleIndices.Add(outerTop(n));
+                mesh.TriangleIndices.Add(innerTop(n));
+
+                // Deckfläche unten
+                mesh.TriangleIndices.Add(innerBot(i));
+                mesh.TriangleIndices.Add(outerBot(n));
+                mesh.TriangleIndices.Add(outerBot(i));
+                mesh.TriangleIndices.Add(innerBot(i));
+                mesh.TriangleIndices.Add(innerBot(n));
+                mesh.TriangleIndices.Add(outerBot(n));
+
+                // Lochwand
+                mesh.TriangleIndices.Add(innerTop(i));
+                mesh.TriangleIndices.Add(innerTop(n));
+                mesh.TriangleIndices.Add(innerBot(n));
+                mesh.TriangleIndices.Add(innerTop(i));
+                mesh.TriangleIndices.Add(innerBot(n));
+                mesh.TriangleIndices.Add(innerBot(i));
+
+                // Außenwand
+                mesh.TriangleIndices.Add(outerTop(i));
+                mesh.TriangleIndices.Add(outerBot(i));
+                mesh.TriangleIndices.Add(outerBot(n));
+                mesh.TriangleIndices.Add(outerTop(i));
+                mesh.TriangleIndices.Add(outerBot(n));
+                mesh.TriangleIndices.Add(outerTop(n));
+            }
+
+            DiffuseMaterial material = new DiffuseMaterial(brush);
+            return new GeometryModel3D
+            {
+                Geometry = mesh,
+                Material = material,
+                BackMaterial = material
+            };
+        }
         private Vector3 GetPlateGridOffset(
     PlacedPart placed)
         {
@@ -7752,7 +7928,7 @@ namespace PlastiCAD
 
             return brush;
         }
-        
+
         private void ShowDragGrid(
     double planeY,
     PlacedPart referencePart)
@@ -7958,102 +8134,102 @@ namespace PlastiCAD
     Point3D end,
     double radius,
     Brush brush)
-{
-    const int segments = 6;
+        {
+            const int segments = 6;
 
-    Vector3D axis =
-        end - start;
+            Vector3D axis =
+                end - start;
 
-    if (axis.Length == 0)
-        return null;
+            if (axis.Length == 0)
+                return null;
 
-    axis.Normalize();
+            axis.Normalize();
 
-    Vector3D reference =
-        Math.Abs(axis.Y) < 0.9
-            ? new Vector3D(0, 1, 0)
-            : new Vector3D(1, 0, 0);
+            Vector3D reference =
+                Math.Abs(axis.Y) < 0.9
+                    ? new Vector3D(0, 1, 0)
+                    : new Vector3D(1, 0, 0);
 
-    Vector3D side1 =
-        Vector3D.CrossProduct(
-            axis,
-            reference);
+            Vector3D side1 =
+                Vector3D.CrossProduct(
+                    axis,
+                    reference);
 
-    if (side1.Length == 0)
-        return null;
+            if (side1.Length == 0)
+                return null;
 
-    side1.Normalize();
+            side1.Normalize();
 
-    Vector3D side2 =
-        Vector3D.CrossProduct(
-            axis,
-            side1);
+            Vector3D side2 =
+                Vector3D.CrossProduct(
+                    axis,
+                    side1);
 
-    side2.Normalize();
+            side2.Normalize();
 
-    MeshGeometry3D mesh =
-        new MeshGeometry3D();
+            MeshGeometry3D mesh =
+                new MeshGeometry3D();
 
-    for (int index = 0;
-         index < segments;
-         index++)
-    {
-        double angle =
-            2.0 * Math.PI
-            * index
-            / segments;
+            for (int index = 0;
+                 index < segments;
+                 index++)
+            {
+                double angle =
+                    2.0 * Math.PI
+                    * index
+                    / segments;
 
-        Vector3D offset =
-            side1
-                * (Math.Cos(angle) * radius)
-            + side2
-                * (Math.Sin(angle) * radius);
+                Vector3D offset =
+                    side1
+                        * (Math.Cos(angle) * radius)
+                    + side2
+                        * (Math.Sin(angle) * radius);
 
-        mesh.Positions.Add(
-            start + offset);
+                mesh.Positions.Add(
+                    start + offset);
 
-        mesh.Positions.Add(
-            end + offset);
-    }
+                mesh.Positions.Add(
+                    end + offset);
+            }
 
-    for (int index = 0;
-         index < segments;
-         index++)
-    {
-        int next =
-            (index + 1) % segments;
+            for (int index = 0;
+                 index < segments;
+                 index++)
+            {
+                int next =
+                    (index + 1) % segments;
 
-        int a =
-            index * 2;
+                int a =
+                    index * 2;
 
-        int b =
-            next * 2;
+                int b =
+                    next * 2;
 
-        int c =
-            a + 1;
+                int c =
+                    a + 1;
 
-        int d =
-            b + 1;
+                int d =
+                    b + 1;
 
-        mesh.TriangleIndices.Add(a);
-        mesh.TriangleIndices.Add(b);
-        mesh.TriangleIndices.Add(c);
+                mesh.TriangleIndices.Add(a);
+                mesh.TriangleIndices.Add(b);
+                mesh.TriangleIndices.Add(c);
 
-        mesh.TriangleIndices.Add(c);
-        mesh.TriangleIndices.Add(b);
-        mesh.TriangleIndices.Add(d);
-    }
+                mesh.TriangleIndices.Add(c);
+                mesh.TriangleIndices.Add(b);
+                mesh.TriangleIndices.Add(d);
+            }
 
-    DiffuseMaterial material =
-        new DiffuseMaterial(brush);
+            DiffuseMaterial material =
+                new DiffuseMaterial(brush);
 
-    return new GeometryModel3D
-    {
-        Geometry = mesh,
-        Material = material,
-        BackMaterial = material
-    };
-}
+            return new GeometryModel3D
+            {
+                Geometry = mesh,
+                Material = material,
+                BackMaterial = material
+            };
+        }
 
         private void PartToolButton_Click(
     object sender,
@@ -8133,8 +8309,8 @@ namespace PlastiCAD
         }
 
         private void RotatePlateOrientationWorld(
-            PlacedPart placed,
-            char axis)
+    PlacedPart placed,
+    char axis)
         {
             if (!(placed.Part is Plate))
                 return;
@@ -8149,31 +8325,53 @@ namespace PlastiCAD
                 supportsFrontAndBack &&
                 placed.PlateOrientation >= 3;
 
-            /*
-             * Normalenrichtung der sichtbaren Vorderseite:
-             *
-             * 0 = XY  -> +Z
-             * 1 = XZ  -> -Y
-             * 2 = YZ  -> +X
-             *
-             * Bei BigPlate 3–5 jeweils umgekehrt.
-             */
+
+            // ------------------------------------------------------------
+            // WICHTIG:
+            // Bei der Streifenplatte die ALTEN Streifenachsen merken,
+            // BEVOR PlateOrientation verändert wird.
+            // ------------------------------------------------------------
+
+            Vector3D oldAcross = new Vector3D();
+            Vector3D oldStack = new Vector3D();
+
+            bool isSlatPlate =
+                placed.Part is SlatPlate;
+
+            if (isSlatPlate)
+            {
+                GetSlatAxes(
+                    placed,
+                    out oldAcross,
+                    out oldStack,
+                    out _);
+            }
+
+
+            // ------------------------------------------------------------
+            // NORMALE DER PLATTE
+            // ------------------------------------------------------------
+
             Vector3 normal;
 
             switch (plane)
             {
                 case 0:
-                    normal = new Vector3(0, 0, 1);
+                    // XY
+                    normal =
+                        new Vector3(0, 0, 1);
                     break;
 
                 case 1:
-                    // XZ-Ebene:
-                    // große Vorderseite zeigt in Paksy +Y
-                    normal = new Vector3(0, 1, 0);
+                    // XZ
+                    normal =
+                        new Vector3(0, 1, 0);
                     break;
 
                 case 2:
-                    normal = new Vector3(1, 0, 0);
+                    // YZ
+                    normal =
+                        new Vector3(1, 0, 0);
                     break;
 
                 default:
@@ -8182,36 +8380,148 @@ namespace PlastiCAD
 
             if (isFlipped)
             {
-                normal = new Vector3(
-                    -normal.X,
-                    -normal.Y,
-                    -normal.Z);
+                normal =
+                    new Vector3(
+                        -normal.X,
+                        -normal.Y,
+                        -normal.Z);
             }
+
+
+            // ------------------------------------------------------------
+            // PLATTE DREHEN
+            // ------------------------------------------------------------
 
             switch (axis)
             {
                 case 'X':
-                    normal = normal.RotateX90();
+                    normal =
+                        normal.RotateX90();
                     break;
 
                 case 'Y':
-                    normal = normal.RotateY90();
+                    normal =
+                        normal.RotateY90();
                     break;
 
                 case 'Z':
-                    normal = normal.RotateZ90();
+                    normal =
+                        normal.RotateZ90();
                     break;
 
                 default:
                     return;
             }
 
+
+            // Neue Plattenebene setzen
             placed.PlateOrientation =
                 GetPlateOrientationFromNormal(
                     normal,
                     supportsFrontAndBack);
-        }
 
+
+            // ------------------------------------------------------------
+            // NORMALE PLATTE:
+            // hier sind wir fertig
+            // ------------------------------------------------------------
+
+            if (!isSlatPlate)
+                return;
+
+
+            // ------------------------------------------------------------
+            // STREIFENPLATTE
+            //
+            // Jetzt die ALTEN Streifenachsen mit derselben
+            // Weltrotation drehen wie die Platte.
+            // ------------------------------------------------------------
+
+            Vector3D wantedAcross;
+            Vector3D wantedStack;
+
+            switch (axis)
+            {
+                case 'X':
+                    wantedAcross =
+                        RotateVectorX90(oldAcross);
+
+                    wantedStack =
+                        RotateVectorX90(oldStack);
+                    break;
+
+                case 'Y':
+                    wantedAcross =
+                        RotateVectorY90(oldAcross);
+
+                    wantedStack =
+                        RotateVectorY90(oldStack);
+                    break;
+
+                case 'Z':
+                    wantedAcross =
+                        RotateVectorZ90(oldAcross);
+
+                    wantedStack =
+                        RotateVectorZ90(oldStack);
+                    break;
+
+                default:
+                    return;
+            }
+
+
+            // ------------------------------------------------------------
+            // Prüfen, welche der zwei möglichen Streifenrichtungen
+            // in der NEUEN Plattenebene der echten gedrehten Richtung
+            // entspricht.
+            // ------------------------------------------------------------
+
+            placed.Transform.Rotation.Z = 0;
+
+            GetSlatAxes(
+                placed,
+                out Vector3D across0,
+                out Vector3D stack0,
+                out _);
+
+            double score0 =
+                Math.Abs(
+                    Vector3D.DotProduct(
+                        across0,
+                        wantedAcross))
+                +
+                Math.Abs(
+                    Vector3D.DotProduct(
+                        stack0,
+                        wantedStack));
+
+
+            placed.Transform.Rotation.Z = 90;
+
+            GetSlatAxes(
+                placed,
+                out Vector3D across90,
+                out Vector3D stack90,
+                out _);
+
+            double score90 =
+                Math.Abs(
+                    Vector3D.DotProduct(
+                        across90,
+                        wantedAcross))
+                +
+                Math.Abs(
+                    Vector3D.DotProduct(
+                        stack90,
+                        wantedStack));
+
+
+            placed.Transform.Rotation.Z =
+                score90 > score0
+                    ? 90
+                    : 0;
+        }
         private int GetPlateOrientationFromNormal(
     Vector3 normal,
     bool supportsFrontAndBack)
@@ -8500,16 +8810,11 @@ namespace PlastiCAD
         }
         private void UpdateWindowTitle()
         {
-            if (string.IsNullOrEmpty(currentProjectFileName))
-            {
-                Title = "Neues Projekt - PlastiCAD";
-            }
-            else
-            {
-                Title =
-                    System.IO.Path.GetFileName(currentProjectFileName)
-                    + " - PlastiCAD";
-            }
+            string name = string.IsNullOrEmpty(currentProjectFileName)
+                ? "Neues Projekt"
+                : System.IO.Path.GetFileName(currentProjectFileName);
+
+            Title = (isProjectDirty ? "* " : "") + name + " - PlastiCAD";
         }
 
         private void MainWindow_SizeChanged(
@@ -8587,6 +8892,11 @@ namespace PlastiCAD
 
                     continue;
                 }
+                if (placed.Part is SlatPlate slatPlate)
+                {
+                    DrawSlatPlate2D(placed, slatPlate);
+                    continue;
+                }
 
                 if (placed.Part is Plate plate)
                 {
@@ -8657,7 +8967,192 @@ namespace PlastiCAD
                 }
             }
         }
+        private void GetSlatAxes(
+    PlacedPart placed,
+    out Vector3D across,
+    out Vector3D stack,
+    out Vector3D thick)
+        {
+            switch (placed.PlateOrientation % 3)
+            {
+                case 1:
+                    across = new Vector3D(1, 0, 0);
+                    stack = new Vector3D(0, 0, 1);
+                    thick = new Vector3D(0, 1, 0);
+                    break;
 
+                case 2:
+                    across = new Vector3D(0, 1, 0);
+                    stack = new Vector3D(0, 0, 1);
+                    thick = new Vector3D(1, 0, 0);
+                    break;
+
+                default:
+                    across = new Vector3D(1, 0, 0);
+                    stack = new Vector3D(0, 1, 0);
+                    thick = new Vector3D(0, 0, 1);
+                    break;
+            }
+
+            if (placed.Part is SlatPlate &&
+                Math.Abs(placed.Transform.Rotation.Z) >= 45)
+            {
+                Vector3D oldAcross = across;
+                across = stack;
+                stack = new Vector3D(-oldAcross.X, -oldAcross.Y, -oldAcross.Z);
+            }
+        }
+        private void DrawSlatPlate2D(PlacedPart placed, SlatPlate plate)
+        {
+            bool isCurrentLayer =
+                Math.Abs(placed.Transform.Position.Z - currentPlanZ) < 0.001;
+
+            Brush brush = selectedParts.Contains(placed)
+                ? HighlightBrush(PaksyYellow)
+                : isCurrentLayer
+                    ? PaksyYellow
+                    : new SolidColorBrush(Color.FromArgb(70, 245, 190, 35));
+
+            double halfGrid = Grider.CellSize * Scale / 2.0;
+            Vector3 cellCenter = GetCellCenter(placed);
+
+            double centerX = cellCenter.X + halfGrid;
+            double centerY = cellCenter.Y + halfGrid;
+            if (placed.PlateOrientation % 3 == 1)
+                centerY = cellCenter.Y;
+            if (placed.PlateOrientation % 3 == 2)
+                centerX = cellCenter.X;
+
+            GetSlatAxes(placed, out Vector3D across, out Vector3D stack, out _);
+
+            bool stackAlongX = Math.Abs(stack.X) >= Math.Abs(stack.Y);
+
+            double plateW = plate.Width * Scale;
+            double[] slats = plate.GetSlatWidths();
+
+            double totalPx =
+                (plate.OuterSlatWidth * 2
+                 + plate.InnerSlatWidth * 2
+                 + plate.GapWidth * 3) * Scale;
+
+            double cursor = -totalPx / 2.0;
+            double gapPx = plate.GapWidth * Scale;
+
+            for (int i = 0; i < slats.Length; i++)
+            {
+                double slatPx = slats[i] * Scale;
+
+                double slatW;
+                double slatH;
+
+                if (stackAlongX)
+                {
+                    slatW = slatPx;
+                    slatH = Math.Abs(across.Y) > 0.5
+                        ? plateW
+                        : Math.Max(2.0, plate.Thickness * Scale);
+                }
+                else
+                {
+                    slatW = Math.Abs(across.X) > 0.5
+                        ? plateW
+                        : Math.Max(2.0, plate.Thickness * Scale);
+                    slatH = slatPx;
+                }
+
+                Rectangle slat = new Rectangle
+                {
+                    Width = slatW,
+                    Height = slatH,
+                    Fill = brush,
+                    Stroke = selectedParts.Contains(placed) ? Brushes.White : Brushes.Goldenrod,
+                    StrokeThickness = selectedParts.Contains(placed) ? 2.0 : 0.6
+                };
+
+                if (stackAlongX)
+                {
+                    Canvas.SetLeft(slat, centerX + cursor);
+                    Canvas.SetTop(slat, centerY - slat.Height / 2.0);
+                }
+                else
+                {
+                    Canvas.SetLeft(slat, centerX - slat.Width / 2.0);
+                    Canvas.SetTop(slat, centerY + cursor);
+                }
+
+                BuildArea.Children.Add(slat);
+                cursor += slatPx + gapPx;
+            }
+        }
+
+        private void DrawSlatPlate3D(PlacedPart placed, SlatPlate plate)
+        {
+            double x = (placed.Transform.Position.X / Scale + Grider.CellSize / 2.0) / 100.0;
+            double y = -(placed.Transform.Position.Y / Scale + Grider.CellSize / 2.0) / 100.0;
+            double z = placed.Transform.Position.Z / 100.0;
+
+            Point3D origin;
+            switch (placed.PlateOrientation % 3)
+            {
+                case 1:
+                    origin = new Point3D(
+                        x + (Grider.CellSize / 2.0) / 100.0,
+                        y,
+                        z + (Grider.CellSize / 2.0) / 100.0);
+                    break;
+
+                case 2:
+                    origin = new Point3D(
+                        x,
+                        y - (Grider.CellSize / 2.0) / 100.0,
+                        z + (Grider.CellSize / 2.0) / 100.0);
+                    break;
+
+                default:
+                    origin = new Point3D(
+                        x + (Grider.CellSize / 2.0) / 100.0,
+                        y - (Grider.CellSize / 2.0) / 100.0,
+                        z);
+                    break;
+            }
+
+            GetSlatAxes(placed, out Vector3D across, out Vector3D stack, out Vector3D thick);
+
+            Brush brush = selectedParts.Contains(placed)
+                ? HighlightBrush(PaksyYellow)
+                : PaksyYellow;
+
+            double w = plate.Width / 100.0;
+            double t = plate.Thickness / 100.0;
+            double[] slats = plate.GetSlatWidths();
+
+            double totalMm =
+                plate.OuterSlatWidth * 2
+                + plate.InnerSlatWidth * 2
+                + plate.GapWidth * 3;
+
+            double cursor = -totalMm / 2.0;
+
+            foreach (double slatMm in slats)
+            {
+                double slat = slatMm / 100.0;
+                Point3D center = origin + stack * ((cursor + slatMm / 2.0) / 100.0);
+
+                AddBox(
+                    center,
+                    Math.Abs(across.X) * w + Math.Abs(stack.X) * slat + Math.Abs(thick.X) * t,
+                    Math.Abs(across.Y) * w + Math.Abs(stack.Y) * slat + Math.Abs(thick.Y) * t,
+                    Math.Abs(across.Z) * w + Math.Abs(stack.Z) * slat + Math.Abs(thick.Z) * t,
+                    placed,
+                    brush);
+
+                cursor += slatMm + plate.GapWidth;
+            }
+        }
+
+        private static Vector3D RotateVectorX90(Vector3D v) => new Vector3D(v.X, v.Z, -v.Y);
+        private static Vector3D RotateVectorY90(Vector3D v) => new Vector3D(v.Z, v.Y, -v.X);
+        private static Vector3D RotateVectorZ90(Vector3D v) => new Vector3D(-v.Y, v.X, v.Z);
         private void RedrawScene()
         {
             if (MainTabs.SelectedItem == WorldTab)
@@ -10391,7 +10886,13 @@ namespace PlastiCAD
 
             CreateWindowToolboxPreview(
                 WindowPreviewModel);
-            
+
+            CreateHolePlateToolboxPreview
+                (HolePlatePreviewModel);
+
+            CreateSlatPlateToolboxPreview
+                 (SlatPlatePreviewModel);
+
             CreateWheelToolboxPreview(
                 WheelPreviewModel);
 
@@ -10402,7 +10903,29 @@ namespace PlastiCAD
     EndCapPreviewModel);
 
         }
+        private void CreateHolePlateToolboxPreview(Model3DGroup previewModel)
+        {
+            previewModel.Children.Clear();
 
+            if (!(PartLibrary.Parts.FirstOrDefault(p => p.Name == "Lochplatte") is HolePlate plate))
+                return;
+
+            double s = 0.80;
+            GeometryModel3D model = CreateRectangularPlateWithHole(
+                new Point3D(0, 0, 0),
+                new Vector3D(0, 1, 0),
+                new Vector3D(1, 0, 0),
+                plate.Width / 100.0 * s,
+                plate.Height / 100.0 * s,
+                plate.Thickness / 100.0 * s,
+                (plate.HoleDiameter / 2.0) / 100.0 * s,
+                PaksyRed);
+
+            if (model != null)
+                previewModel.Children.Add(model);
+
+            ApplyToolboxPreviewStartRotation("Lochplatte", previewModel);
+        }
         private void CreateEndCapToolboxPreview(
     Model3DGroup previewModel)
         {
@@ -10918,9 +11441,16 @@ namespace PlastiCAD
                     return BigPlatePreviewModel;
                 case "Fenster":
                     return WindowPreviewModel;
+
+                case "Lochplatte":
+                    return HolePlatePreviewModel;
+
+                case "Streifenplatte":
+                    return SlatPlatePreviewModel;
+
                 case "Rad":
                     return WheelPreviewModel;
-        
+
                 case "Big Rad":
                     return BigWheelPreviewModel;
 
@@ -10931,7 +11461,33 @@ namespace PlastiCAD
             }
         }
 
+        private void CreateSlatPlateToolboxPreview(Model3DGroup previewModel)
+        {
+            previewModel.Children.Clear();
 
+            if (!(PartLibrary.Parts.FirstOrDefault(p => p.Name == "Streifenplatte") is SlatPlate plate))
+                return;
+
+            double s = 0.9;
+            double w = plate.Width / 100.0 * s;
+            double t = Math.Max(plate.Thickness / 100.0 * s, 0.008);
+            double total =
+                (plate.OuterSlatWidth * 2 + plate.InnerSlatWidth * 2 + plate.GapWidth * 3) / 100.0 * s;
+
+            double cursor = -total / 2.0;
+            foreach (double slatMm in plate.GetSlatWidths())
+            {
+                double slat = slatMm / 100.0 * s;
+                Point3D center = new Point3D(0, 0, (cursor + slat / 2.0));
+
+                previewModel.Children.Add(
+                    CreatePreviewBox(center, w, t, slat, PaksyYellow));
+
+                cursor += slat + plate.GapWidth / 100.0 * s;
+            }
+
+            ApplyToolboxPreviewStartRotation("Streifenplatte", previewModel);
+        }
         private Vector3D GetToolboxPreviewStartRotation(
     string partName)
         {
@@ -10967,6 +11523,9 @@ namespace PlastiCAD
                     return new Vector3D(30, 20, 30);
                 case "Fenster":
                     return new Vector3D(30, 20, 30);
+                case "Lochplatte":
+                    return new Vector3D(30, 20, 30);
+
                 case "Rad":
                     return new Vector3D(0, 0, 0);
 
@@ -12343,7 +12902,7 @@ namespace PlastiCAD
             double avgZ = sumZ / count;
 
             // Auf den nächsten echten Rasterpunkt runden
-            double grid = Grider.CellSize;
+            double grid = Grider.StepSize;
 
             double pivotX = Math.Round(avgX / grid) * grid;
             double pivotY = Math.Round(avgY / grid) * grid;
@@ -12356,7 +12915,7 @@ namespace PlastiCAD
         /// <summary>
         /// Findet den Socket eines Bauteils, der dem Mausklick am nächsten liegt.
         /// </summary>
-       
+
         /// <summary>
         /// Gibt die komplementäre Face zurück (Left↔Right, Top↔Bottom, Front↔Back).
         /// </summary>
@@ -12428,242 +12987,242 @@ namespace PlastiCAD
         /// des angeklickten Bauteils.
         /// </summary>
         /// <summary>
-/// Platziert das Toolbox-Bauteil an einem freien Socket
-/// des angeklickten Bauteils.
-/// </summary>
-private void PlaceSelectedPartAtSocket(
-    PlacedPart targetPart,
-    Point3D hitPointInWorld)
-{
-    if (selectedPart == null)
-    {
-        StatusText.Text = "Kein Bauteil in der Toolbox ausgewählt";
-        return;
-    }
-
-    if (targetPart == null)
-        return;
-
-    // --------------------------------------------------------
-    // 1. Alle Sockets des Ziels sammeln (freie bevorzugt)
-    // --------------------------------------------------------
-    List<Socket> candidateSockets = targetPart.Sockets
-        .OrderBy(s => s.IsConnected ? 1 : 0)   // freie zuerst
-        .ToList();
-
-    if (candidateSockets.Count == 0)
-    {
-        StatusText.Text = "Zielbauteil hat keine Sockets";
-        return;
-    }
-
-    // --------------------------------------------------------
-    // 2. Jeden Socket ausprobieren, bis eine freie Position gefunden wird
-    // --------------------------------------------------------
-    PlacedPart bestPlaced = null;
-    Vector3 bestPosition = null;
-    double bestDistance = double.MaxValue;
-
-    foreach (Socket targetSocket in candidateSockets)
-    {
-        // Effektive Face des Ziel-Sockets
-        Face targetWorldFace = FaceHelper.RotateFace(
-            targetSocket.Face,
-            targetPart.Rotation);
-
-        targetWorldFace = FaceHelper.RotateFace3D(
-            targetWorldFace,
-            targetPart.Transform.Rotation);
-
-        Face requiredFace = GetOppositeFace(targetWorldFace);
-
-        // Neues Bauteil vorbereiten
-        PlacedPart candidate = new PlacedPart
+        /// Platziert das Toolbox-Bauteil an einem freien Socket
+        /// des angeklickten Bauteils.
+        /// </summary>
+        private void PlaceSelectedPartAtSocket(
+            PlacedPart targetPart,
+            Point3D hitPointInWorld)
         {
-            Part = selectedPart,
-            Transform = new PlastiCAD.Models.Transform(),
-            Sockets = selectedPart.CreateSockets(),
-            Rotation = 0
-        };
-
-        // Passende Orientierung suchen
-        Socket bestNewSocket = null;
-        Vector3 bestRotation = new Vector3(0, 0, 0);
-        int bestLegacyRotation = 0;
-        bool orientationFound = false;
-
-        foreach (Socket newSocket in candidate.Sockets)
-        {
-            if (TryFindOrientationForSocket(
-                    selectedPart,
-                    newSocket,
-                    requiredFace,
-                    out Vector3 rotation,
-                    out int legacyRot))
+            if (selectedPart == null)
             {
-                bestNewSocket = newSocket;
-                bestRotation = rotation;
-                bestLegacyRotation = legacyRot;
-                orientationFound = true;
-                break;
+                StatusText.Text = "Kein Bauteil in der Toolbox ausgewählt";
+                return;
             }
-        }
 
-        if (!orientationFound || bestNewSocket == null)
-            continue;
+            if (targetPart == null)
+                return;
 
-        candidate.Transform.Rotation = bestRotation;
-        candidate.Rotation = bestLegacyRotation;
+            // --------------------------------------------------------
+            // 1. Alle Sockets des Ziels sammeln (freie bevorzugt)
+            // --------------------------------------------------------
+            List<Socket> candidateSockets = targetPart.Sockets
+                .OrderBy(s => s.IsConnected ? 1 : 0)   // freie zuerst
+                .ToList();
 
-        // Idealposition berechnen
-        double halfCell = Grider.CellSize / 2.0;
-
-        Vector3 targetSocketMm = SnapEngine.GetSocketWorldPosition(
-            targetPart,
-            targetSocket,
-            Scale);
-
-        Vector3 offsetFromCenter = GetSocketOffsetFromCenter(
-            bestNewSocket,
-            candidate);
-
-        double newCenterX = targetSocketMm.X - offsetFromCenter.X;
-        double newCenterY = targetSocketMm.Y - offsetFromCenter.Y;
-        double newCenterZ = targetSocketMm.Z - offsetFromCenter.Z;
-
-        double posX = (newCenterX - halfCell) * Scale;
-        double posY = (newCenterY - halfCell) * Scale;
-        double posZ = newCenterZ;
-
-        // Auf Raster runden
-        double grid = Grider.CellSize * Scale;
-        posX = Math.Round(posX / grid) * grid;
-        posY = Math.Round(posY / grid) * grid;
-        posZ = Math.Round(posZ / Grider.CellSize) * Grider.CellSize;
-
-        Vector3 idealPos = new Vector3(posX, posY, posZ);
-
-        // Ist die Idealposition frei?
-        if (IsPositionFree(idealPos, candidate))
-        {
-            // Abstand zum Klickpunkt (für „nächster freier Socket“)
-            double dist = DistanceToHit(idealPos, hitPointInWorld);
-
-            if (dist < bestDistance)
+            if (candidateSockets.Count == 0)
             {
-                bestDistance = dist;
-                bestPosition = idealPos;
-                bestPlaced = candidate;
-                bestPlaced.Transform.Position = idealPos;
+                StatusText.Text = "Zielbauteil hat keine Sockets";
+                return;
             }
-        }
-    }
 
-    // --------------------------------------------------------
-    // 3. Falls kein Socket eine freie Idealposition hatte:
-    //    räumlich um den besten Kandidaten suchen
-    // --------------------------------------------------------
-    if (bestPlaced == null)
-    {
-        // Nimm den ersten Socket und suche räumlich
-        Socket fallbackSocket = candidateSockets[0];
+            // --------------------------------------------------------
+            // 2. Jeden Socket ausprobieren, bis eine freie Position gefunden wird
+            // --------------------------------------------------------
+            PlacedPart bestPlaced = null;
+            Vector3 bestPosition = null;
+            double bestDistance = double.MaxValue;
 
-        Face targetWorldFace = FaceHelper.RotateFace(
-            fallbackSocket.Face,
-            targetPart.Rotation);
-        targetWorldFace = FaceHelper.RotateFace3D(
-            targetWorldFace,
-            targetPart.Transform.Rotation);
-
-        Face requiredFace = GetOppositeFace(targetWorldFace);
-
-        bestPlaced = new PlacedPart
-        {
-            Part = selectedPart,
-            Transform = new PlastiCAD.Models.Transform(),
-            Sockets = selectedPart.CreateSockets(),
-            Rotation = 0
-        };
-
-        Socket bestNewSocket = null;
-        foreach (Socket newSocket in bestPlaced.Sockets)
-        {
-            if (TryFindOrientationForSocket(
-                    selectedPart,
-                    newSocket,
-                    requiredFace,
-                    out Vector3 rotation,
-                    out int legacyRot))
+            foreach (Socket targetSocket in candidateSockets)
             {
-                bestNewSocket = newSocket;
-                bestPlaced.Transform.Rotation = rotation;
-                bestPlaced.Rotation = legacyRot;
-                break;
+                // Effektive Face des Ziel-Sockets
+                Face targetWorldFace = FaceHelper.RotateFace(
+                    targetSocket.Face,
+                    targetPart.Rotation);
+
+                targetWorldFace = FaceHelper.RotateFace3D(
+                    targetWorldFace,
+                    targetPart.Transform.Rotation);
+
+                Face requiredFace = GetOppositeFace(targetWorldFace);
+
+                // Neues Bauteil vorbereiten
+                PlacedPart candidate = new PlacedPart
+                {
+                    Part = selectedPart,
+                    Transform = new PlastiCAD.Models.Transform(),
+                    Sockets = selectedPart.CreateSockets(),
+                    Rotation = 0
+                };
+
+                // Passende Orientierung suchen
+                Socket bestNewSocket = null;
+                Vector3 bestRotation = new Vector3(0, 0, 0);
+                int bestLegacyRotation = 0;
+                bool orientationFound = false;
+
+                foreach (Socket newSocket in candidate.Sockets)
+                {
+                    if (TryFindOrientationForSocket(
+                            selectedPart,
+                            newSocket,
+                            requiredFace,
+                            out Vector3 rotation,
+                            out int legacyRot))
+                    {
+                        bestNewSocket = newSocket;
+                        bestRotation = rotation;
+                        bestLegacyRotation = legacyRot;
+                        orientationFound = true;
+                        break;
+                    }
+                }
+
+                if (!orientationFound || bestNewSocket == null)
+                    continue;
+
+                candidate.Transform.Rotation = bestRotation;
+                candidate.Rotation = bestLegacyRotation;
+
+                // Idealposition berechnen
+                double halfCell = Grider.CellSize / 2.0;
+
+                Vector3 targetSocketMm = SnapEngine.GetSocketWorldPosition(
+                    targetPart,
+                    targetSocket,
+                    Scale);
+
+                Vector3 offsetFromCenter = GetSocketOffsetFromCenter(
+                    bestNewSocket,
+                    candidate);
+
+                double newCenterX = targetSocketMm.X - offsetFromCenter.X;
+                double newCenterY = targetSocketMm.Y - offsetFromCenter.Y;
+                double newCenterZ = targetSocketMm.Z - offsetFromCenter.Z;
+
+                double posX = (newCenterX - halfCell) * Scale;
+                double posY = (newCenterY - halfCell) * Scale;
+                double posZ = newCenterZ;
+
+                // Auf Raster runden
+                double grid = Grider.StepSize * Scale;
+                posX = Math.Round(posX / grid) * grid;
+                posY = Math.Round(posY / grid) * grid;
+                posZ = Math.Round(posZ / Grider.StepSize) * Grider.StepSize;
+
+                Vector3 idealPos = new Vector3(posX, posY, posZ);
+
+                // Ist die Idealposition frei?
+                if (IsPositionFree(idealPos, candidate))
+                {
+                    // Abstand zum Klickpunkt (für „nächster freier Socket“)
+                    double dist = DistanceToHit(idealPos, hitPointInWorld);
+
+                    if (dist < bestDistance)
+                    {
+                        bestDistance = dist;
+                        bestPosition = idealPos;
+                        bestPlaced = candidate;
+                        bestPlaced.Transform.Position = idealPos;
+                    }
+                }
             }
+
+            // --------------------------------------------------------
+            // 3. Falls kein Socket eine freie Idealposition hatte:
+            //    räumlich um den besten Kandidaten suchen
+            // --------------------------------------------------------
+            if (bestPlaced == null)
+            {
+                // Nimm den ersten Socket und suche räumlich
+                Socket fallbackSocket = candidateSockets[0];
+
+                Face targetWorldFace = FaceHelper.RotateFace(
+                    fallbackSocket.Face,
+                    targetPart.Rotation);
+                targetWorldFace = FaceHelper.RotateFace3D(
+                    targetWorldFace,
+                    targetPart.Transform.Rotation);
+
+                Face requiredFace = GetOppositeFace(targetWorldFace);
+
+                bestPlaced = new PlacedPart
+                {
+                    Part = selectedPart,
+                    Transform = new PlastiCAD.Models.Transform(),
+                    Sockets = selectedPart.CreateSockets(),
+                    Rotation = 0
+                };
+
+                Socket bestNewSocket = null;
+                foreach (Socket newSocket in bestPlaced.Sockets)
+                {
+                    if (TryFindOrientationForSocket(
+                            selectedPart,
+                            newSocket,
+                            requiredFace,
+                            out Vector3 rotation,
+                            out int legacyRot))
+                    {
+                        bestNewSocket = newSocket;
+                        bestPlaced.Transform.Rotation = rotation;
+                        bestPlaced.Rotation = legacyRot;
+                        break;
+                    }
+                }
+
+                if (bestNewSocket == null)
+                {
+                    StatusText.Text = "Keine passende Orientierung gefunden";
+                    return;
+                }
+
+                double halfCell = Grider.CellSize / 2.0;
+                Vector3 targetSocketMm = SnapEngine.GetSocketWorldPosition(
+                    targetPart, fallbackSocket, Scale);
+                Vector3 offset = GetSocketOffsetFromCenter(bestNewSocket, bestPlaced);
+
+                double posX = (targetSocketMm.X - offset.X - halfCell) * Scale;
+                double posY = (targetSocketMm.Y - offset.Y - halfCell) * Scale;
+                double posZ = targetSocketMm.Z - offset.Z;
+
+                double grid = Grider.StepSize * Scale;
+                posX = Math.Round(posX / grid) * grid;
+                posY = Math.Round(posY / grid) * grid;
+                posZ = Math.Round(posZ / Grider.StepSize) * Grider.StepSize;
+
+                bestPosition = FindNearestFreePosition(
+                    new Vector3(posX, posY, posZ),
+                    bestPlaced);
+
+                bestPlaced.Transform.Position = bestPosition;
+            }
+
+            // --------------------------------------------------------
+            // 4. Einfügen
+            // --------------------------------------------------------
+            SaveUndoState();
+
+            assembly.PlacedParts.Add(bestPlaced);
+
+            selectedParts.Clear();
+            selectedParts.Add(bestPlaced);
+
+            int connections = ConnectSelectedParts();
+
+            StatusText.Text = connections > 0
+                ? $"Bauteil eingefügt – {connections} Verbindung(en)"
+                : "Bauteil eingefügt";
+
+            RedrawScene();
         }
 
-        if (bestNewSocket == null)
+        /// <summary>
+        /// Grober Abstand der Rasterposition zum 3D-Klickpunkt
+        /// (nur zur Auswahl des „nächsten“ freien Sockets).
+        /// </summary>
+        private double DistanceToHit(Vector3 position, Point3D hitPoint)
         {
-            StatusText.Text = "Keine passende Orientierung gefunden";
-            return;
+            double wx = (position.X / Scale + Grider.CellSize / 2.0) / 100.0;
+            double wy = -(position.Y / Scale + Grider.CellSize / 2.0) / 100.0;
+            double wz = position.Z / 100.0;
+
+            double dx = wx - hitPoint.X;
+            double dy = wy - hitPoint.Y;
+            double dz = wz - hitPoint.Z;
+
+            return Math.Sqrt(dx * dx + dy * dy + dz * dz);
         }
-
-        double halfCell = Grider.CellSize / 2.0;
-        Vector3 targetSocketMm = SnapEngine.GetSocketWorldPosition(
-            targetPart, fallbackSocket, Scale);
-        Vector3 offset = GetSocketOffsetFromCenter(bestNewSocket, bestPlaced);
-
-        double posX = (targetSocketMm.X - offset.X - halfCell) * Scale;
-        double posY = (targetSocketMm.Y - offset.Y - halfCell) * Scale;
-        double posZ = targetSocketMm.Z - offset.Z;
-
-        double grid = Grider.CellSize * Scale;
-        posX = Math.Round(posX / grid) * grid;
-        posY = Math.Round(posY / grid) * grid;
-        posZ = Math.Round(posZ / Grider.CellSize) * Grider.CellSize;
-
-        bestPosition = FindNearestFreePosition(
-            new Vector3(posX, posY, posZ),
-            bestPlaced);
-
-        bestPlaced.Transform.Position = bestPosition;
-    }
-
-    // --------------------------------------------------------
-    // 4. Einfügen
-    // --------------------------------------------------------
-    SaveUndoState();
-
-    assembly.PlacedParts.Add(bestPlaced);
-
-    selectedParts.Clear();
-    selectedParts.Add(bestPlaced);
-
-    int connections = ConnectSelectedParts();
-
-    StatusText.Text = connections > 0
-        ? $"Bauteil eingefügt – {connections} Verbindung(en)"
-        : "Bauteil eingefügt";
-
-    RedrawScene();
-}
-
-/// <summary>
-/// Grober Abstand der Rasterposition zum 3D-Klickpunkt
-/// (nur zur Auswahl des „nächsten“ freien Sockets).
-/// </summary>
-private double DistanceToHit(Vector3 position, Point3D hitPoint)
-{
-    double wx = (position.X / Scale + Grider.CellSize / 2.0) / 100.0;
-    double wy = -(position.Y / Scale + Grider.CellSize / 2.0) / 100.0;
-    double wz = position.Z / 100.0;
-
-    double dx = wx - hitPoint.X;
-    double dy = wy - hitPoint.Y;
-    double dz = wz - hitPoint.Z;
-
-    return Math.Sqrt(dx * dx + dy * dy + dz * dz);
-}
         /// <summary>
         /// Liefert den Offset eines Sockets vom Zellen-Mittelpunkt
         /// in Modell-mm, unter Berücksichtigung der aktuellen Orientierung.
@@ -12724,8 +13283,8 @@ private double DistanceToHit(Vector3 position, Point3D hitPoint)
             Vector3 idealPosition,
             PlacedPart newPart)
         {
-            double grid = Grider.CellSize * Scale;   // Canvas-Einheiten in X/Y
-            double gridZ = Grider.CellSize;          // Z in mm
+            double grid = Grider.StepSize * Scale;   // Canvas-Einheiten in X/Y
+            double gridZ = Grider.StepSize;          // Z in mm
 
             // Idealposition zuerst prüfen
             if (IsPositionFree(idealPosition, newPart))
@@ -13113,10 +13672,10 @@ private double DistanceToHit(Vector3 position, Point3D hitPoint)
             double posZ = newCenterZ;
 
             // Auf Raster runden
-            double grid = Grider.CellSize * Scale;
+            double grid = Grider.StepSize * Scale;
             posX = Math.Round(posX / grid) * grid;
             posY = Math.Round(posY / grid) * grid;
-            posZ = Math.Round(posZ / Grider.CellSize) * Grider.CellSize;
+            posZ = Math.Round(posZ / Grider.StepSize) * Grider.StepSize;
 
             Vector3 idealPosition = new Vector3(posX, posY, posZ);
 
@@ -13351,8 +13910,7 @@ private double DistanceToHit(Vector3 position, Point3D hitPoint)
             WorldCamera.UpDirection = new Vector3D(0, 1, 0);
         }
 
-
-
+        
 
 
 
@@ -13363,6 +13921,6 @@ private double DistanceToHit(Vector3 position, Point3D hitPoint)
     }
 }
 
-    
 
-    
+
+

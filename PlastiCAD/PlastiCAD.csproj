@@ -9,6 +9,7 @@
     <RootNamespace>PlastiCAD</RootNamespace>
     <AssemblyName>PlastiCAD</AssemblyName>
     <LangVersion>latest</LangVersion>
+<Nullable>disable</Nullable>
   </PropertyGroup>
 
 </Project>

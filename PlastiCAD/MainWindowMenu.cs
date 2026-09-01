@@ -2,6 +2,7 @@
 using PlastiCAD.Models;
 using System;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Media3D;
 
@@ -32,6 +33,7 @@ namespace PlastiCAD
                 "Neues Projekt";
 
             RedrawScene();
+            isProjectDirty = false;
         }
 
         private void MenuOpen_Click(object sender, RoutedEventArgs e) => LoadProject();
@@ -121,22 +123,22 @@ namespace PlastiCAD
         }
 
         private void MenuMoveLeft_Click(object sender, RoutedEventArgs e) =>
-            MoveSelectionFromMenu(-Grider.CellSize * Scale, 0, 0);
+            MoveSelectionFromMenu(-Grider.StepSize * Scale, 0, 0);
 
         private void MenuMoveRight_Click(object sender, RoutedEventArgs e) =>
-            MoveSelectionFromMenu(Grider.CellSize * Scale, 0, 0);
+            MoveSelectionFromMenu(Grider.StepSize * Scale, 0, 0);
 
         private void MenuMoveForward_Click(object sender, RoutedEventArgs e) =>
-            MoveSelectionFromMenu(0, -Grider.CellSize * Scale, 0);
+            MoveSelectionFromMenu(0, -Grider.StepSize * Scale, 0);
 
         private void MenuMoveBackward_Click(object sender, RoutedEventArgs e) =>
-            MoveSelectionFromMenu(0, Grider.CellSize * Scale, 0);
+            MoveSelectionFromMenu(0, Grider.StepSize * Scale, 0);
 
         private void MenuMoveUp_Click(object sender, RoutedEventArgs e) =>
-            MoveSelectionFromMenu(0, 0, Grider.CellSize);
+            MoveSelectionFromMenu(0, 0, Grider.StepSize);
 
         private void MenuMoveDown_Click(object sender, RoutedEventArgs e) =>
-            MoveSelectionFromMenu(0, 0, -Grider.CellSize);
+            MoveSelectionFromMenu(0, 0, -Grider.StepSize);
 
         private void RotateSelectionFromMenu(char axis)
         {
@@ -205,23 +207,73 @@ namespace PlastiCAD
 
         private void MenuLayerUp_Click(object sender, RoutedEventArgs e)
         {
-            currentPlanZ += Grider.CellSize;
+            currentPlanZ += Grider.StepSize;
             StatusText.Text = $"Bearbeitungsebene Z = {currentPlanZ:0.##} mm";
             RedrawScene();
         }
 
         private void MenuLayerDown_Click(object sender, RoutedEventArgs e)
         {
-            currentPlanZ -= Grider.CellSize;
+            currentPlanZ -= Grider.StepSize;
             StatusText.Text = $"Bearbeitungsebene Z = {currentPlanZ:0.##} mm";
             RedrawScene();
         }
 
-
+        
+        private void ClearGrid()
+        {
+            for (int i = BuildArea.Children.Count - 1; i >= 0; i--)
+            {
+                if (BuildArea.Children[i] is FrameworkElement element &&
+                    (element.Tag as string) == "Grid")
+                {
+                    BuildArea.Children.RemoveAt(i);
+                }
+            }
+        }
         private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
         {
             Close();
         }
+
+
+        private void SetHalfGrid(bool enabled)
+        {
+            Grider.UseHalfGrid = enabled;
+
+            if (MenuHalfGrid != null)
+                MenuHalfGrid.IsChecked = enabled;
+
+            if (HalfGridToggle != null)
+                HalfGridToggle.IsChecked = enabled;
+
+            ClearGrid();
+
+            StatusText.Text = enabled
+                ? "Raster: 13,75 mm"
+                : "Raster: 27,5 mm";
+
+            RedrawScene();
+        }
+
+        private void MenuHalfGrid_Click(object sender, RoutedEventArgs e)
+        {
+            SetHalfGrid(MenuHalfGrid.IsChecked == true);
+        }
+
+        private void HalfGridToggle_Click(object sender, RoutedEventArgs e)
+        {
+            SetHalfGrid(HalfGridToggle.IsChecked == true);
+        }
+
+
+
+
+
+
+
+
+
 
     }
 }

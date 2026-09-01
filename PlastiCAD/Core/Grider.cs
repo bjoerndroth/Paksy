@@ -10,7 +10,9 @@ namespace PlastiCAD.Core
     {
         public const double CellSize = 27.5;
 
-        // Kleinste Position, auf der ein Bauteil einrasten kann
-       
+        public static bool UseHalfGrid { get; set; } = false;
+
+        public static double StepSize =>
+            UseHalfGrid ? CellSize / 2.0 : CellSize;
     }
 }
