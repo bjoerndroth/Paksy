@@ -31,6 +31,16 @@ namespace PlastiCAD
 
     public partial class MainWindow : Window
     {
+        private static readonly Brush GizmoXBrush =
+    new SolidColorBrush(Color.FromRgb(255, 56, 56));
+        private static readonly Brush GizmoYBrush =
+            new SolidColorBrush(Color.FromRgb(80, 220, 80));
+        private static readonly Brush GizmoZBrush =
+            new SolidColorBrush(Color.FromRgb(55, 120, 255));
+
+        private ModelVisual3D moveGizmoVisual;
+        private readonly Dictionary<Model3D, char> gizmoAxisMap = new Dictionary<Model3D, char>();
+        private char? worldDragAxis = null;
         private bool isProjectDirty = false;
         private bool isFullscreenAnimation = false;
         private DispatcherTimer fullscreenAnimationTimer;
@@ -3103,6 +3113,30 @@ namespace PlastiCAD
                         windowPlatew);
                 }
             }
+
+
+
+            if (selectedParts.Count > 0)
+            {
+                PlacedPart reference = selectedParts[0];
+                dragGridReferencePart = reference;
+                dragGridPlaneY =
+                    -(
+                        reference.Transform.Position.Y / Scale
+                        + Grider.CellSize / 2.0
+                     ) / 100.0;
+
+                showMoveGrid = true;
+                ShowDragGrid(dragGridPlaneY.Value, reference);
+                ShowMoveGizmo();
+            }
+            else
+            {
+                HideDragGrid();
+                HideMoveGizmo();
+            }
+
+
             if ((isWorldPartDragging || showMoveGrid) &&
     dragGridPlaneY.HasValue &&
     dragGridReferencePart != null)
@@ -5954,31 +5988,37 @@ namespace PlastiCAD
     MouseEventArgs e)
         {
             bool ctrlPressed =
-                Keyboard.Modifiers.HasFlag(
-                    ModifierKeys.Control);
+                Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
 
-            // ------------------------------------------------------------
-            // BAUTEILE VERSCHIEBEN
-            // Ohne Strg + linke Maustaste
-            // ------------------------------------------------------------
             if (isWorldPartDragging &&
                 !ctrlPressed &&
                 e.LeftButton == MouseButtonState.Pressed)
             {
-                Point current =
-                    e.GetPosition(WorldViewport);
+                Point current = e.GetPosition(WorldViewport);
 
-                double mouseDeltaX =
-                    current.X - worldPartDragStartMouse.X;
+                double mouseDeltaX = current.X - worldPartDragStartMouse.X;
+                double mouseDeltaY = current.Y - worldPartDragStartMouse.Y;
 
-                double mouseDeltaY =
-                    current.Y - worldPartDragStartMouse.Y;
-
-                if (Math.Abs(mouseDeltaX) > 3 ||
-                    Math.Abs(mouseDeltaY) > 3)
+                if (worldDragAxis == 'Y')
                 {
-                    worldPartWasDragged = true;
+                    double yMove = mouseDeltaY * 0.35;
+                    double ySnap = Math.Round(yMove / Grider.StepSize) * Grider.StepSize;
+
+                    foreach (PlacedPart placed in selectedParts)
+                    {
+                        if (!worldPartDragStartPositions.TryGetValue(placed, out Vector3 start))
+                            continue;
+
+                        placed.Transform.Position.Y = start.Y + ySnap;
+                    }
+
+                    RedrawScene();
+                    return;
                 }
+
+
+                if (Math.Abs(mouseDeltaX) > 3 || Math.Abs(mouseDeltaY) > 3)
+                    worldPartWasDragged = true;
 
                 if (!worldPartDragStartPoint.HasValue)
                     return;
@@ -5986,13 +6026,8 @@ namespace PlastiCAD
                 if (selectedParts.Count == 0)
                     return;
 
-                // Wir benutzen das erste ausgewählte Bauteil
-                // als Referenz für die X/Z-Arbeitsebene.
-                PlacedPart referencePart =
-                    selectedParts[0];
+                PlacedPart referencePart = selectedParts[0];
 
-                // World-Y entspricht bei unserer Darstellung
-                // der Paksy-Y-Position.
                 double planeY =
                     -(
                         referencePart.Transform.Position.Y / Scale
@@ -6000,113 +6035,75 @@ namespace PlastiCAD
                      ) / 100.0;
 
                 Point3D? currentPoint =
-                    GetMousePointOnWorldPlane(
-                        current,
-                        planeY);
+                    GetMousePointOnWorldPlane(current, planeY);
 
                 if (!currentPoint.HasValue)
                     return;
 
                 Vector3D worldDelta =
-                    currentPoint.Value -
-                    worldPartDragStartPoint.Value;
+                    currentPoint.Value - worldPartDragStartPoint.Value;
 
-                // World-Koordinaten wieder auf Paksy-Koordinaten abbilden.
-
-                // World-Koordinaten wieder auf Paksy-Koordinaten abbilden.
                 const double PartDragSensitivity = 0.6;
 
                 double rawDeltaX =
-                    worldDelta.X
-                    * 100.0
-                    * Scale
-                    * PartDragSensitivity;
+                    worldDelta.X * 100.0 * Scale * PartDragSensitivity;
+
+                double rawDeltaY =
+                    -worldDelta.Y * 100.0 * Scale * PartDragSensitivity;
 
                 double rawDeltaZ =
-                    worldDelta.Z
-                    * 100.0
-                    * PartDragSensitivity;
+                    worldDelta.Z * 100.0 * PartDragSensitivity;
 
+                if (worldDragAxis == 'X') { rawDeltaY = 0; rawDeltaZ = 0; }
+                if (worldDragAxis == 'Y') { rawDeltaX = 0; rawDeltaZ = 0; }
+                if (worldDragAxis == 'Z') { rawDeltaX = 0; rawDeltaY = 0; }
 
-                double gridX =
-                    Grider.StepSize * Scale;
+                if (worldDragAxis == null)
+                    rawDeltaY = 0;
 
-                double gridZ =
-                    Grider.StepSize;
+                double gridX = Grider.StepSize * Scale;
+                double gridY = Grider.StepSize;
+                double gridZ = Grider.StepSize;
 
-                // Rasterung
-                double deltaX =
-                    Math.Round(rawDeltaX / gridX)
-                    * gridX;
-
-                double deltaZ =
-                    Math.Round(rawDeltaZ / gridZ)
-                    * gridZ;
+                double deltaX = Math.Round(rawDeltaX / gridX) * gridX;
+                double deltaY = Math.Round(rawDeltaY / gridY) * gridY;
+                double deltaZ = Math.Round(rawDeltaZ / gridZ) * gridZ;
 
                 foreach (PlacedPart placed in selectedParts)
                 {
-                    if (!worldPartDragStartPositions.TryGetValue(
-                        placed,
-                        out Vector3 start))
-                    {
+                    if (!worldPartDragStartPositions.TryGetValue(placed, out Vector3 start))
                         continue;
-                    }
 
-                    placed.Transform.Position.X =
-                        start.X + deltaX;
-
-                    placed.Transform.Position.Z =
-                        start.Z + deltaZ;
+                    placed.Transform.Position.X = start.X + deltaX;
+                    placed.Transform.Position.Y = start.Y + deltaY;
+                    placed.Transform.Position.Z = start.Z + deltaZ;
                 }
 
                 RedrawScene();
                 return;
             }
 
-            // ------------------------------------------------------------
-            // KAMERA
-            // Nur mit Strg
-            // ------------------------------------------------------------
             if (!ctrlPressed)
                 return;
 
-            if (!isWorldOrbiting &&
-                !isWorldPanning)
-            {
+            if (!isWorldOrbiting && !isWorldPanning)
                 return;
-            }
 
-            Point cameraCurrent =
-                e.GetPosition(WorldViewport);
+            Point cameraCurrent = e.GetPosition(WorldViewport);
 
-            double cameraDeltaX =
-                cameraCurrent.X -
-                worldLastMousePosition.X;
+            double cameraDeltaX = cameraCurrent.X - worldLastMousePosition.X;
+            double cameraDeltaY = cameraCurrent.Y - worldLastMousePosition.Y;
 
-            double cameraDeltaY =
-                cameraCurrent.Y -
-                worldLastMousePosition.Y;
+            worldLastMousePosition = cameraCurrent;
 
-            worldLastMousePosition =
-                cameraCurrent;
-
-            // Kamera drehen
             if (isWorldOrbiting)
             {
-                OrbitWorldCamera(
-                    cameraDeltaX,
-                    cameraDeltaY);
-
+                OrbitWorldCamera(cameraDeltaX, cameraDeltaY);
                 return;
             }
 
-            // Kamera verschieben
             if (isWorldPanning)
-            {
-                PanWorldCamera(
-                    cameraDeltaX,
-                    cameraDeltaY);
-            }
+                PanWorldCamera(cameraDeltaX, cameraDeltaY);
         }
         private void PanWorldCamera(
     double deltaX,
@@ -6237,15 +6234,23 @@ namespace PlastiCAD
 
                 worldMouseDownPart = null;
                 worldPartWasDragged = false;
+                worldDragAxis = null;
 
                 if (hit != null &&
                     hit.ModelHit != null &&
-                    worldPartMap.TryGetValue(hit.ModelHit, out PlacedPart placed))
+                    gizmoAxisMap.TryGetValue(hit.ModelHit, out char axis))
+                {
+                    worldDragAxis = axis;
+                    if (selectedParts.Count > 0)
+                        worldMouseDownPart = selectedParts[0];
+                }
+                else if (hit != null &&
+                         hit.ModelHit != null &&
+                         worldPartMap.TryGetValue(hit.ModelHit, out PlacedPart placed))
                 {
                     lastWorldHitPoint = hit.PointHit;
                     worldMouseDownPart = placed;
                 }
-
                 // --------------------------------------------------------
                 // Nur bei LINKSKLICK: Drag vorbereiten
                 // --------------------------------------------------------
@@ -14046,7 +14051,72 @@ namespace PlastiCAD
             WorldCamera.UpDirection = new Vector3D(0, 1, 0);
         }
 
-        
+        private void AddGizmoArrow(Model3DGroup group, Point3D origin, Vector3D dir, Brush brush, char axis)
+        {
+            dir.Normalize();
+            double length = 0.18;
+            double shaftLen = length * 0.72;
+            double shaftR = 0.008;
+            double coneR = 0.022;
+
+            Point3D shaftEnd = origin + dir * shaftLen;
+            Point3D tip = origin + dir * length;
+
+            GeometryModel3D shaft = CreateLine3DModel(origin, shaftEnd, shaftR, brush);
+            GeometryModel3D cone = CreatePreviewCone(shaftEnd, tip, coneR, brush);
+
+            if (shaft != null)
+            {
+                gizmoAxisMap[shaft] = axis;
+                group.Children.Add(shaft);
+            }
+            if (cone != null)
+            {
+                gizmoAxisMap[cone] = axis;
+                group.Children.Add(cone);
+            }
+        }
+
+        private void ShowMoveGizmo()
+        {
+            HideMoveGizmo();
+            if (selectedParts.Count == 0)
+                return;
+
+            Vector3 pivot = GetRotationPivot(selectedParts);
+            Point3D origin = new Point3D(
+                (pivot.X + Grider.CellSize / 2.0) / 100.0,
+                -(pivot.Y + Grider.CellSize / 2.0) / 100.0,
+                pivot.Z / 100.0);
+
+            Model3DGroup group = new Model3DGroup();
+            AddGizmoArrow(group, origin, new Vector3D(1, 0, 0), GizmoXBrush, 'X');
+            AddGizmoArrow(group, origin, new Vector3D(0, 1, 0), GizmoYBrush, 'Y');
+            AddGizmoArrow(group, origin, new Vector3D(0, 0, 1), GizmoZBrush, 'Z');
+
+            moveGizmoVisual = new ModelVisual3D { Content = group };
+            WorldViewport.Children.Add(moveGizmoVisual);
+        }
+
+        private void HideMoveGizmo()
+        {
+            if (moveGizmoVisual != null)
+            {
+                WorldViewport.Children.Remove(moveGizmoVisual);
+                moveGizmoVisual = null;
+            }
+            gizmoAxisMap.Clear();
+        }
+
+
+
+
+
+
+
+
+
+
 
 
 
