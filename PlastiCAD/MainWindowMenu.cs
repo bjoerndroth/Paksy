@@ -267,8 +267,67 @@ namespace PlastiCAD
         }
 
 
+        private GeometryModel3D CreateQuarterCylinder(
+    Point3D center,
+    Vector3D axis,
+    Vector3D outward,
+    Vector3D normal,
+    double radius,
+    double length,
+    Brush brush)
+        {
+            const int segments = 12;
 
+            if (axis.Length == 0 || outward.Length == 0 || normal.Length == 0)
+                return null;
 
+            axis.Normalize();
+            outward.Normalize();
+            normal.Normalize();
+
+            MeshGeometry3D mesh = new MeshGeometry3D();
+
+            Point3D start = center - axis * (length / 2.0);
+            Point3D end = center + axis * (length / 2.0);
+
+            for (int i = 0; i <= segments; i++)
+            {
+                double a = -Math.PI / 4.0 + (Math.PI / 2.0) * i / segments;
+                // 0°: Tiefpunkt nach innen zum Stab
+                // 90°: aus der Plattenebene
+                Vector3D radial =
+                    -outward * Math.Cos(a)
+                    + normal * Math.Sin(a);
+
+                mesh.Positions.Add(start + radial * radius);
+                mesh.Positions.Add(end + radial * radius);
+            }
+
+            for (int i = 0; i < segments; i++)
+            {
+                int a = i * 2;
+                int b = a + 2;
+                int c = a + 1;
+                int d = b + 1;
+
+                mesh.TriangleIndices.Add(a);
+                mesh.TriangleIndices.Add(b);
+                mesh.TriangleIndices.Add(c);
+
+                mesh.TriangleIndices.Add(c);
+                mesh.TriangleIndices.Add(b);
+                mesh.TriangleIndices.Add(d);
+            }
+
+            DiffuseMaterial material = new DiffuseMaterial(brush);
+
+            return new GeometryModel3D
+            {
+                Geometry = mesh,
+                Material = material,
+                BackMaterial = material
+            };
+        }
 
 
 

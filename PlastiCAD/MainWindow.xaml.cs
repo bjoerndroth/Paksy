@@ -9023,68 +9023,149 @@ namespace PlastiCAD
             if (placed.PlateOrientation % 3 == 2)
                 centerX = cellCenter.X;
 
-            GetSlatAxes(placed, out Vector3D across, out Vector3D stack, out _);
-
-            bool stackAlongX = Math.Abs(stack.X) >= Math.Abs(stack.Y);
+            GetSlatAxes(placed, out Vector3D across, out Vector3D stack, out Vector3D thick);
 
             double plateW = plate.Width * Scale;
+            double rPx = (plate.GutterDiameter / 2.0) * Scale;
             double[] slats = plate.GetSlatWidths();
-
+            double gapPx = plate.GapWidth * Scale;
             double totalPx =
                 (plate.OuterSlatWidth * 2
                  + plate.InnerSlatWidth * 2
                  + plate.GapWidth * 3) * Scale;
 
-            double cursor = -totalPx / 2.0;
-            double gapPx = plate.GapWidth * Scale;
+            bool topView = Math.Abs(thick.Z) >= Math.Abs(stack.Z) &&
+                           Math.Abs(thick.Z) >= Math.Abs(across.Z);
+            bool profileView = Math.Abs(stack.Z) >= Math.Abs(across.Z) &&
+                               Math.Abs(stack.Z) >= Math.Abs(thick.Z);
 
-            for (int i = 0; i < slats.Length; i++)
+            if (topView)
             {
-                double slatPx = slats[i] * Scale;
+                bool stackAlongX = Math.Abs(stack.X) >= Math.Abs(stack.Y);
+                double cursor = -totalPx / 2.0;
 
-                double slatW;
-                double slatH;
+                for (int i = 0; i < slats.Length; i++)
+                {
+                    double slatPx = slats[i] * Scale;
+                    Rectangle slat = new Rectangle
+                    {
+                        Width = stackAlongX ? slatPx : plateW,
+                        Height = stackAlongX ? plateW : slatPx,
+                        Fill = brush
+                    };
+
+                    if (stackAlongX)
+                    {
+                        Canvas.SetLeft(slat, centerX + cursor);
+                        Canvas.SetTop(slat, centerY - slat.Height / 2.0);
+                    }
+                    else
+                    {
+                        Canvas.SetLeft(slat, centerX - slat.Width / 2.0);
+                        Canvas.SetTop(slat, centerY + cursor);
+                    }
+
+                    BuildArea.Children.Add(slat);
+                    cursor += slatPx + gapPx;
+                }
 
                 if (stackAlongX)
                 {
-                    slatW = slatPx;
-                    slatH = Math.Abs(across.Y) > 0.5
-                        ? plateW
-                        : Math.Max(2.0, plate.Thickness * Scale);
+                    AddGutterRect(centerX - totalPx / 2.0, centerY - plateW / 2.0 - rPx, totalPx, rPx, brush);
+                    AddGutterRect(centerX - totalPx / 2.0, centerY + plateW / 2.0, totalPx, rPx, brush);
                 }
                 else
                 {
-                    slatW = Math.Abs(across.X) > 0.5
-                        ? plateW
-                        : Math.Max(2.0, plate.Thickness * Scale);
-                    slatH = slatPx;
+                    AddGutterRect(centerX - plateW / 2.0 - rPx, centerY - totalPx / 2.0, rPx, totalPx, brush);
+                    AddGutterRect(centerX + plateW / 2.0, centerY - totalPx / 2.0, rPx, totalPx, brush);
                 }
 
-                Rectangle slat = new Rectangle
+                return;
+            }
+
+            if (profileView)
+            {
+                // Seitenansicht wie Skizze: Stab + 90°-Rinnen nach außen
+                bool alongX = Math.Abs(across.X) >= Math.Abs(across.Y);
+                double slatW = alongX ? plateW : Math.Max(2.0, plate.Thickness * Scale);
+                double slatH = alongX ? Math.Max(2.0, plate.Thickness * Scale) : plateW;
+
+                Rectangle bar = new Rectangle
                 {
                     Width = slatW,
                     Height = slatH,
-                    Fill = brush,
-                    Stroke = selectedParts.Contains(placed) ? Brushes.White : Brushes.Goldenrod,
-                    StrokeThickness = selectedParts.Contains(placed) ? 2.0 : 0.6
+                    Fill = brush
                 };
+                Canvas.SetLeft(bar, centerX - slatW / 2.0);
+                Canvas.SetTop(bar, centerY - slatH / 2.0);
+                BuildArea.Children.Add(bar);
 
-                if (stackAlongX)
+                if (alongX)
                 {
-                    Canvas.SetLeft(slat, centerX + cursor);
-                    Canvas.SetTop(slat, centerY - slat.Height / 2.0);
+                    AddGutterArc(centerX - plateW / 2.0 - rPx, centerY, rPx, -45, brush);
+                    AddGutterArc(centerX + plateW / 2.0 + rPx, centerY, rPx, 135, brush);
                 }
                 else
                 {
-                    Canvas.SetLeft(slat, centerX - slat.Width / 2.0);
-                    Canvas.SetTop(slat, centerY + cursor);
+                    AddGutterArc(centerX, centerY - plateW / 2.0 - rPx, rPx, 45, brush);
+                    AddGutterArc(centerX, centerY + plateW / 2.0 + rPx, rPx, 225, brush);
                 }
 
-                BuildArea.Children.Add(slat);
-                cursor += slatPx + gapPx;
+                return;
             }
+            // Andere Seite: nur Rechteck, hochkant wenn die Stäbe in Y liegen
+            double longPx = totalPx;
+            double shortPx = Math.Max(2.0, plate.Thickness * Scale + rPx);
+            bool tall = Math.Abs(stack.Y) >= Math.Abs(stack.X);
+
+            Rectangle side = new Rectangle
+            {
+                Width = tall ? shortPx : longPx,
+                Height = tall ? longPx : shortPx,
+                Fill = brush
+            };
+            Canvas.SetLeft(side, centerX - side.Width / 2.0);
+            Canvas.SetTop(side, centerY - side.Height / 2.0);
+            BuildArea.Children.Add(side);
+        }
+        private void AddGutterRect(double left, double top, double width, double height, Brush brush)
+        {
+            Rectangle rect = new Rectangle
+            {
+                Width = width,
+                Height = height,
+                Fill = brush
+            };
+            Canvas.SetLeft(rect, left);
+            Canvas.SetTop(rect, top);
+            BuildArea.Children.Add(rect);
         }
 
+        private void AddGutterArc(double cx, double cy, double rPx, double startDeg, Brush brush)
+        {
+            double a0 = startDeg * Math.PI / 180.0;
+            double a1 = (startDeg + 90.0) * Math.PI / 180.0;
+
+            PathFigure fig = new PathFigure
+            {
+                StartPoint = new Point(cx + rPx * Math.Cos(a0), cy + rPx * Math.Sin(a0)),
+                IsClosed = false
+            };
+            fig.Segments.Add(new ArcSegment
+            {
+                Point = new Point(cx + rPx * Math.Cos(a1), cy + rPx * Math.Sin(a1)),
+                Size = new Size(rPx, rPx),
+                SweepDirection = SweepDirection.Clockwise,
+                IsLargeArc = false
+            });
+
+            BuildArea.Children.Add(new System.Windows.Shapes.Path
+            {
+                Stroke = brush,
+                StrokeThickness = 2.0,
+                Data = new PathGeometry(new[] { fig })
+            });
+        }
         private void DrawSlatPlate3D(PlacedPart placed, SlatPlate plate)
         {
             double x = (placed.Transform.Position.X / Scale + Grider.CellSize / 2.0) / 100.0;
@@ -9124,8 +9205,11 @@ namespace PlastiCAD
 
             double w = plate.Width / 100.0;
             double t = plate.Thickness / 100.0;
-            double[] slats = plate.GetSlatWidths();
+            double radius = (plate.GutterDiameter / 2.0) / 100.0;
+            double attach = radius * Math.Cos(Math.PI / 4.0);
+            double slatLength = w;
 
+            double[] slats = plate.GetSlatWidths();
             double totalMm =
                 plate.OuterSlatWidth * 2
                 + plate.InnerSlatWidth * 2
@@ -9140,13 +9224,38 @@ namespace PlastiCAD
 
                 AddBox(
                     center,
-                    Math.Abs(across.X) * w + Math.Abs(stack.X) * slat + Math.Abs(thick.X) * t,
-                    Math.Abs(across.Y) * w + Math.Abs(stack.Y) * slat + Math.Abs(thick.Y) * t,
-                    Math.Abs(across.Z) * w + Math.Abs(stack.Z) * slat + Math.Abs(thick.Z) * t,
+                    Math.Abs(across.X) * slatLength + Math.Abs(stack.X) * slat + Math.Abs(thick.X) * t,
+                    Math.Abs(across.Y) * slatLength + Math.Abs(stack.Y) * slat + Math.Abs(thick.Y) * t,
+                    Math.Abs(across.Z) * slatLength + Math.Abs(stack.Z) * slat + Math.Abs(thick.Z) * t,
                     placed,
                     brush);
 
                 cursor += slatMm + plate.GapWidth;
+            }
+
+            double gutterLength = totalMm / 100.0;
+            double mid = Math.PI / 4.0;
+            double axisOffset = w / 2.0 + radius;
+
+            for (int side = -1; side <= 1; side += 2)
+            {
+                Vector3D outward = across * side;
+                Point3D gutterCenter = origin + outward * axisOffset;
+
+                GeometryModel3D gutter = CreateQuarterCylinder(
+                    gutterCenter,
+                    stack,
+                    outward,
+                    thick,
+                    radius,
+                    totalMm / 100.0,
+                    brush);
+
+                if (gutter != null)
+                {
+                    worldPartMap[gutter] = placed;
+                    WorldViewport.Children.Add(new ModelVisual3D { Content = gutter });
+                }
             }
         }
 
@@ -11471,19 +11580,45 @@ namespace PlastiCAD
             double s = 0.9;
             double w = plate.Width / 100.0 * s;
             double t = Math.Max(plate.Thickness / 100.0 * s, 0.008);
+            double radius = (plate.GutterDiameter / 2.0) / 100.0 * s;
             double total =
-                (plate.OuterSlatWidth * 2 + plate.InnerSlatWidth * 2 + plate.GapWidth * 3) / 100.0 * s;
+                (plate.OuterSlatWidth * 2
+                 + plate.InnerSlatWidth * 2
+                 + plate.GapWidth * 3) / 100.0 * s;
+
+            Vector3D across = new Vector3D(1, 0, 0);
+            Vector3D stack = new Vector3D(0, 0, 1);
+            Vector3D thick = new Vector3D(0, 1, 0);
 
             double cursor = -total / 2.0;
             foreach (double slatMm in plate.GetSlatWidths())
             {
                 double slat = slatMm / 100.0 * s;
-                Point3D center = new Point3D(0, 0, (cursor + slat / 2.0));
+                Point3D center = new Point3D(0, 0, cursor + slat / 2.0);
 
                 previewModel.Children.Add(
                     CreatePreviewBox(center, w, t, slat, PaksyYellow));
 
                 cursor += slat + plate.GapWidth / 100.0 * s;
+            }
+
+            double axisOffset = w / 2.0 + radius;
+            for (int side = -1; side <= 1; side += 2)
+            {
+                Vector3D outward = across * side;
+                Point3D gutterCenter = new Point3D(outward.X * axisOffset, 0, 0);
+
+                GeometryModel3D gutter = CreateQuarterCylinder(
+                    gutterCenter,
+                    stack,
+                    outward,
+                    thick,
+                    radius,
+                    total,
+                    PaksyYellow);
+
+                if (gutter != null)
+                    previewModel.Children.Add(gutter);
             }
 
             ApplyToolboxPreviewStartRotation("Streifenplatte", previewModel);
@@ -11525,7 +11660,8 @@ namespace PlastiCAD
                     return new Vector3D(30, 20, 30);
                 case "Lochplatte":
                     return new Vector3D(30, 20, 30);
-
+                case "Streifenplatte":
+                    return new Vector3D(30, 20, 30);
                 case "Rad":
                     return new Vector3D(0, 0, 0);
 
