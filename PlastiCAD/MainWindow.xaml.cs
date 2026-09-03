@@ -5999,31 +5999,53 @@ namespace PlastiCAD
                 double mouseDeltaX = current.X - worldPartDragStartMouse.X;
                 double mouseDeltaY = current.Y - worldPartDragStartMouse.Y;
 
-                if (worldDragAxis == 'Y')
+                if (Math.Abs(mouseDeltaX) > 3 || Math.Abs(mouseDeltaY) > 3)
+                    worldPartWasDragged = true;
+
+                if (selectedParts.Count == 0)
+                    return;
+
+                if (worldDragAxis == 'X' || worldDragAxis == 'Y' || worldDragAxis == 'Z')
                 {
-                    double yMove = mouseDeltaY * 0.35;
-                    double ySnap = Math.Round(yMove / Grider.StepSize) * Grider.StepSize;
+                    if (!worldPartDragStartPositions.TryGetValue(selectedParts[0], out Vector3 refStart))
+                        return;
+
+                    Vector3D axis =
+                        worldDragAxis == 'X' ? new Vector3D(1, 0, 0) :
+                        worldDragAxis == 'Y' ? new Vector3D(0, 1, 0) :
+                                               new Vector3D(0, 0, 1);
+
+                    Point3D origin = WorldFromPaksy(refStart);
+                    Point a = WorldToScreen(origin);
+                    Point b = WorldToScreen(origin + axis);
+
+                    Vector screen = b - a;
+                    double len = screen.Length;
+                    if (len < 1)
+                        return;
+
+                    double pixels = (mouseDeltaX * screen.X + mouseDeltaY * screen.Y) / len;
+                    double move = pixels * 0.35;
+                    double snap = Math.Round(move / Grider.StepSize) * Grider.StepSize;
 
                     foreach (PlacedPart placed in selectedParts)
                     {
                         if (!worldPartDragStartPositions.TryGetValue(placed, out Vector3 start))
                             continue;
 
-                        placed.Transform.Position.Y = start.Y + ySnap;
+                        if (worldDragAxis == 'X')
+                            placed.Transform.Position.X = start.X + snap * Scale;
+                        else if (worldDragAxis == 'Y')
+                            placed.Transform.Position.Y = start.Y - snap * Scale;
+                        else
+                            placed.Transform.Position.Z = start.Z + snap;
                     }
 
                     RedrawScene();
                     return;
                 }
 
-
-                if (Math.Abs(mouseDeltaX) > 3 || Math.Abs(mouseDeltaY) > 3)
-                    worldPartWasDragged = true;
-
                 if (!worldPartDragStartPoint.HasValue)
-                    return;
-
-                if (selectedParts.Count == 0)
                     return;
 
                 PlacedPart referencePart = selectedParts[0];
@@ -6047,26 +6069,13 @@ namespace PlastiCAD
 
                 double rawDeltaX =
                     worldDelta.X * 100.0 * Scale * PartDragSensitivity;
-
-                double rawDeltaY =
-                    -worldDelta.Y * 100.0 * Scale * PartDragSensitivity;
-
                 double rawDeltaZ =
                     worldDelta.Z * 100.0 * PartDragSensitivity;
 
-                if (worldDragAxis == 'X') { rawDeltaY = 0; rawDeltaZ = 0; }
-                if (worldDragAxis == 'Y') { rawDeltaX = 0; rawDeltaZ = 0; }
-                if (worldDragAxis == 'Z') { rawDeltaX = 0; rawDeltaY = 0; }
-
-                if (worldDragAxis == null)
-                    rawDeltaY = 0;
-
                 double gridX = Grider.StepSize * Scale;
-                double gridY = Grider.StepSize;
                 double gridZ = Grider.StepSize;
 
                 double deltaX = Math.Round(rawDeltaX / gridX) * gridX;
-                double deltaY = Math.Round(rawDeltaY / gridY) * gridY;
                 double deltaZ = Math.Round(rawDeltaZ / gridZ) * gridZ;
 
                 foreach (PlacedPart placed in selectedParts)
@@ -6075,7 +6084,6 @@ namespace PlastiCAD
                         continue;
 
                     placed.Transform.Position.X = start.X + deltaX;
-                    placed.Transform.Position.Y = start.Y + deltaY;
                     placed.Transform.Position.Z = start.Z + deltaZ;
                 }
 
@@ -6090,10 +6098,8 @@ namespace PlastiCAD
                 return;
 
             Point cameraCurrent = e.GetPosition(WorldViewport);
-
             double cameraDeltaX = cameraCurrent.X - worldLastMousePosition.X;
             double cameraDeltaY = cameraCurrent.Y - worldLastMousePosition.Y;
-
             worldLastMousePosition = cameraCurrent;
 
             if (isWorldOrbiting)
@@ -6104,6 +6110,37 @@ namespace PlastiCAD
 
             if (isWorldPanning)
                 PanWorldCamera(cameraDeltaX, cameraDeltaY);
+        }
+
+        private Point3D WorldFromPaksy(Vector3 pos)
+        {
+            return new Point3D(
+                (pos.X / Scale + Grider.CellSize / 2.0) / 100.0,
+                -(pos.Y / Scale + Grider.CellSize / 2.0) / 100.0,
+                pos.Z / 100.0);
+        }
+
+        private Point WorldToScreen(Point3D point)
+        {
+            double w = Math.Max(WorldViewport.ActualWidth, 1);
+            double h = Math.Max(WorldViewport.ActualHeight, 1);
+
+            Vector3D look = WorldCamera.LookDirection;
+            look.Normalize();
+            Vector3D up = WorldCamera.UpDirection;
+            up.Normalize();
+            Vector3D right = Vector3D.CrossProduct(look, up);
+            right.Normalize();
+            up = Vector3D.CrossProduct(right, look);
+
+            Vector3D v = point - WorldCamera.Position;
+            double depth = Math.Max(Vector3D.DotProduct(v, look), 0.01);
+            double fov = WorldCamera.FieldOfView * Math.PI / 180.0;
+            double scale = (h / 2.0) / Math.Tan(fov / 2.0);
+
+            return new Point(
+                w / 2.0 + Vector3D.DotProduct(v, right) * scale / depth,
+                h / 2.0 - Vector3D.DotProduct(v, up) * scale / depth);
         }
         private void PanWorldCamera(
     double deltaX,
