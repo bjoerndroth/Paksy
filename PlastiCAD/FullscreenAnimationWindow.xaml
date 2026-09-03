@@ -7,10 +7,12 @@
         ResizeMode="NoResize"
         Topmost="True"
         Background="White"
-        Cursor="None"
         KeyDown="Window_KeyDown"
         MouseDown="Window_MouseDown"
-        MouseWheel="Window_MouseWheel">
+        MouseWheel="Window_MouseWheel"
+MouseUp="Window_MouseUp"
+MouseMove="Window_MouseMove"
+Cursor="Arrow">
 
     <Grid>
         <Viewport3D x:Name="AnimationViewport">

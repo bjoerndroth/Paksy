@@ -1,4 +1,5 @@
-﻿using PlastiCAD.Core;
+﻿using Microsoft.Win32;
+using PlastiCAD.Core;
 using PlastiCAD.Models;
 using System;
 using System.Windows;
@@ -267,6 +268,9 @@ namespace PlastiCAD
         }
 
 
+
+
+
         private GeometryModel3D CreateQuarterCylinder(
     Point3D center,
     Vector3D axis,
@@ -328,6 +332,246 @@ namespace PlastiCAD
                 BackMaterial = material
             };
         }
+
+        private void MenuExportX3d_Click(object sender, RoutedEventArgs e)
+        {
+            SaveFileDialog dialog = new SaveFileDialog
+            {
+                Title = "Als X3D exportieren",
+                Filter = "X3D (*.x3d)|*.x3d",
+                DefaultExt = ".x3d",
+                FileName = string.IsNullOrEmpty(currentProjectFileName)
+                    ? "PlastiCAD.x3d"
+                    : System.IO.Path.GetFileNameWithoutExtension(currentProjectFileName) + ".x3d"
+            };
+
+            if (dialog.ShowDialog() != true)
+                return;
+
+            try
+            {
+                System.IO.File.WriteAllText(dialog.FileName, BuildX3d(), System.Text.Encoding.UTF8);
+                StatusText.Text = "X3D exportiert: " + dialog.FileName;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "X3D-Export", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        private void AppendX3dSphere(System.Text.StringBuilder sb, Point3D c, double r, string color)
+        {
+            var n = System.Globalization.CultureInfo.InvariantCulture;
+            sb.AppendLine($"<Transform translation='{c.X.ToString("0.###", n)} {c.Y.ToString("0.###", n)} {c.Z.ToString("0.###", n)}'>");
+            sb.AppendLine("  <Shape><Appearance><Material diffuseColor='" + color + "'/></Appearance>");
+            sb.AppendLine($"    <Sphere radius='{r.ToString("0.###", n)}'/>");
+            sb.AppendLine("  </Shape></Transform>");
+        }
+
+        private void AppendX3dBox(System.Text.StringBuilder sb, Point3D c, double sx, double sy, double sz, string color, double transparency = 0)
+        {
+            var n = System.Globalization.CultureInfo.InvariantCulture;
+            string extra = transparency > 0 ? $" transparency='{transparency.ToString("0.##", n)}'" : "";
+            sb.AppendLine($"<Transform translation='{c.X.ToString("0.###", n)} {c.Y.ToString("0.###", n)} {c.Z.ToString("0.###", n)}'>");
+            sb.AppendLine($"  <Shape><Appearance><Material diffuseColor='{color}'{extra}/></Appearance>");
+            sb.AppendLine($"    <Box size='{sx.ToString("0.###", n)} {sy.ToString("0.###", n)} {sz.ToString("0.###", n)}'/>");
+            sb.AppendLine("  </Shape></Transform>");
+        }
+
+        private void AppendX3dCylinder(System.Text.StringBuilder sb, Point3D start, Point3D end, double radius, string color)
+        {
+            var n = System.Globalization.CultureInfo.InvariantCulture;
+            Vector3D dir = end - start;
+            double height = dir.Length;
+            if (height < 0.0001) return;
+            dir.Normalize();
+
+            Point3D mid = new Point3D((start.X + end.X) / 2, (start.Y + end.Y) / 2, (start.Z + end.Z) / 2);
+            Vector3D from = new Vector3D(0, 1, 0);
+            Vector3D axis = Vector3D.CrossProduct(from, dir);
+            double angle;
+            if (axis.Length < 0.0001)
+            {
+                axis = new Vector3D(1, 0, 0);
+                angle = Vector3D.DotProduct(from, dir) < 0 ? Math.PI : 0;
+            }
+            else
+            {
+                axis.Normalize();
+                angle = Math.Acos(Math.Max(-1, Math.Min(1, Vector3D.DotProduct(from, dir))));
+            }
+
+            sb.AppendLine($"<Transform translation='{mid.X.ToString("0.###", n)} {mid.Y.ToString("0.###", n)} {mid.Z.ToString("0.###", n)}' rotation='{axis.X.ToString("0.####", n)} {axis.Y.ToString("0.####", n)} {axis.Z.ToString("0.####", n)} {angle.ToString("0.####", n)}'>");
+            sb.AppendLine($"  <Shape><Appearance><Material diffuseColor='{color}'/></Appearance>");
+            sb.AppendLine($"    <Cylinder radius='{radius.ToString("0.###", n)}' height='{height.ToString("0.###", n)}'/>");
+            sb.AppendLine("  </Shape></Transform>");
+        }
+
+        private string BuildX3d()
+        {
+            var sb = new System.Text.StringBuilder();
+            var n = System.Globalization.CultureInfo.InvariantCulture;
+
+            sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+            sb.AppendLine("<X3D profile=\"Interchange\" version=\"3.3\">");
+            sb.AppendLine("<Scene>");
+            sb.AppendLine("<WorldInfo title=\"PlastiCAD\"/>");
+            sb.AppendLine("<Background skyColor=\"0.85 0.85 0.85\"/>");
+            sb.AppendLine("<NavigationInfo type='\"EXAMINE\" \"WALK\"' headlight=\"true\"/>");
+
+            foreach (PlacedPart placed in assembly.PlacedParts)
+            {
+                double x = (placed.Transform.Position.X / Scale + Grider.CellSize / 2.0) / 100.0;
+                double y = -(placed.Transform.Position.Y / Scale + Grider.CellSize / 2.0) / 100.0;
+                double z = placed.Transform.Position.Z / 100.0;
+                Point3D center = new Point3D(x, y, z);
+                string color = VrmlColor(placed);
+
+                if (placed.Part is StructuralPart part)
+                {
+                    double radius = part.OuterDiameter / 200.0;
+                    double armLength = (part.Length / 2.0) / 100.0;
+
+                    if (part.DrawCenter)
+                        AppendX3dSphere(sb, center, radius, color);
+
+                    IEnumerable<Socket> sockets =
+                        (placed.Sockets != null && placed.Sockets.Count > 0)
+                            ? placed.Sockets
+                            : part.CreateSockets();
+
+                    foreach (Socket socket in sockets)
+                    {
+                        Face rotatedFace = FaceHelper.RotateFace(socket.Face, placed.Rotation);
+                        Vector3 direction = GetDirectionFromFace(rotatedFace);
+                        direction = placed.Transform.ApplyRotation(direction);
+
+                        Point3D end = new Point3D(
+                            center.X + direction.X * armLength,
+                            center.Y - direction.Y * armLength,
+                            center.Z + direction.Z * armLength);
+
+                        AppendX3dCylinder(sb, center, end, radius, color);
+                    }
+
+                    continue;
+                }
+
+                if (placed.Part is WindowPlate window)
+                {
+                    GetPlateWorldSize(placed, window, out double sx, out double sy, out double sz);
+                    AppendX3dBox(sb, GetPlateWorldCenter(placed, center), sx, sy, sz, "0.55 0.82 0.95", 0.65);
+                    continue;
+                }
+
+                if (placed.Part is Plate plate)
+                {
+                    GetPlateWorldSize(placed, plate, out double sx, out double sy, out double sz);
+                    AppendX3dBox(sb, GetPlateWorldCenter(placed, center), sx, sy, sz, color);
+                    continue;
+                }
+
+                if (placed.Part is EndCap cap)
+                {
+                    Face capFace = FaceHelper.RotateFace(Face.Right, placed.Rotation);
+                    Vector3 capDir = GetDirectionFromFace(capFace);
+                    capDir = placed.Transform.ApplyRotation(capDir);
+                    double half = cap.Length / 200.0;
+                    double armEnd = (Grider.CellSize / 2.0) / 100.0;
+                    Point3D capCenter = new Point3D(
+                        center.X + capDir.X * armEnd,
+                        center.Y - capDir.Y * armEnd,
+                        center.Z + capDir.Z * armEnd);
+                    Point3D a = new Point3D(capCenter.X - capDir.X * half, capCenter.Y + capDir.Y * half, capCenter.Z - capDir.Z * half);
+                    Point3D b = new Point3D(capCenter.X + capDir.X * half, capCenter.Y - capDir.Y * half, capCenter.Z + capDir.Z * half);
+                    AppendX3dCylinder(sb, a, b, cap.OuterDiameter / 200.0, color);
+                    continue;
+                }
+
+                if (placed.Part is Wheel || placed.Part is BigWheel)
+                {
+                    Face face = FaceHelper.RotateFace(Face.Right, placed.Rotation);
+                    Vector3 direction = GetDirectionFromFace(face);
+                    direction = placed.Transform.ApplyRotation(direction);
+                    Vector3D axle = new Vector3D(direction.X, -direction.Y, direction.Z);
+
+                    double armEnd = (Grider.CellSize / 2.0) / 100.0;
+                    double outerR, rimR, holeR, tireHalf, rimHalf;
+
+                    if (placed.Part is BigWheel big)
+                    {
+                        outerR = big.OuterDiameter / 200.0;
+                        rimR = big.RimDiameter / 200.0;
+                        holeR = big.HoleDiameter / 200.0;
+                        tireHalf = big.TireWidth / 200.0;
+                        rimHalf = Math.Max(big.RimBodyThickness / 200.0, tireHalf + 0.008);
+                    }
+                    else
+                    {
+                        Wheel wheel = (Wheel)placed.Part;
+                        outerR = wheel.OuterDiameter / 200.0;
+                        rimR = wheel.RimDiameter / 200.0;
+                        holeR = Math.Max(outerR * 0.12, 0.02);
+                        tireHalf = wheel.Width / 200.0;
+                        rimHalf = tireHalf + 0.008;
+                    }
+
+                    double dist = armEnd - tireHalf;
+                    Point3D wc = new Point3D(
+                        center.X + direction.X * dist,
+                        center.Y - direction.Y * dist,
+                        center.Z + direction.Z * dist);
+
+                    AppendX3dRing(sb, wc, axle, outerR, rimR, tireHalf, "0.08 0.08 0.08");
+                    AppendX3dRing(sb, wc, axle, rimR, holeR, rimHalf, "0.92 0.18 0.18");
+
+                    Vector3D nrm = axle;
+                    nrm.Normalize();
+                    Vector3D s1 = Math.Abs(nrm.Y) < 0.9 ? new Vector3D(0, 1, 0) : new Vector3D(1, 0, 0);
+                    Vector3D side1 = Vector3D.CrossProduct(nrm, s1);
+                    side1.Normalize();
+                    Vector3D side2 = Vector3D.CrossProduct(nrm, side1);
+                    side2.Normalize();
+
+                    double holeDist = (rimR + holeR) * 0.55;
+                    double holeRad = Math.Max((rimR - holeR) * 0.18, 0.012);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        double ang = i * Math.PI / 2.0;
+                        Vector3D radial = side1 * Math.Cos(ang) + side2 * Math.Sin(ang);
+                        Point3D hc = new Point3D(
+                            wc.X + radial.X * holeDist,
+                            wc.Y + radial.Y * holeDist,
+                            wc.Z + radial.Z * holeDist);
+                        AppendX3dCylinder(sb,
+                            new Point3D(hc.X - nrm.X * rimHalf * 1.2, hc.Y - nrm.Y * rimHalf * 1.2, hc.Z - nrm.Z * rimHalf * 1.2),
+                            new Point3D(hc.X + nrm.X * rimHalf * 1.2, hc.Y + nrm.Y * rimHalf * 1.2, hc.Z + nrm.Z * rimHalf * 1.2),
+                            holeRad, "0.08 0.08 0.08");
+                    }
+
+                    AppendX3dCylinder(sb,
+                        new Point3D(wc.X - nrm.X * rimHalf, wc.Y - nrm.Y * rimHalf, wc.Z - nrm.Z * rimHalf),
+                        new Point3D(wc.X + nrm.X * rimHalf, wc.Y + nrm.Y * rimHalf, wc.Z + nrm.Z * rimHalf),
+                        holeR * 1.4, "0.96 0.75 0.14");
+
+                    continue;
+                }
+
+                double cell = Grider.CellSize / 100.0;
+                AppendX3dBox(sb, center, cell, cell, cell, color);
+            }
+
+            sb.AppendLine("</Scene>");
+            sb.AppendLine("</X3D>");
+            return sb.ToString();
+        }
+
+
+
+
+
+
+
+
 
 
 

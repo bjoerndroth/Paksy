@@ -14199,6 +14199,250 @@ namespace PlastiCAD
         }
 
 
+        private void MenuExportVrml_Click(object sender, RoutedEventArgs e)
+        {
+            SaveFileDialog dialog = new SaveFileDialog
+            {
+                Title = "Als VRML exportieren",
+                Filter = "VRML (*.wrl)|*.wrl",
+                DefaultExt = ".wrl",
+                FileName = string.IsNullOrEmpty(currentProjectFileName)
+                    ? "PlastiCAD.wrl"
+                    : System.IO.Path.GetFileNameWithoutExtension(currentProjectFileName) + ".wrl"
+            };
+
+            if (dialog.ShowDialog() != true)
+                return;
+
+            try
+            {
+                File.WriteAllText(dialog.FileName, BuildVrml(), System.Text.Encoding.UTF8);
+                StatusText.Text = "VRML exportiert: " + dialog.FileName;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "VRML-Export", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private string BuildVrml()
+        {
+            var sb = new System.Text.StringBuilder();
+            var n = System.Globalization.CultureInfo.InvariantCulture;
+
+            sb.AppendLine("#VRML V2.0 utf8");
+            sb.AppendLine("WorldInfo { title \"PlastiCAD\" }");
+            sb.AppendLine("NavigationInfo { type [\"EXAMINE\" \"WALK\"] headlight TRUE }");
+            sb.AppendLine("Background { skyColor [ 0.85 0.85 0.85 ] }");
+            sb.AppendLine("Group { children [");
+
+            foreach (PlacedPart placed in assembly.PlacedParts)
+            {
+                double x = (placed.Transform.Position.X / Scale + Grider.CellSize / 2.0) / 100.0;
+                double y = -(placed.Transform.Position.Y / Scale + Grider.CellSize / 2.0) / 100.0;
+                double z = placed.Transform.Position.Z / 100.0;
+                Point3D center = new Point3D(x, y, z);
+                string color = VrmlColor(placed);
+
+                if (placed.Part is StructuralPart part)
+                {
+                    double radius = part.OuterDiameter / 200.0;
+                    double armLength = (part.Length / 2.0) / 100.0;
+
+                    if (part.DrawCenter)
+                        AppendVrmlSphere(sb, center, radius, color);
+
+                    IEnumerable<Socket> sockets =
+                        (placed.Sockets != null && placed.Sockets.Count > 0)
+                            ? placed.Sockets
+                            : part.CreateSockets();
+
+                    foreach (Socket socket in sockets)
+                    {
+                        Face rotatedFace = FaceHelper.RotateFace(socket.Face, placed.Rotation);
+                        Vector3 direction = GetDirectionFromFace(rotatedFace);
+                        direction = placed.Transform.ApplyRotation(direction);
+
+                        Point3D end = new Point3D(
+                            center.X + direction.X * armLength,
+                            center.Y - direction.Y * armLength,
+                            center.Z + direction.Z * armLength);
+
+                        AppendVrmlCylinder(sb, center, end, radius, color);
+                    }
+
+                    continue;
+                }
+
+                if (placed.Part is WindowPlate window)
+                {
+                    GetPlateWorldSize(placed, window, out double sx, out double sy, out double sz);
+                    Point3D plateCenter = GetPlateWorldCenter(placed, center);
+                    AppendVrmlBox(sb, plateCenter, sx, sy, sz, "0.55 0.82 0.95", 0.65);
+                    continue;
+                }
+
+                if (placed.Part is Plate plate)
+                {
+                    GetPlateWorldSize(placed, plate, out double sx, out double sy, out double sz);
+                    Point3D plateCenter = GetPlateWorldCenter(placed, center);
+                    AppendVrmlBox(sb, plateCenter, sx, sy, sz, color);
+                    continue;
+                }
+
+                if (placed.Part is Wheel || placed.Part is BigWheel)
+                {
+                    Face face = FaceHelper.RotateFace(Face.Right, placed.Rotation);
+                    Vector3 direction = GetDirectionFromFace(face);
+                    direction = placed.Transform.ApplyRotation(direction);
+                    Vector3D axle = new Vector3D(direction.X, -direction.Y, direction.Z);
+
+                    double armEnd = (Grider.CellSize / 2.0) / 100.0;
+                    double outerR, rimR, holeR, tireHalf, rimHalf;
+
+                    if (placed.Part is BigWheel big)
+                    {
+                        outerR = big.OuterDiameter / 200.0;
+                        rimR = big.RimDiameter / 200.0;
+                        holeR = big.HoleDiameter / 200.0;
+                        tireHalf = big.TireWidth / 200.0;
+                        rimHalf = Math.Max(big.RimBodyThickness / 200.0, tireHalf + 0.008);
+                    }
+                    else
+                    {
+                        Wheel wheel = (Wheel)placed.Part;
+                        outerR = wheel.OuterDiameter / 200.0;
+                        rimR = wheel.RimDiameter / 200.0;
+                        holeR = Math.Max(outerR * 0.12, 0.02);
+                        tireHalf = wheel.Width / 200.0;
+                        rimHalf = tireHalf + 0.008;
+                    }
+
+                    double dist = armEnd - tireHalf;
+                    Point3D wc = new Point3D(
+                        center.X + direction.X * dist,
+                        center.Y - direction.Y * dist,
+                        center.Z + direction.Z * dist);
+
+                    AppendVrmlRing(sb, wc, axle, outerR, rimR, tireHalf, "0.08 0.08 0.08");
+                    AppendVrmlRing(sb, wc, axle, rimR, holeR, rimHalf, "0.92 0.18 0.18");
+
+                    Vector3D nrm = axle;
+                    nrm.Normalize();
+                    Vector3D s1 = Math.Abs(nrm.Y) < 0.9 ? new Vector3D(0, 1, 0) : new Vector3D(1, 0, 0);
+                    Vector3D side1 = Vector3D.CrossProduct(nrm, s1);
+                    side1.Normalize();
+                    Vector3D side2 = Vector3D.CrossProduct(nrm, side1);
+                    side2.Normalize();
+
+                    double holeDist = (rimR + holeR) * 0.55;
+                    double holeRad = Math.Max((rimR - holeR) * 0.18, 0.012);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        double a = i * Math.PI / 2.0;
+                        Vector3D radial = side1 * Math.Cos(a) + side2 * Math.Sin(a);
+                        Point3D hc = new Point3D(
+                            wc.X + radial.X * holeDist,
+                            wc.Y + radial.Y * holeDist,
+                            wc.Z + radial.Z * holeDist);
+                        Point3D h0 = new Point3D(
+                            hc.X - nrm.X * rimHalf * 1.2,
+                            hc.Y - nrm.Y * rimHalf * 1.2,
+                            hc.Z - nrm.Z * rimHalf * 1.2);
+                        Point3D h1 = new Point3D(
+                            hc.X + nrm.X * rimHalf * 1.2,
+                            hc.Y + nrm.Y * rimHalf * 1.2,
+                            hc.Z + nrm.Z * rimHalf * 1.2);
+                        AppendVrmlCylinder(sb, h0, h1, holeRad, "0.08 0.08 0.08");
+                    }
+
+                    AppendVrmlCylinder(sb,
+                        new Point3D(wc.X - nrm.X * rimHalf, wc.Y - nrm.Y * rimHalf, wc.Z - nrm.Z * rimHalf),
+                        new Point3D(wc.X + nrm.X * rimHalf, wc.Y + nrm.Y * rimHalf, wc.Z + nrm.Z * rimHalf),
+                        holeR * 1.4,
+                        "0.96 0.75 0.14");
+
+                    continue;
+                }
+
+
+
+                double cell = Grider.CellSize / 100.0;
+                AppendVrmlBox(sb, center, cell, cell, cell, color);
+            }
+
+            sb.AppendLine("] }");
+            return sb.ToString();
+        }
+
+
+
+        private void AppendVrmlRing(
+    System.Text.StringBuilder sb,
+    Point3D center,
+    Vector3D axis,
+    double outerR,
+    double innerR,
+    double halfW,
+    string color)
+        {
+            var n = System.Globalization.CultureInfo.InvariantCulture;
+            if (axis.Length < 0.0001)
+                return;
+            axis.Normalize();
+
+            Vector3D from = new Vector3D(0, 0, 1);
+            Vector3D rotAxis = Vector3D.CrossProduct(from, axis);
+            double angle;
+            if (rotAxis.Length < 0.0001)
+            {
+                rotAxis = new Vector3D(1, 0, 0);
+                angle = Vector3D.DotProduct(from, axis) < 0 ? Math.PI : 0;
+            }
+            else
+            {
+                rotAxis.Normalize();
+                angle = Math.Acos(Math.Max(-1, Math.Min(1, Vector3D.DotProduct(from, axis))));
+            }
+
+            const int seg = 28;
+            var pts = new System.Text.StringBuilder();
+            for (int i = 0; i < seg; i++)
+            {
+                double a = 2 * Math.PI * i / seg;
+                double c = Math.Cos(a), s = Math.Sin(a);
+                pts.Append($"{(outerR * c).ToString("0.###", n)} {(outerR * s).ToString("0.###", n)} {halfW.ToString("0.###", n)} ");
+                pts.Append($"{(outerR * c).ToString("0.###", n)} {(outerR * s).ToString("0.###", n)} {(-halfW).ToString("0.###", n)} ");
+                pts.Append($"{(innerR * c).ToString("0.###", n)} {(innerR * s).ToString("0.###", n)} {halfW.ToString("0.###", n)} ");
+                pts.Append($"{(innerR * c).ToString("0.###", n)} {(innerR * s).ToString("0.###", n)} {(-halfW).ToString("0.###", n)} ");
+            }
+
+            var idx = new System.Text.StringBuilder();
+            for (int i = 0; i < seg; i++)
+            {
+                int j = (i + 1) % seg;
+                int io = i * 4, jo = j * 4;
+                // vorne
+                idx.Append($"{io} {jo} {jo + 2} {io + 2} -1 ");
+                // hinten
+                idx.Append($"{io + 1} {io + 3} {jo + 3} {jo + 1} -1 ");
+                // außen
+                idx.Append($"{io} {io + 1} {jo + 1} {jo} -1 ");
+                // innen (Loch)
+                idx.Append($"{io + 2} {jo + 2} {jo + 3} {io + 3} -1 ");
+            }
+
+            sb.AppendLine($"  Transform {{ translation {center.X.ToString("0.###", n)} {center.Y.ToString("0.###", n)} {center.Z.ToString("0.###", n)}");
+            sb.AppendLine($"    rotation {rotAxis.X.ToString("0.####", n)} {rotAxis.Y.ToString("0.####", n)} {rotAxis.Z.ToString("0.####", n)} {angle.ToString("0.####", n)}");
+            sb.AppendLine("    children [ Shape {");
+            sb.AppendLine($"      appearance Appearance {{ material Material {{ diffuseColor {color} }} }}");
+            sb.AppendLine("      geometry IndexedFaceSet { solid FALSE coord Coordinate { point [");
+            sb.AppendLine("        " + pts);
+            sb.AppendLine("      ] } coordIndex [");
+            sb.AppendLine("        " + idx);
+            sb.AppendLine("      ] }");
+            sb.AppendLine("    } ] }");
+        }
 
 
 
@@ -14209,6 +14453,215 @@ namespace PlastiCAD
 
 
 
+        private Point3D GetPlateWorldCenter(PlacedPart placed, Point3D baseCenter)
+        {
+            double h = (Grider.CellSize / 2.0) / 100.0;
+            switch (placed.PlateOrientation % 3)
+            {
+                case 1: return new Point3D(baseCenter.X + h, baseCenter.Y, baseCenter.Z + h);
+                case 2: return new Point3D(baseCenter.X, baseCenter.Y - h, baseCenter.Z + h);
+                default: return new Point3D(baseCenter.X + h, baseCenter.Y - h, baseCenter.Z);
+            }
+        }
+
+        private void GetPlateWorldSize(PlacedPart placed, Plate plate, out double sx, out double sy, out double sz)
+        {
+            double w = plate.Width / 100.0;
+            double h = plate.Height / 100.0;
+            double t = plate.Thickness / 100.0;
+            switch (placed.PlateOrientation % 3)
+            {
+                case 1: sx = w; sy = t; sz = h; break;
+                case 2: sx = t; sy = w; sz = h; break;
+                default: sx = w; sy = h; sz = t; break;
+            }
+        }
+
+        private void AppendVrmlSphere(System.Text.StringBuilder sb, Point3D c, double r, string color)
+        {
+            var n = System.Globalization.CultureInfo.InvariantCulture;
+            sb.AppendLine($"  Transform {{ translation {c.X.ToString("0.###", n)} {c.Y.ToString("0.###", n)} {c.Z.ToString("0.###", n)}");
+            sb.AppendLine("    children [ Shape {");
+            sb.AppendLine($"      appearance Appearance {{ material Material {{ diffuseColor {color} }} }}");
+            sb.AppendLine($"      geometry Sphere {{ radius {r.ToString("0.###", n)} }}");
+            sb.AppendLine("    } ] }");
+        }
+
+        private void AppendVrmlBox(System.Text.StringBuilder sb, Point3D c, double sx, double sy, double sz, string color)
+        {
+            var n = System.Globalization.CultureInfo.InvariantCulture;
+            sb.AppendLine($"  Transform {{ translation {c.X.ToString("0.###", n)} {c.Y.ToString("0.###", n)} {c.Z.ToString("0.###", n)}");
+            sb.AppendLine("    children [ Shape {");
+            sb.AppendLine($"      appearance Appearance {{ material Material {{ diffuseColor {color} }} }}");
+            sb.AppendLine($"      geometry Box {{ size {sx.ToString("0.###", n)} {sy.ToString("0.###", n)} {sz.ToString("0.###", n)} }}");
+            sb.AppendLine("    } ] }");
+        }
+
+        private void AppendVrmlCylinder(
+            System.Text.StringBuilder sb,
+            Point3D start,
+            Point3D end,
+            double radius,
+            string color)
+        {
+            var n = System.Globalization.CultureInfo.InvariantCulture;
+            Vector3D dir = end - start;
+            double height = dir.Length;
+            if (height < 0.0001)
+                return;
+            dir.Normalize();
+
+            Point3D mid = new Point3D(
+                (start.X + end.X) / 2.0,
+                (start.Y + end.Y) / 2.0,
+                (start.Z + end.Z) / 2.0);
+
+            Vector3D from = new Vector3D(0, 1, 0);
+            Vector3D axis = Vector3D.CrossProduct(from, dir);
+            double angle;
+            if (axis.Length < 0.0001)
+            {
+                axis = new Vector3D(1, 0, 0);
+                angle = Vector3D.DotProduct(from, dir) < 0 ? Math.PI : 0;
+            }
+            else
+            {
+                axis.Normalize();
+                angle = Math.Acos(Math.Max(-1, Math.Min(1, Vector3D.DotProduct(from, dir))));
+            }
+
+            sb.AppendLine($"  Transform {{ translation {mid.X.ToString("0.###", n)} {mid.Y.ToString("0.###", n)} {mid.Z.ToString("0.###", n)}");
+            sb.AppendLine($"    rotation {axis.X.ToString("0.####", n)} {axis.Y.ToString("0.####", n)} {axis.Z.ToString("0.####", n)} {angle.ToString("0.####", n)}");
+            sb.AppendLine("    children [ Shape {");
+            sb.AppendLine($"      appearance Appearance {{ material Material {{ diffuseColor {color} }} }}");
+            sb.AppendLine($"      geometry Cylinder {{ radius {radius.ToString("0.###", n)} height {height.ToString("0.###", n)} }}");
+            sb.AppendLine("    } ] }");
+        }
+        private string VrmlColor(PlacedPart placed)
+        {
+            if (placed.Part is SlatPlate) return "0.96 0.75 0.14";
+            if (placed.Part is Plate) return "0.92 0.18 0.18";
+            if (placed.Part is Wheel || placed.Part is BigWheel) return "0.12 0.12 0.12";
+            return "0.14 0.55 0.76";
+        }
+
+        private string VrmlGeometry(PlacedPart placed)
+        {
+            var n = System.Globalization.CultureInfo.InvariantCulture;
+            double cell = Grider.CellSize / 100.0;
+
+            switch (placed.Part)
+            {
+                case SlatPlate slat:
+                    return $"Box {{ size {(slat.Width / 100.0).ToString("0.###", n)} {(slat.Thickness / 100.0).ToString("0.###", n)} {(slat.Height / 100.0).ToString("0.###", n)} }}";
+
+                case Plate plate:
+                    return $"Box {{ size {(plate.Width / 100.0).ToString("0.###", n)} {(plate.Thickness / 100.0).ToString("0.###", n)} {(plate.Height / 100.0).ToString("0.###", n)} }}";
+
+                case Wheel wheel:
+                    return $"Cylinder {{ radius {(wheel.OuterDiameter / 200.0).ToString("0.###", n)} height {(Math.Max(wheel.Width, 8) / 100.0).ToString("0.###", n)} }}";
+
+                case BigWheel big:
+                    return $"Cylinder {{ radius {(big.OuterDiameter / 200.0).ToString("0.###", n)} height {(Math.Max(big.Width, 10) / 100.0).ToString("0.###", n)} }}";
+
+                case StructuralPart pipe:
+                    return $"Cylinder {{ radius {(pipe.OuterDiameter / 200.0).ToString("0.###", n)} height {(pipe.Length / 100.0).ToString("0.###", n)} }}";
+
+                default:
+                    return $"Box {{ size {cell.ToString("0.###", n)} {cell.ToString("0.###", n)} {cell.ToString("0.###", n)} }}";
+            }
+        }
+
+
+
+
+        private void AppendVrmlBox(
+            System.Text.StringBuilder sb,
+            Point3D c, double sx, double sy, double sz,
+            string color,
+            double transparency = 0)
+        {
+            var n = System.Globalization.CultureInfo.InvariantCulture;
+            sb.AppendLine($"  Transform {{ translation {c.X.ToString("0.###", n)} {c.Y.ToString("0.###", n)} {c.Z.ToString("0.###", n)}");
+            sb.AppendLine("    children [ Shape {");
+            sb.AppendLine("      appearance Appearance { material Material {");
+            sb.AppendLine($"        diffuseColor {color}");
+            if (transparency > 0)
+                sb.AppendLine($"        transparency {transparency.ToString("0.##", n)}");
+            sb.AppendLine("      } }");
+            sb.AppendLine($"      geometry Box {{ size {sx.ToString("0.###", n)} {sy.ToString("0.###", n)} {sz.ToString("0.###", n)} }}");
+            sb.AppendLine("    } ] }");
+        }
+
+
+
+        private void AppendX3dRing(
+    System.Text.StringBuilder sb,
+    Point3D center,
+    Vector3D axis,
+    double outerR,
+    double innerR,
+    double halfW,
+    string color)
+        {
+            var n = System.Globalization.CultureInfo.InvariantCulture;
+            if (axis.Length < 0.0001)
+                return;
+            axis.Normalize();
+
+            Vector3D from = new Vector3D(0, 0, 1);
+            Vector3D rotAxis = Vector3D.CrossProduct(from, axis);
+            double angle;
+            if (rotAxis.Length < 0.0001)
+            {
+                rotAxis = new Vector3D(1, 0, 0);
+                angle = Vector3D.DotProduct(from, axis) < 0 ? Math.PI : 0;
+            }
+            else
+            {
+                rotAxis.Normalize();
+                angle = Math.Acos(Math.Max(-1, Math.Min(1, Vector3D.DotProduct(from, axis))));
+            }
+
+            const int seg = 28;
+            var pts = new System.Text.StringBuilder();
+            var idx = new System.Text.StringBuilder();
+
+            for (int i = 0; i < seg; i++)
+            {
+                double a = 2.0 * Math.PI * i / seg;
+                double c = Math.Cos(a);
+                double s = Math.Sin(a);
+
+                pts.Append($"{(outerR * c).ToString("0.###", n)} {(outerR * s).ToString("0.###", n)} {halfW.ToString("0.###", n)} ");
+                pts.Append($"{(outerR * c).ToString("0.###", n)} {(outerR * s).ToString("0.###", n)} {(-halfW).ToString("0.###", n)} ");
+                pts.Append($"{(innerR * c).ToString("0.###", n)} {(innerR * s).ToString("0.###", n)} {halfW.ToString("0.###", n)} ");
+                pts.Append($"{(innerR * c).ToString("0.###", n)} {(innerR * s).ToString("0.###", n)} {(-halfW).ToString("0.###", n)} ");
+            }
+
+            for (int i = 0; i < seg; i++)
+            {
+                int j = (i + 1) % seg;
+                int io = i * 4;
+                int jo = j * 4;
+
+                idx.Append($"{io} {jo} {jo + 2} {io + 2} -1 ");
+                idx.Append($"{io + 1} {io + 3} {jo + 3} {jo + 1} -1 ");
+                idx.Append($"{io} {io + 1} {jo + 1} {jo} -1 ");
+                idx.Append($"{io + 2} {jo + 2} {jo + 3} {io + 3} -1 ");
+            }
+
+            sb.AppendLine(
+                $"<Transform translation='{center.X.ToString("0.###", n)} {center.Y.ToString("0.###", n)} {center.Z.ToString("0.###", n)}' " +
+                $"rotation='{rotAxis.X.ToString("0.####", n)} {rotAxis.Y.ToString("0.####", n)} {rotAxis.Z.ToString("0.####", n)} {angle.ToString("0.####", n)}'>");
+            sb.AppendLine("  <Shape>");
+            sb.AppendLine($"    <Appearance><Material diffuseColor='{color}'/></Appearance>");
+            sb.AppendLine($"    <IndexedFaceSet solid='false' coordIndex='{idx.ToString().Trim()}'>");
+            sb.AppendLine($"      <Coordinate point='{pts.ToString().Trim()}'/>");
+            sb.AppendLine("    </IndexedFaceSet>");
+            sb.AppendLine("  </Shape>");
+            sb.AppendLine("</Transform>");
+        }
 
 
 

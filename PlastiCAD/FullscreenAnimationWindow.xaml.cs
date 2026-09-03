@@ -19,7 +19,8 @@ namespace PlastiCAD
         private Vector3D orbitUp = new Vector3D(0, 1, 0);
         private char orbitAxis = 'Y';
         private const double OrbitSpeedDegrees = 0.37;
-
+        private bool isMouseOrbiting;
+        private Point lastMouse;
         public FullscreenAnimationWindow()
         {
             InitializeComponent();
@@ -177,7 +178,76 @@ namespace PlastiCAD
 
         private void Window_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            Stop();
+            isMouseOrbiting = true;
+            lastMouse = e.GetPosition(this);
+            CaptureMouse();
+        }
+
+        private void Window_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            isMouseOrbiting = false;
+            ReleaseMouseCapture();
+        }
+
+        private void Window_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!isMouseOrbiting)
+                return;
+
+            Point now = e.GetPosition(this);
+            double dx = now.X - lastMouse.X;
+            double dy = now.Y - lastMouse.Y;
+            lastMouse = now;
+
+            double w = Math.Max(ActualWidth, 1);
+            double h = Math.Max(ActualHeight, 1);
+
+            double degA = 500.0 / w * dx;
+            double degB = 500.0 / h * dy;
+
+            char axisA;
+            char axisB;
+
+            switch (orbitAxis)
+            {
+                case 'X':
+                    axisA = 'Y';
+                    axisB = 'Z';
+                    break;
+                case 'Y':
+                    axisA = 'X';
+                    axisB = 'Z';
+                    break;
+                default:
+                    axisA = 'X';
+                    axisB = 'Y';
+                    break;
+            }
+
+            ApplyOrbitRotation(axisA, degA);
+            ApplyOrbitRotation(axisB, degB);
+            ApplyCamera();
+        }
+
+        private void ApplyOrbitRotation(char axis, double degrees)
+        {
+            if (Math.Abs(degrees) < 0.0001)
+                return;
+
+            Vector3D dir = axis switch
+            {
+                'X' => new Vector3D(1, 0, 0),
+                'Z' => new Vector3D(0, 0, 1),
+                _ => new Vector3D(0, 1, 0)
+            };
+
+            RotateTransform3D rotation = new RotateTransform3D(
+                new AxisAngleRotation3D(dir, degrees));
+
+            orbitOffset = rotation.Transform(orbitOffset);
+            orbitUp = rotation.Transform(orbitUp);
+            if (orbitUp.Length > 0)
+                orbitUp.Normalize();
         }
 
         protected override void OnClosed(EventArgs e)

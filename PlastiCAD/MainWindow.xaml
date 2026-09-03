@@ -227,6 +227,10 @@
                 <MenuItem Header="Speichern _unter..."
                           InputGestureText="Strg+Umschalt+S"
                           Click="MenuSaveAs_Click"/>
+
+                <MenuItem Header="Export VRML…" Click="MenuExportVrml_Click"/>
+                <MenuItem Header="Export X3D…" Click="MenuExportX3d_Click"/>
+
                 <MenuItem Header="_Neu"
                           InputGestureText="Strg+N"
                           Click="MenuNew_Click"/>
