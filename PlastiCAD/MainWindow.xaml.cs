@@ -14084,10 +14084,63 @@ namespace PlastiCAD
                 return;
 
             Vector3 pivot = GetRotationPivot(selectedParts);
-            Point3D origin = new Point3D(
+            Point3D partWorld = new Point3D(
                 (pivot.X + Grider.CellSize / 2.0) / 100.0,
                 -(pivot.Y + Grider.CellSize / 2.0) / 100.0,
                 pivot.Z / 100.0);
+
+            Vector3D toCamera = WorldCamera.Position - partWorld;
+            double grid = Grider.StepSize;
+
+            Vector3 best = pivot;
+            bool found = false;
+            double bestScore = double.MaxValue;
+
+            for (int radius = 1; radius <= 8 && !found; radius++)
+            {
+                for (int dx = -radius; dx <= radius; dx++)
+                    for (int dy = -radius; dy <= radius; dy++)
+                        for (int dz = -radius; dz <= radius; dz++)
+                        {
+                            if (Math.Max(Math.Max(Math.Abs(dx), Math.Abs(dy)), Math.Abs(dz)) != radius)
+                                continue;
+
+                            Vector3 cand = new Vector3(
+                                pivot.X + dx * grid,
+                                pivot.Y + dy * grid,
+                                pivot.Z + dz * grid);
+
+                            if (IsPositionOccupied(
+                                    cand.X * Scale,
+                                    cand.Y * Scale,
+                                    cand.Z,
+                                    selectedParts[0].Part,
+                                    selectedParts))
+                                continue;
+
+                            Point3D world = new Point3D(
+                                (cand.X + Grider.CellSize / 2.0) / 100.0,
+                                -(cand.Y + Grider.CellSize / 2.0) / 100.0,
+                                cand.Z / 100.0);
+
+                            Vector3D toCell = world - partWorld;
+                            if (Vector3D.DotProduct(toCell, toCamera) <= 0)
+                                continue;   // hinter dem Teil / von der Kamera weg
+
+                            double score = (WorldCamera.Position - world).Length;
+                            if (score < bestScore)
+                            {
+                                bestScore = score;
+                                best = cand;
+                                found = true;
+                            }
+                        }
+            }
+
+            Point3D origin = new Point3D(
+                (best.X + Grider.CellSize / 2.0) / 100.0,
+                -(best.Y + Grider.CellSize / 2.0) / 100.0,
+                best.Z / 100.0);
 
             Model3DGroup group = new Model3DGroup();
             AddGizmoArrow(group, origin, new Vector3D(1, 0, 0), GizmoXBrush, 'X');
