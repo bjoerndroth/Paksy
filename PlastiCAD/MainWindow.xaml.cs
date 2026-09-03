@@ -13964,7 +13964,7 @@ namespace PlastiCAD
 
             // 45° FOV im Vollbildfenster, Modell so groß wie möglich
             double fov = 45.0 * Math.PI / 180.0;
-            distance = radius / Math.Tan(fov / 2.0) * 1.05;
+            distance = radius / Math.Tan(fov / 2.0) * 1.505;
             height = radius * 0.12;
         }
         private void StopFullscreenAnimation()
