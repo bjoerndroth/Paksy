@@ -416,7 +416,7 @@ namespace PlastiCAD
             sb.AppendLine("<Scene>");
             sb.AppendLine("<WorldInfo title=\"PlastiCAD\"/>");
             sb.AppendLine("<Background skyColor=\"0.85 0.85 0.85\"/>");
-            sb.AppendLine("<NavigationInfo type='\"EXAMINE\" \"WALK\"' headlight=\"true\"/>");
+            sb.AppendLine("<Viewpoint description='PlastiCAD' position='4.5 0 6.5' orientation='0 1 0 0.4'/>");
 
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
