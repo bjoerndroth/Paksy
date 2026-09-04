@@ -418,6 +418,29 @@ namespace PlastiCAD
             sb.AppendLine("<Background skyColor=\"0.85 0.85 0.85\"/>");
             sb.AppendLine("<Viewpoint description='PlastiCAD' position='4.5 0 6.5' orientation='0 1 0 0.4'/>");
 
+
+            double minX = double.MaxValue, minY = double.MaxValue, minZ = double.MaxValue;
+            double maxX = double.MinValue, maxY = double.MinValue, maxZ = double.MinValue;
+
+            foreach (PlacedPart placed in assembly.PlacedParts)
+            {
+                double px = (placed.Transform.Position.X / Scale + Grider.CellSize / 2.0) / 100.0;
+                double py = -(placed.Transform.Position.Y / Scale + Grider.CellSize / 2.0) / 100.0;
+                double pz = placed.Transform.Position.Z / 100.0;
+
+                minX = Math.Min(minX, px); maxX = Math.Max(maxX, px);
+                minY = Math.Min(minY, py); maxY = Math.Max(maxY, py);
+                minZ = Math.Min(minZ, pz); maxZ = Math.Max(maxZ, pz);
+            }
+
+            double cx = (minX + maxX) / 2.0;
+            double cy = (minY + maxY) / 2.0;
+            double cz = (minZ + maxZ) / 2.0;
+
+            sb.AppendLine(
+                $"<Transform translation='{(-cx).ToString("0.###", n)} {(-cy).ToString("0.###", n)} {(-cz).ToString("0.###", n)}'>");
+
+
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
                 double x = (placed.Transform.Position.X / Scale + Grider.CellSize / 2.0) / 100.0;
@@ -559,7 +582,7 @@ namespace PlastiCAD
                 double cell = Grider.CellSize / 100.0;
                 AppendX3dBox(sb, center, cell, cell, cell, color);
             }
-
+            sb.AppendLine("</Transform>");
             sb.AppendLine("</Scene>");
             sb.AppendLine("</X3D>");
             return sb.ToString();
