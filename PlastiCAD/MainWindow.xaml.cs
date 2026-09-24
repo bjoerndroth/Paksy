@@ -6681,10 +6681,32 @@ namespace PlastiCAD
 
             if (e.Key == Key.Escape)
             {
-                selectedPart = null;
-                //  PartsList.SelectedIndex = -1;
+                // Socket-Auswahl abbrechen, falls aktiv
+                if (socketTargetPart != null)
+                {
+                    CancelSocketSelection();
+                    e.Handled = true;
+                    return;
+                }
 
+                // Werkzeug-Auswahl zurücksetzen
+                selectedPart = null;
                 selectedParts.Clear();
+
+                // Rahmen um den Toolbox-Button entfernen
+                if (selectedPartToolButton != null)
+                {
+                    selectedPartToolButton.Background =
+                        new SolidColorBrush(Color.FromRgb(244, 244, 244));
+
+                    selectedPartToolButton.BorderBrush =
+                        new SolidColorBrush(Color.FromRgb(181, 181, 181));
+
+                    selectedPartToolButton.BorderThickness =
+                        new Thickness(1);
+
+                    selectedPartToolButton = null;
+                }
 
                 StatusText.Text = "Auswahlmodus";
                 RedrawScene();
@@ -6692,7 +6714,6 @@ namespace PlastiCAD
                 e.Handled = true;
                 return;
             }
-
 
 
             if (e.Key == Key.Delete)

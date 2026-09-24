@@ -416,8 +416,6 @@ namespace PlastiCAD
             sb.AppendLine("<Scene>");
             sb.AppendLine("<WorldInfo title=\"PlastiCAD\"/>");
             sb.AppendLine("<Background skyColor=\"0.85 0.85 0.85\"/>");
-            sb.AppendLine("<Viewpoint description='PlastiCAD' position='4.5 0 6.5' orientation='0 1 0 0.4'/>");
-
 
             double minX = double.MaxValue, minY = double.MaxValue, minZ = double.MaxValue;
             double maxX = double.MinValue, maxY = double.MinValue, maxZ = double.MinValue;
@@ -427,7 +425,6 @@ namespace PlastiCAD
                 double px = (placed.Transform.Position.X / Scale + Grider.CellSize / 2.0) / 100.0;
                 double py = -(placed.Transform.Position.Y / Scale + Grider.CellSize / 2.0) / 100.0;
                 double pz = placed.Transform.Position.Z / 100.0;
-
                 minX = Math.Min(minX, px); maxX = Math.Max(maxX, px);
                 minY = Math.Min(minY, py); maxY = Math.Max(maxY, py);
                 minZ = Math.Min(minZ, pz); maxZ = Math.Max(maxZ, pz);
@@ -437,9 +434,9 @@ namespace PlastiCAD
             double cy = (minY + maxY) / 2.0;
             double cz = (minZ + maxZ) / 2.0;
 
+            sb.AppendLine("<Viewpoint description='PlastiCAD' position='0 0.4 2.8' orientation='0 1 0 0'/>");
             sb.AppendLine(
                 $"<Transform translation='{(-cx).ToString("0.###", n)} {(-cy).ToString("0.###", n)} {(-cz).ToString("0.###", n)}'>");
-
 
             foreach (PlacedPart placed in assembly.PlacedParts)
             {
@@ -448,6 +445,48 @@ namespace PlastiCAD
                 double z = placed.Transform.Position.Z / 100.0;
                 Point3D center = new Point3D(x, y, z);
                 string color = VrmlColor(placed);
+
+                if (placed.Part is BallConnector ball)
+                {
+                    double br = ball.Diameter / 200.0;
+                    double hr = ball.HoleDiameter / 200.0;
+                    AppendX3dSphere(sb, center, br, color);
+                    Vector3D[] ballAxes =
+                    {
+                new Vector3D(1, 0, 0), new Vector3D(-1, 0, 0),
+                new Vector3D(0, 1, 0), new Vector3D(0, -1, 0),
+                new Vector3D(0, 0, 1), new Vector3D(0, 0, -1)
+            };
+                    foreach (Vector3D ax in ballAxes)
+                    {
+                        AppendX3dCylinder(sb,
+                            new Point3D(center.X - ax.X * br, center.Y - ax.Y * br, center.Z - ax.Z * br),
+                            new Point3D(center.X + ax.X * br, center.Y + ax.Y * br, center.Z + ax.Z * br),
+                            hr, "0.08 0.12 0.16");
+                    }
+                    continue;
+                }
+
+                if (placed.Part is Cube cube)
+                {
+                    double s = cube.Size / 100.0;
+                    double hr = cube.HoleDiameter / 200.0;
+                    AppendX3dBox(sb, center, s, s, s, color);
+                    Vector3D[] cubeAxes =
+                    {
+                new Vector3D(1, 0, 0), new Vector3D(-1, 0, 0),
+                new Vector3D(0, 1, 0), new Vector3D(0, -1, 0),
+                new Vector3D(0, 0, 1), new Vector3D(0, 0, -1)
+            };
+                    foreach (Vector3D ax in cubeAxes)
+                    {
+                        AppendX3dCylinder(sb,
+                            new Point3D(center.X - ax.X * s * 0.55, center.Y - ax.Y * s * 0.55, center.Z - ax.Z * s * 0.55),
+                            new Point3D(center.X + ax.X * s * 0.55, center.Y + ax.Y * s * 0.55, center.Z + ax.Z * s * 0.55),
+                            hr, "0.08 0.12 0.16");
+                    }
+                    continue;
+                }
 
                 if (placed.Part is StructuralPart part)
                 {
@@ -475,7 +514,42 @@ namespace PlastiCAD
 
                         AppendX3dCylinder(sb, center, end, radius, color);
                     }
+                    continue;
+                }
 
+                if (placed.Part is SlatPlate slat)
+                {
+                    GetSlatAxes(placed, out Vector3D across, out Vector3D stack, out Vector3D thick);
+                    Point3D origin = GetPlateWorldCenter(placed, center);
+                    double w = slat.Width / 100.0;
+                    double t = slat.Thickness / 100.0;
+                    double gR = slat.GutterDiameter / 200.0;
+                    double[] slats = slat.GetSlatWidths();
+                    double totalMm = slat.OuterSlatWidth * 2 + slat.InnerSlatWidth * 2 + slat.GapWidth * 3;
+                    double cursor = -totalMm / 2.0;
+
+                    foreach (double slatMm in slats)
+                    {
+                        double slatH = slatMm / 100.0;
+                        Point3D sc = origin + stack * ((cursor + slatMm / 2.0) / 100.0);
+                        AppendX3dBox(sb, sc,
+                            Math.Abs(across.X) * w + Math.Abs(stack.X) * slatH + Math.Abs(thick.X) * t,
+                            Math.Abs(across.Y) * w + Math.Abs(stack.Y) * slatH + Math.Abs(thick.Y) * t,
+                            Math.Abs(across.Z) * w + Math.Abs(stack.Z) * slatH + Math.Abs(thick.Z) * t,
+                            "0.96 0.75 0.14");
+                        cursor += slatMm + slat.GapWidth;
+                    }
+
+                    double axisOffset = w / 2.0 + gR;
+                    for (int side = -1; side <= 1; side += 2)
+                    {
+                        Vector3D outward = across * side;
+                        Point3D gc = origin + outward * axisOffset;
+                        AppendX3dCylinder(sb,
+                            gc - stack * (totalMm / 200.0),
+                            gc + stack * (totalMm / 200.0),
+                            gR, "0.96 0.75 0.14");
+                    }
                     continue;
                 }
 
@@ -499,14 +573,15 @@ namespace PlastiCAD
                     Vector3 capDir = GetDirectionFromFace(capFace);
                     capDir = placed.Transform.ApplyRotation(capDir);
                     double half = cap.Length / 200.0;
-                    double armEnd = (Grider.CellSize / 2.0) / 100.0;
+                    double armEndCap = (Grider.CellSize / 2.0) / 100.0;
                     Point3D capCenter = new Point3D(
-                        center.X + capDir.X * armEnd,
-                        center.Y - capDir.Y * armEnd,
-                        center.Z + capDir.Z * armEnd);
-                    Point3D a = new Point3D(capCenter.X - capDir.X * half, capCenter.Y + capDir.Y * half, capCenter.Z - capDir.Z * half);
-                    Point3D b = new Point3D(capCenter.X + capDir.X * half, capCenter.Y - capDir.Y * half, capCenter.Z + capDir.Z * half);
-                    AppendX3dCylinder(sb, a, b, cap.OuterDiameter / 200.0, color);
+                        center.X + capDir.X * armEndCap,
+                        center.Y - capDir.Y * armEndCap,
+                        center.Z + capDir.Z * armEndCap);
+                    AppendX3dCylinder(sb,
+                        new Point3D(capCenter.X - capDir.X * half, capCenter.Y + capDir.Y * half, capCenter.Z - capDir.Z * half),
+                        new Point3D(capCenter.X + capDir.X * half, capCenter.Y - capDir.Y * half, capCenter.Z + capDir.Z * half),
+                        cap.OuterDiameter / 200.0, color);
                     continue;
                 }
 
@@ -519,6 +594,7 @@ namespace PlastiCAD
 
                     double armEnd = (Grider.CellSize / 2.0) / 100.0;
                     double outerR, rimR, holeR, tireHalf, rimHalf;
+                    int lugCount;
 
                     if (placed.Part is BigWheel big)
                     {
@@ -527,6 +603,7 @@ namespace PlastiCAD
                         holeR = big.HoleDiameter / 200.0;
                         tireHalf = big.TireWidth / 200.0;
                         rimHalf = Math.Max(big.RimBodyThickness / 200.0, tireHalf + 0.008);
+                        lugCount = 4;
                     }
                     else
                     {
@@ -536,6 +613,7 @@ namespace PlastiCAD
                         holeR = Math.Max(outerR * 0.12, 0.02);
                         tireHalf = wheel.Width / 200.0;
                         rimHalf = tireHalf + 0.008;
+                        lugCount = 5;
                     }
 
                     double dist = armEnd - tireHalf;
@@ -557,9 +635,9 @@ namespace PlastiCAD
 
                     double holeDist = (rimR + holeR) * 0.55;
                     double holeRad = Math.Max((rimR - holeR) * 0.18, 0.012);
-                    for (int i = 0; i < 4; i++)
+                    for (int i = 0; i < lugCount; i++)
                     {
-                        double ang = i * Math.PI / 2.0;
+                        double ang = i * (2.0 * Math.PI / lugCount);
                         Vector3D radial = side1 * Math.Cos(ang) + side2 * Math.Sin(ang);
                         Point3D hc = new Point3D(
                             wc.X + radial.X * holeDist,
@@ -582,14 +660,12 @@ namespace PlastiCAD
                 double cell = Grider.CellSize / 100.0;
                 AppendX3dBox(sb, center, cell, cell, cell, color);
             }
+
             sb.AppendLine("</Transform>");
             sb.AppendLine("</Scene>");
             sb.AppendLine("</X3D>");
             return sb.ToString();
         }
-
-
-
 
 
 
